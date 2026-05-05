@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --app-px: 1.5rem; 
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: 'Satoshi', sans-serif;
+}
+
+@layer components {
+  .layout-container {
+    @apply w-full max-w-7xl mx-auto;
+    padding-left: var(--app-px);
+    padding-right: var(--app-px);
+  }
+}
