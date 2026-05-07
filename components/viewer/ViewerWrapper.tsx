@@ -7,6 +7,6 @@ const OpenSeadragonViewer = dynamic(
   { ssr: false }
 )
 
-export default function ViewerWrapper({ dziUrl }: { dziUrl: string }) {
-  return <OpenSeadragonViewer dziUrl={dziUrl} />
+export default function ViewerWrapper({ dziUrl, loadingText }: { dziUrl: string; loadingText?: string }) {
+  return <OpenSeadragonViewer dziUrl={dziUrl} loadingText={loadingText} />
 }

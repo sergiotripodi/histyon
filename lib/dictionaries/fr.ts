@@ -54,7 +54,8 @@ export const fr = {
       docs: "Documentation",
       contact: "Contact",
       legal: "Mentions Légales"
-    }
+    },
+    header: { toConsole: "Retour à la Console" }
   },
   auth: {
     sidebar: {
@@ -135,8 +136,8 @@ export const fr = {
     }
   },
   dashboard: {
-    header: { console: "Console", unassigned: "Non assigné", logout: "Déconnexion" },
-    tabs: { patients: "Patients", analysis: "Analyses", profile: "Données Personnelles" },
+    header: { console: "Console", unassigned: "Non assigné", logout: "Déconnexion", role: "Médecin", assistance: "Assistance" },
+    tabs: { patients: "Patients", analysis: "Analyses", profile: "Données Personnelles", settings: "Paramètres" },
     titles: {
       main: "Console Médicale", patientRegistry: "Registre Patients", globalHistory: "Historique Global",
       uploadHistory: "Historique Téléversements", patientFolder: "Dossier Personnel"
@@ -147,6 +148,13 @@ export const fr = {
       modal: {
         title: "Registre Patient", subtitle: "Remplir les champs obligatoires (*)",
         btnSave: "Créer Dossier", btnSaving: "Enregistrement..."
+      },
+      delete: {
+        title: "Supprimer le Patient", subtitle: "Toutes les données seront effacées définitivement. Action irréversible.",
+        warningLabel: "Attention", warning: "Tous les fichiers d'analyse (scans, tuiles DZI, projets QuPath, masques de région) seront définitivement supprimés du stockage cloud.",
+        ticketCount: "analyses seront supprimées",
+        confirm: "Saisissez le code fiscal pour confirmer :", placeholder: "Code fiscal",
+        btnCancel: "Annuler", btnDelete: "Supprimer définitivement", btnDeleting: "Suppression..."
       }
     },
     tickets: {
@@ -176,7 +184,15 @@ export const fr = {
       queuedTitle: "En file d'attente", processingTitle: "Analyse en cours",
       queuedDesc: "Fichier sécurisé. En attente du moteur IA.",
       processingDesc: "Analyse des tissus et génération JSON.",
-      outputNotReady: "Sortie non prête."
+      outputNotReady: "Sortie non prête.",
+      interrupted: "Analyse interrompue",
+      reportReady: "Rapport disponible",
+      analyzing: "Analyse en cours",
+      openViewer: "Visionneuse",
+      downloadQupath: "QuPath",
+      downloadRegion: "Régions",
+      tissueStats: "Statistiques",
+      loadingTissues: "Chargement...", reportUnavailable: "Rapport non disponible"
     },
     results: {
       title: "Résultats Analyse IA", tissueView: "Visualisation Tissu",
@@ -195,7 +211,8 @@ export const fr = {
         residence: "Résidence",
         professional: "Données Professionnelles",
         email: "Email",
-        password: "Mot de Passe"
+        password: "Mot de Passe",
+        security: "Compte & Sécurité"
       },
       form: {
         updateBtn: "Enregistrer",
@@ -219,13 +236,14 @@ export const fr = {
       termsTitle: "Conditions Générales", termsSub: "Règlement d'utilisation",
       cookieTitle: "Politique Cookies", cookieSub: "Transparence traçage",
       dpaTitle: "Sécurité et DPA", dpaSub: "Annexe technique",
-      disclaimer: "ATTENTION - AVIS MÉDICAL :",
+      disclaimer: "Avertissement Médical",
       disclaimerText: "Histyon est un outil technique et ne remplace pas le jugement médical. L'IA doit être validée.",
       privacy: {
         sec1: { title: "1. Responsable", body: "Histyon Team est responsable des données de compte." },
         sec2: { title: "2. Données Collectées", body: "Données Pro et Données Santé Patients (chiffrées)." },
         sec3: { title: "3. Finalité", body: "Service SaaS, Support Diagnostic, Sécurité." },
-        sec4: { title: "4. Lieu", body: "Données hébergées dans l'EEE (Espace Économique Européen)." }
+        sec4: { title: "4. Lieu", body: "Données hébergées dans l'EEE (Espace Économique Européen)." },
+        sec5: { title: "5. Droit à l'Effacement (Art. 17 RGPD)", body: "Vous avez le droit à la suppression permanente des données patient et des fichiers d'analyse associés. La suppression peut être effectuée depuis le tableau de bord et est immédiate et irréversible." }
       },
       terms: {
         sec1: { title: "1. Prérequis", body: "Accès réservé aux professionnels médicaux enregistrés." },
@@ -268,6 +286,7 @@ export const fr = {
     fileNotFound: "Fichier introuvable.",
     fileRetrievalError: "Impossible de récupérer le fichier",
     credentialsInvalid: "Identifiants invalides",
-    linkSent: "Lien envoyé avec succès"
+    linkSent: "Lien envoyé avec succès",
+    deletePatientError: "Erreur lors de la suppression du patient."
   }
 }

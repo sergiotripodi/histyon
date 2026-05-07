@@ -42,4 +42,8 @@ export async function getDictionary(): Promise<Dictionary> {
   return dictionaries[locale] as unknown as Dictionary
 }
 
+export function getDictionaryForLocale(locale: Locale): Dictionary {
+  return (dictionaries[locale] ?? dictionaries[DEFAULT_LOCALE]) as unknown as Dictionary
+}
+
 export const dictionary = en;

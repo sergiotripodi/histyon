@@ -60,7 +60,8 @@ export const en = {
       docs: "Documentation",
       contact: "Contact Us",
       legal: "Legal Info"
-    }
+    },
+    header: { toConsole: "Back to Console" }
   },
   auth: {
     sidebar: {
@@ -141,8 +142,8 @@ export const en = {
     }
   },
   dashboard: {
-    header: { console: "Console", unassigned: "Unassigned", logout: "Logout" },
-    tabs: { patients: "Patients", analysis: "Analysis", profile: "Registry Data" },
+    header: { console: "Console", unassigned: "Unassigned", logout: "Logout", role: "Doctor", assistance: "Support" },
+    tabs: { patients: "Patients", analysis: "Analysis", profile: "Registry Data", settings: "Settings" },
     titles: {
       main: "Medical Console", patientRegistry: "Patient Registry", globalHistory: "Global Analysis History",
       uploadHistory: "Upload History", patientFolder: "Personal Folder"
@@ -153,6 +154,13 @@ export const en = {
       modal: {
         title: "Patient Registry", subtitle: "Fill in all mandatory fields (*)",
         btnSave: "Create Patient Folder", btnSaving: "Saving..."
+      },
+      delete: {
+        title: "Delete Patient", subtitle: "All data will be permanently erased. This cannot be undone.",
+        warningLabel: "Warning", warning: "All analysis files (scans, DZI tiles, QuPath projects, region masks) will be permanently deleted from cloud storage.",
+        ticketCount: "analyses will be deleted",
+        confirm: "Type the fiscal code to confirm:", placeholder: "Fiscal code",
+        btnCancel: "Cancel", btnDelete: "Delete Permanently", btnDeleting: "Deleting..."
       }
     },
     tickets: {
@@ -182,7 +190,15 @@ export const en = {
       queuedTitle: "Queued on Cloud", processingTitle: "Analysis in Progress",
       queuedDesc: "File is secure. Waiting for AI engine pickup.",
       processingDesc: "Analyzing tissues and generating JSON results.",
-      outputNotReady: "Output file not yet ready."
+      outputNotReady: "Output file not yet ready.",
+      interrupted: "Analysis Interrupted",
+      reportReady: "Report Available",
+      analyzing: "Analysis in progress",
+      openViewer: "Viewer",
+      downloadQupath: "QuPath",
+      downloadRegion: "Regions",
+      tissueStats: "Statistics",
+      loadingTissues: "Loading...", reportUnavailable: "Report Unavailable"
     },
     results: {
       title: "AI Analysis Results", tissueView: "Tissue Visualization",
@@ -201,7 +217,8 @@ export const en = {
         residence: "Residence",
         professional: "Professional Data",
         email: "Email Address",
-        password: "Password"
+        password: "Password",
+        security: "Account & Security"
       },
       form: {
         updateBtn: "Save Changes",
@@ -229,13 +246,14 @@ export const en = {
       cookieSub: "Tracking transparency",
       dpaTitle: "Data Processing & Security",
       dpaSub: "Technical appendix on data security",
-      disclaimer: "ATTENTION - MEDICAL DISCLAIMER:",
+      disclaimer: "Medical Disclaimer",
       disclaimerText: "Histyon is a technical support tool and does not replace professional medical judgment. AI analysis is probabilistic and must always be validated by a human pathologist.",
       privacy: {
         sec1: { title: "1. Data Controller", body: "The Data Controller for Doctor registration data is Histyon Team." },
         sec2: { title: "2. Collected Data", body: "Professional Data, Usage Data, and Patient Health Data (encrypted)." },
         sec3: { title: "3. Purpose", body: "SaaS Service delivery, Diagnostic Support, Security and Compliance." },
-        sec4: { title: "4. Location", body: "Data is hosted within the EEA (European Economic Area)." }
+        sec4: { title: "4. Location", body: "Data is hosted within the EEA (European Economic Area)." },
+        sec5: { title: "5. Right to Erasure (Art. 17 GDPR)", body: "You have the right to permanent deletion of patient data and all associated analysis files. Deletion can be performed at any time from the patient folder in the dashboard. The operation is immediate and irreversible: all scans, DZI tiles, QuPath projects and region masks are permanently removed from our cloud storage." }
       },
       terms: {
         sec1: { title: "1. Access Requirements", body: "Access is reserved for registered medical professionals." },
@@ -253,7 +271,7 @@ export const en = {
             access: { title: "Access Control", body: "Strict Row Level Security (RLS) policies." } 
         },
         sec1: { title: "1. Processor Appointment", body: "User appoints Histyon as Data Processor (Art. 28 GDPR)." },
-        sec2: { title: "2. Security Measures", body: "Defense in Depth approach: Authentication, Isolation, Backups, Audit Logs." }
+        sec2: { title: "2. Security Measures & Data Lifecycle", body: "Defense in Depth approach: Authentication, Isolation, Backups, Audit Logs. Patient data and all associated files can be permanently deleted by the data controller (Doctor) at any time from the dashboard, with immediate removal from all storage systems." }
       }
     }
   },
@@ -278,6 +296,7 @@ export const en = {
     fileNotFound: "File not found in storage.",
     fileRetrievalError: "Cannot retrieve file",
     credentialsInvalid: "Invalid credentials",
-    linkSent: "Link sent successfully"
+    linkSent: "Link sent successfully",
+    deletePatientError: "Failed to delete patient data."
   }
 }

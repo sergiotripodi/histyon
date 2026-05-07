@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { DashboardSidebar } from '@/components/layout/DashboardSidebar'
+import { IdleTimeout } from '@/components/auth/IdleTimeout'
+import { getDictionary } from '@/lib/dictionary'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -8,18 +10,19 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single()
+  const [profile, dict] = await Promise.all([
+    supabase.from('profiles').select('*').eq('id', user.id).single().then(r => r.data),
+    getDictionary(),
+  ])
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
+      <IdleTimeout />
       <DashboardSidebar
         profile={profile}
         userEmail={user.email}
         userMetadata={user.user_metadata}
+        dict={dict}
       />
       <main className="pl-[240px] min-h-screen">
         {children}

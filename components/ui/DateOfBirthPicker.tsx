@@ -80,7 +80,7 @@ export function DateOfBirthPicker({
     }
   };
 
-  const selectClass = "w-full px-4 py-3 bg-white border border-gray-200 rounded-xl appearance-none cursor-pointer focus:border-black focus:ring-4 focus:ring-gray-100 outline-none text-gray-900 transition-all font-medium";
+  const selectClass = "flex h-12 w-full rounded-none bg-white border border-gray-300 px-3 py-2 text-sm appearance-none cursor-pointer focus:outline-none focus:border-gray-900 text-gray-900 transition-all duration-200";
 
   return (
     <div className="grid grid-cols-3 gap-2">

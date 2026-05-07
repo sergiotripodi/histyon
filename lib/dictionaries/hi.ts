@@ -54,7 +54,8 @@ export const hi = {
       docs: "दस्तावेज़ीकरण",
       contact: "संपर्क",
       legal: "कानूनी जानकारी"
-    }
+    },
+    header: { toConsole: "कंसोल पर वापस जाएं" }
   },
   auth: {
     sidebar: {
@@ -135,8 +136,8 @@ export const hi = {
     }
   },
   dashboard: {
-    header: { console: "कंसोल", unassigned: "असाइन नहीं किया गया", logout: "लॉग आउट" },
-    tabs: { patients: "रोगी", analysis: "विश्लेषण", profile: "प्रोफ़ाइल" },
+    header: { console: "कंसोल", unassigned: "असाइन नहीं किया गया", logout: "लॉग आउट", role: "डॉक्टर", assistance: "सहायता" },
+    tabs: { patients: "रोगी", analysis: "विश्लेषण", profile: "प्रोफ़ाइल", settings: "सेटिंग्स" },
     titles: {
       main: "चिकित्सा कंसोल", patientRegistry: "रोगी रजिस्ट्री", globalHistory: "वैश्विक इतिहास",
       uploadHistory: "अपलोड इतिहास", patientFolder: "व्यक्तिगत फ़ोल्डर"
@@ -147,6 +148,13 @@ export const hi = {
       modal: {
         title: "रोगी पंजीकरण", subtitle: "अनिवार्य फ़ील्ड भरें (*)",
         btnSave: "फ़ोल्डर बनाएं", btnSaving: "सहेजा जा रहा है..."
+      },
+      delete: {
+        title: "मरीज़ हटाएं", subtitle: "सभी डेटा स्थायी रूप से हटा दिए जाएंगे। यह क्रिया अपरिवर्तनीय है।",
+        warningLabel: "चेतावनी", warning: "सभी विश्लेषण फ़ाइलें क्लाउड स्टोरेज से स्थायी रूप से हटा दी जाएंगी।",
+        ticketCount: "विश्लेषण हटाए जाएंगे",
+        confirm: "पुष्टि के लिए कोड दर्ज करें:", placeholder: "कर कोड",
+        btnCancel: "रद्द करें", btnDelete: "स्थायी रूप से हटाएं", btnDeleting: "हटाया जा रहा है..."
       }
     },
     tickets: {
@@ -176,7 +184,15 @@ export const hi = {
       queuedTitle: "कतार में", processingTitle: "विश्लेषण प्रगति पर",
       queuedDesc: "फ़ाइल सुरक्षित है। AI इंजन की प्रतीक्षा है।",
       processingDesc: "ऊतकों का विश्लेषण और JSON जनरेशन।",
-      outputNotReady: "आउटपुट तैयार नहीं।"
+      outputNotReady: "आउटपुट तैयार नहीं।",
+      interrupted: "विश्लेषण बाधित",
+      reportReady: "रिपोर्ट उपलब्ध",
+      analyzing: "विश्लेषण जारी",
+      openViewer: "व्यूअर",
+      downloadQupath: "QuPath",
+      downloadRegion: "क्षेत्र",
+      tissueStats: "आंकड़े",
+      reportUnavailable: "रिपोर्ट उपलब्ध नहीं"
     },
     results: {
       title: "AI विश्लेषण परिणाम", tissueView: "ऊतक दृश्य",
@@ -195,7 +211,8 @@ export const hi = {
         residence: "निवास",
         professional: "पेशेवर डेटा",
         email: "ईमेल",
-        password: "पासवर्ड"
+        password: "पासवर्ड",
+        security: "खाता और सुरक्षा"
       },
       form: {
         updateBtn: "परिवर्तन सहेजें",
@@ -219,13 +236,14 @@ export const hi = {
       termsTitle: "नियम और शर्तें", termsSub: "उपयोग के नियम",
       cookieTitle: "कुकी नीति", cookieSub: "ट्रैकिंग पारदर्शिता",
       dpaTitle: "सुरक्षा और DPA", dpaSub: "तकनीकी परिशिष्ट",
-      disclaimer: "ध्यान दें - चिकित्सा अस्वीकरण:",
+      disclaimer: "चिकित्सा अस्वीकरण",
       disclaimerText: "Histyon एक तकनीकी उपकरण है और चिकित्सा निर्णय की जगह नहीं लेता है। AI को मान्य किया जाना चाहिए।",
       privacy: {
         sec1: { title: "1. नियंत्रक", body: "Histyon Team खाता डेटा के लिए जिम्मेदार है।" },
         sec2: { title: "2. एकत्रित डेटा", body: "पेशेवर डेटा और रोगी स्वास्थ्य डेटा (एन्क्रिप्टेड)।" },
         sec3: { title: "3. उद्देश्य", body: "SaaS सेवा, निदान समर्थन, सुरक्षा।" },
-        sec4: { title: "4. स्थान", body: "डेटा EEA (यूरोपीय आर्थिक क्षेत्र) में है।" }
+        sec4: { title: "4. स्थान", body: "डेटा EEA (यूरोपीय आर्थिक क्षेत्र) में है।" },
+        sec5: { title: "5. मिटाने का अधिकार (GDPR अनुच्छेद 17)", body: "आपको मरीज़ों के डेटा और विश्लेषण फ़ाइलों को स्थायी रूप से हटाने का अधिकार है। हटाना तत्काल और अपरिवर्तनीय है।" }
       },
       terms: {
         sec1: { title: "1. आवश्यकताएँ", body: "पंजीकृत चिकित्सा पेशेवरों तक पहुँच सुरक्षित।" },
@@ -268,6 +286,7 @@ export const hi = {
     fileNotFound: "फ़ाइल नहीं मिली।",
     fileRetrievalError: "फ़ाइल पुनर्प्राप्त करने में असमर्थ",
     credentialsInvalid: "अमान्य क्रेडेंशियल",
-    linkSent: "लिंक सफलतापूर्वक भेजा गया"
+    linkSent: "लिंक सफलतापूर्वक भेजा गया",
+    deletePatientError: "मरीज़ का डेटा हटाने में त्रुटि।"
   }
 }

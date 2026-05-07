@@ -54,7 +54,8 @@ export const zh = {
       docs: "文档",
       contact: "联系我们",
       legal: "法律信息"
-    }
+    },
+    header: { toConsole: "返回控制台" }
   },
   auth: {
     sidebar: {
@@ -135,8 +136,8 @@ export const zh = {
     }
   },
   dashboard: {
-    header: { console: "控制台", unassigned: "未分配", logout: "登出" },
-    tabs: { patients: "患者", analysis: "分析", profile: "个人资料" },
+    header: { console: "控制台", unassigned: "未分配", logout: "登出", role: "医生", assistance: "支持" },
+    tabs: { patients: "患者", analysis: "分析", profile: "个人资料", settings: "设置" },
     titles: {
       main: "医疗控制台", patientRegistry: "患者登记", globalHistory: "全局历史",
       uploadHistory: "上传历史", patientFolder: "个人文件夹"
@@ -147,6 +148,13 @@ export const zh = {
       modal: {
         title: "登记患者", subtitle: "填写必填项 (*)",
         btnSave: "创建文件夹", btnSaving: "保存中..."
+      },
+      delete: {
+        title: "删除患者", subtitle: "所有数据将被永久删除，无法撤销。",
+        warningLabel: "警告", warning: "所有分析文件（扫描、DZI瓦片、QuPath项目、区域蒙版）将从云存储中永久删除。",
+        ticketCount: "项分析将被删除",
+        confirm: "输入税务代码以确认：", placeholder: "税务代码",
+        btnCancel: "取消", btnDelete: "永久删除", btnDeleting: "删除中..."
       }
     },
     tickets: {
@@ -176,7 +184,15 @@ export const zh = {
       queuedTitle: "排队中", processingTitle: "正在分析",
       queuedDesc: "文件安全。等待 AI 引擎。",
       processingDesc: "正在分析组织并生成 JSON。",
-      outputNotReady: "输出未就绪。"
+      outputNotReady: "输出未就绪。",
+      interrupted: "分析中断",
+      reportReady: "报告可用",
+      analyzing: "分析中",
+      openViewer: "查看器",
+      downloadQupath: "QuPath",
+      downloadRegion: "区域",
+      tissueStats: "统计",
+      loadingTissues: "加载中...", reportUnavailable: "报告不可用"
     },
     results: {
       title: "AI 分析结果", tissueView: "组织可视化",
@@ -195,7 +211,8 @@ export const zh = {
         residence: "居住地",
         professional: "职业数据",
         email: "邮箱",
-        password: "密码"
+        password: "密码",
+        security: "账户与安全"
       },
       form: {
         updateBtn: "保存更改",
@@ -219,13 +236,14 @@ export const zh = {
       termsTitle: "条款与条件", termsSub: "使用规则",
       cookieTitle: "Cookie 政策", cookieSub: "追踪透明度",
       dpaTitle: "安全与 DPA", dpaSub: "技术附录",
-      disclaimer: "注意 - 医疗免责声明：",
+      disclaimer: "医疗免责声明",
       disclaimerText: "Histyon 是技术工具，不替代医疗判断。AI 必须经过验证。",
       privacy: {
         sec1: { title: "1. 控制者", body: "Histyon Team 负责账户数据。" },
         sec2: { title: "2. 收集的数据", body: "职业数据和患者健康数据 (加密)。" },
         sec3: { title: "3. 目的", body: "SaaS 服务, 诊断支持, 安全。" },
-        sec4: { title: "4. 地点", body: "数据位于欧洲经济区 (EEA)。" }
+        sec4: { title: "4. 地点", body: "数据位于欧洲经济区 (EEA)。" },
+        sec5: { title: "5. 删除权 (GDPR 第17条)", body: "您有权永久删除患者数据及所有相关分析文件。可随时从仪表板执行删除操作，立即生效且不可撤销。" }
       },
       terms: {
         sec1: { title: "1. 要求", body: "仅限注册医疗专业人员访问。" },
@@ -268,6 +286,7 @@ export const zh = {
     fileNotFound: "文件未找到。",
     fileRetrievalError: "无法检索文件",
     credentialsInvalid: "凭证无效",
-    linkSent: "链接发送成功"
+    linkSent: "链接发送成功",
+    deletePatientError: "删除患者数据失败。"
   }
 }

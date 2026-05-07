@@ -54,7 +54,8 @@ export const de = {
       docs: "Dokumentation",
       contact: "Kontakt",
       legal: "Rechtliche Hinweise"
-    }
+    },
+    header: { toConsole: "Zur Konsole" }
   },
   auth: {
     sidebar: {
@@ -135,8 +136,8 @@ export const de = {
     }
   },
   dashboard: {
-    header: { console: "Konsole", unassigned: "Nicht zugewiesen", logout: "Abmelden" },
-    tabs: { patients: "Patienten", analysis: "Analysen", profile: "Stammdaten" },
+    header: { console: "Konsole", unassigned: "Nicht zugewiesen", logout: "Abmelden", role: "Arzt", assistance: "Support" },
+    tabs: { patients: "Patienten", analysis: "Analysen", profile: "Stammdaten", settings: "Einstellungen" },
     titles: {
       main: "Medizinische Konsole", patientRegistry: "Patientenregister", globalHistory: "Verlauf",
       uploadHistory: "Upload-Verlauf", patientFolder: "Persönliche Akte"
@@ -147,6 +148,13 @@ export const de = {
       modal: {
         title: "Patient erfassen", subtitle: "Pflichtfelder ausfüllen (*)",
         btnSave: "Akte erstellen", btnSaving: "Speichern..."
+      },
+      delete: {
+        title: "Patient löschen", subtitle: "Alle Daten werden dauerhaft gelöscht. Nicht rückgängig machbar.",
+        warningLabel: "Warnung", warning: "Alle Analysedateien (Scans, DZI-Kacheln, QuPath-Projekte, Regionsmasken) werden dauerhaft aus dem Cloud-Speicher gelöscht.",
+        ticketCount: "Analysen werden gelöscht",
+        confirm: "Steuernummer eingeben zum Bestätigen:", placeholder: "Steuernummer",
+        btnCancel: "Abbrechen", btnDelete: "Dauerhaft löschen", btnDeleting: "Löschen..."
       }
     },
     tickets: {
@@ -176,7 +184,15 @@ export const de = {
       queuedTitle: "In Warteschlange", processingTitle: "Analyse läuft",
       queuedDesc: "Datei sicher. Warte auf KI-Engine.",
       processingDesc: "Gewebeanalyse und JSON-Generierung.",
-      outputNotReady: "Ausgabe noch nicht bereit."
+      outputNotReady: "Ausgabe noch nicht bereit.",
+      interrupted: "Analyse unterbrochen",
+      reportReady: "Bericht verfügbar",
+      analyzing: "Analyse läuft",
+      openViewer: "Viewer",
+      downloadQupath: "QuPath",
+      downloadRegion: "Regionen",
+      tissueStats: "Statistiken",
+      loadingTissues: "Laden...", reportUnavailable: "Bericht nicht verfügbar"
     },
     results: {
       title: "KI-Analyse Ergebnisse", tissueView: "Gewebe-Visualisierung",
@@ -195,7 +211,8 @@ export const de = {
         residence: "Wohnsitz",
         professional: "Berufsdaten",
         email: "E-Mail",
-        password: "Passwort"
+        password: "Passwort",
+        security: "Account & Sicherheit"
       },
       form: {
         updateBtn: "Speichern",
@@ -219,13 +236,14 @@ export const de = {
       termsTitle: "Nutzungsbedingungen", termsSub: "Regeln für die medizinische Konsole",
       cookieTitle: "Cookie-Richtlinie", cookieSub: "Tracking-Transparenz",
       dpaTitle: "Sicherheit & AVV", dpaSub: "Technischer Anhang",
-      disclaimer: "ACHTUNG - MEDIZINISCHER HAFTUNGSAUSSCHLUSS:",
+      disclaimer: "Medizinischer Hinweis",
       disclaimerText: "Histyon ist ein technisches Hilfsmittel und ersetzt nicht das ärztliche Urteil. KI-Analysen müssen validiert werden.",
       privacy: {
         sec1: { title: "1. Verantwortlicher", body: "Histyon Team ist verantwortlich für Kontodaten." },
         sec2: { title: "2. Erhobene Daten", body: "Profidaten und Patientengesundheitsdaten (verschlüsselt)." },
         sec3: { title: "3. Zweck", body: "SaaS-Dienst, Diagnoseunterstützung, Sicherheit." },
-        sec4: { title: "4. Standort", body: "Daten im EWR (Europäischer Wirtschaftsraum)." }
+        sec4: { title: "4. Standort", body: "Daten im EWR (Europäischer Wirtschaftsraum)." },
+        sec5: { title: "5. Recht auf Löschung (Art. 17 DSGVO)", body: "Sie haben das Recht auf dauerhafte Löschung von Patientendaten und zugehörigen Analysedateien. Die Löschung kann jederzeit aus dem Dashboard durchgeführt werden und ist sofortig und unwiderruflich." }
       },
       terms: {
         sec1: { title: "1. Voraussetzungen", body: "Zugang nur für registrierte Mediziner." },
@@ -268,6 +286,7 @@ export const de = {
     fileNotFound: "Datei nicht gefunden.",
     fileRetrievalError: "Dateiabruf unmöglich",
     credentialsInvalid: "Ungültige Zugangsdaten",
-    linkSent: "Link erfolgreich gesendet"
+    linkSent: "Link erfolgreich gesendet",
+    deletePatientError: "Fehler beim Löschen des Patienten."
   }
 }

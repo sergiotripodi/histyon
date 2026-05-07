@@ -54,7 +54,8 @@ export const pt = {
       docs: "Documentação",
       contact: "Contato",
       legal: "Info Legal"
-    }
+    },
+    header: { toConsole: "Voltar ao Console" }
   },
   auth: {
     sidebar: {
@@ -135,8 +136,8 @@ export const pt = {
     }
   },
   dashboard: {
-    header: { console: "Console", unassigned: "Não atribuído", logout: "Sair" },
-    tabs: { patients: "Pacientes", analysis: "Análises", profile: "Dados Pessoais" },
+    header: { console: "Console", unassigned: "Não atribuído", logout: "Sair", role: "Médico", assistance: "Suporte" },
+    tabs: { patients: "Pacientes", analysis: "Análises", profile: "Dados Pessoais", settings: "Configurações" },
     titles: {
       main: "Console Médica", patientRegistry: "Registro Pacientes", globalHistory: "Histórico Global",
       uploadHistory: "Histórico Uploads", patientFolder: "Pasta Pessoal"
@@ -147,6 +148,13 @@ export const pt = {
       modal: {
         title: "Registro Paciente", subtitle: "Preencher obrigatórios (*)",
         btnSave: "Criar Pasta", btnSaving: "Salvando..."
+      },
+      delete: {
+        title: "Excluir Paciente", subtitle: "Todos os dados serão apagados permanentemente. Ação irreversível.",
+        warningLabel: "Atenção", warning: "Todos os arquivos de análise (escaneamentos, tiles DZI, projetos QuPath, máscaras de região) serão excluídos permanentemente do armazenamento em nuvem.",
+        ticketCount: "análises serão excluídas",
+        confirm: "Digite o código fiscal para confirmar:", placeholder: "Código fiscal",
+        btnCancel: "Cancelar", btnDelete: "Excluir Permanentemente", btnDeleting: "Excluindo..."
       }
     },
     tickets: {
@@ -176,7 +184,15 @@ export const pt = {
       queuedTitle: "Na Fila", processingTitle: "Análise em Curso",
       queuedDesc: "Arquivo seguro. Aguardando motor IA.",
       processingDesc: "Analisando tecidos e gerando JSON.",
-      outputNotReady: "Saída não pronta."
+      outputNotReady: "Saída não pronta.",
+      interrupted: "Análise interrompida",
+      reportReady: "Relatório disponível",
+      analyzing: "Análise em curso",
+      openViewer: "Visualizador",
+      downloadQupath: "QuPath",
+      downloadRegion: "Regiões",
+      tissueStats: "Estatísticas",
+      loadingTissues: "Carregando...", reportUnavailable: "Relatório não disponível"
     },
     results: {
       title: "Resultados Análise IA", tissueView: "Visualização Tecido",
@@ -195,7 +211,8 @@ export const pt = {
         residence: "Residência",
         professional: "Dados Profissionais",
         email: "E-mail",
-        password: "Senha"
+        password: "Senha",
+        security: "Conta e Segurança"
       },
       form: {
         updateBtn: "Salvar Alterações",
@@ -219,13 +236,14 @@ export const pt = {
       termsTitle: "Termos e Condições", termsSub: "Regulamento de uso",
       cookieTitle: "Política de Cookies", cookieSub: "Transparência de rastreamento",
       dpaTitle: "Segurança e DPA", dpaSub: "Apêndice técnico",
-      disclaimer: "ATENÇÃO - AVISO MÉDICO:",
+      disclaimer: "Aviso Médico",
       disclaimerText: "Histyon é suporte técnico e não substitui o julgamento médico. A IA deve ser validada.",
       privacy: {
         sec1: { title: "1. Responsável", body: "Histyon Team é responsável pelos dados da conta." },
         sec2: { title: "2. Dados Coletados", body: "Dados Profissionais e Dados de Saúde Pacientes (criptografados)." },
         sec3: { title: "3. Finalidade", body: "Serviço SaaS, Suporte Diagnóstico, Segurança." },
-        sec4: { title: "4. Localização", body: "Dados no EEE (Espaço Econômico Europeu)." }
+        sec4: { title: "4. Localização", body: "Dados no EEE (Espaço Econômico Europeu)." },
+        sec5: { title: "5. Direito ao Apagamento (Art. 17 RGPD)", body: "Tem o direito à eliminação permanente de dados de pacientes e ficheiros de análise. A eliminação pode ser efectuada a partir do painel de controlo e é imediata e irreversível." }
       },
       terms: {
         sec1: { title: "1. Requisitos", body: "Acesso reservado a médicos registrados." },
@@ -268,6 +286,7 @@ export const pt = {
     fileNotFound: "Arquivo não encontrado.",
     fileRetrievalError: "Impossível recuperar arquivo",
     credentialsInvalid: "Credenciais inválidas",
-    linkSent: "Link enviado com sucesso"
+    linkSent: "Link enviado com sucesso",
+    deletePatientError: "Erro ao excluir dados do paciente."
   }
 }

@@ -21,12 +21,10 @@ export default async function AnalysisPage() {
 
   return (
     <div className="layout-container py-10">
-      <div className="mb-8">
+      <div className="pb-8 mb-8 border-b border-gray-100">
         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{t.tabs.analysis}</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          {count === 0
-            ? 'Nessuna analisi disponibile'
-            : `${count} ${count === 1 ? 'analisi totale' : 'analisi totali'}`}
+        <p className="text-sm text-gray-500 mt-1.5">
+          {count === 0 ? 'Nessuna analisi disponibile' : `${count} ${count === 1 ? 'analisi totale' : 'analisi totali'}`}
         </p>
       </div>
       <TicketList

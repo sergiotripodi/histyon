@@ -33,7 +33,7 @@ function StepOne({ state, dict, tf, dob, setDob, isActive }: any) {
                 <ValidatedInput name="fiscalCode" label={tf.labels.fiscalCode} className="uppercase font-mono" maxLength={16} pattern={REGEX_VALIDATORS.FISCAL_CODE} errorMessage={dict.validation.fiscalCodeLen} defaultValue={state.inputs?.fiscalCode} required />
                 <div className="relative">
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">{tf.labels.gender} *</label>
-                    <select name="gender" required defaultValue={state.inputs?.gender || ""} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl appearance-none cursor-pointer outline-none focus:ring-4 focus:ring-gray-100 focus:border-black transition-all">
+                    <select name="gender" required defaultValue={state.inputs?.gender || ""} className="flex h-12 w-full rounded-none border border-gray-300 bg-white px-3 py-2 text-sm appearance-none cursor-pointer focus-visible:outline-none focus-visible:border-gray-900 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200">
                         <option value="" disabled>{tf.placeholders.select}</option>
                         <option value="M">{tf.options.male}</option>
                         <option value="F">{tf.options.female}</option>
@@ -65,7 +65,7 @@ function StepThree({ state, dict, tf, isActive }: any) {
                 <ValidatedInput name="medicalLicense" label={tf.labels.medicalLicense} placeholder={tf.placeholders.license} defaultValue={state.inputs?.medicalLicense} required errorMessage={tf.warnings.required} />
                 <ValidatedInput name="hospitalName" label={tf.labels.hospital} placeholder={tf.placeholders.hospital} defaultValue={state.inputs?.hospitalName} required errorMessage={tf.warnings.required} />
             </div>
-            <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 space-y-4">
+            <div className="bg-gray-50 p-6 border border-gray-100 space-y-4">
                 <h3 className="text-xs font-bold text-gray-900 uppercase tracking-widest mb-2 flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-green-500"></div>
                     {tf.sections.credentials}
@@ -108,18 +108,18 @@ export function RegisterForm({ dict }: RegisterFormProps) {
                 {[1, 2, 3].map((step) => (
                     <div
                         key={step}
-                        className={`h-1.5 rounded-full transition-all duration-500 ease-out ${
-                            currentStep === step 
-                                ? 'w-8 bg-black' 
-                                : currentStep > step 
-                                    ? 'w-6 bg-gray-300' 
-                                    : 'w-4 bg-gray-100'
+                        className={`h-1 transition-all duration-500 ease-out ${
+                            currentStep === step
+                                ? 'w-8 bg-black'
+                                : currentStep > step
+                                    ? 'w-6 bg-gray-400'
+                                    : 'w-4 bg-gray-200'
                         }`}
                     />
                 ))}
             </div>
 
-            <h2 className="font-serif text-3xl">
+            <h2 className="text-2xl font-bold tracking-tight">
                 {currentStep === 1 && t.steps.registry}
                 {currentStep === 2 && t.steps.residence}
                 {currentStep === 3 && t.steps.profession}
@@ -127,7 +127,7 @@ export function RegisterForm({ dict }: RegisterFormProps) {
         </div>
 
         {state.status === 'error' && state.message && (
-            <div className="mb-6 bg-red-50 border border-red-200 text-red-600 px-4 py-4 rounded-xl text-sm flex items-start gap-3 shadow-sm animate-in fade-in slide-in-from-top-2">
+            <div className="mb-6 bg-red-50 border border-red-200 text-red-600 px-4 py-4 text-sm flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
                 <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
                 <div>
                     <p className="font-bold">{tf.warnings.attention}</p>

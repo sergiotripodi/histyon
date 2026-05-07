@@ -1,29 +1,20 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { Logo } from '@/components/ui/Logo'
-import { Users, Activity, Settings, LogOut } from 'lucide-react'
+import { Users, Activity, Settings, LogOut, Mail } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface DashboardSidebarProps {
   profile?: any
   userEmail?: string
   userMetadata?: any
+  dict: any
 }
 
-const navItems = [
-  { href: '/dashboard', icon: Users, label: 'Pazienti' },
-  { href: '/dashboard/analysis', icon: Activity, label: 'Analisi' },
-  { href: '/dashboard/settings', icon: Settings, label: 'Impostazioni' },
-]
-
 function getActiveNav(pathname: string): string {
-  if (
-    pathname === '/dashboard' ||
-    pathname.startsWith('/dashboard/patient')
-  ) return '/dashboard'
+  if (pathname === '/dashboard' || pathname.startsWith('/dashboard/patient')) return '/dashboard'
   if (
     pathname.startsWith('/dashboard/analysis') ||
     pathname.startsWith('/dashboard/ticket') ||
@@ -33,11 +24,17 @@ function getActiveNav(pathname: string): string {
   return '/dashboard'
 }
 
-export function DashboardSidebar({ profile, userEmail, userMetadata }: DashboardSidebarProps) {
+export function DashboardSidebar({ profile, userEmail, userMetadata, dict }: DashboardSidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
   const activeNav = getActiveNav(pathname)
+  const td = dict.dashboard
+
+  const navItems = [
+    { href: '/dashboard',          icon: Users,    label: td.tabs.patients  },
+    { href: '/dashboard/analysis', icon: Activity, label: td.tabs.analysis  },
+  ]
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -51,12 +48,15 @@ export function DashboardSidebar({ profile, userEmail, userMetadata }: Dashboard
   const initial = (firstName?.[0] || userEmail?.[0] || '').toUpperCase()
 
   return (
-    <aside className="fixed inset-y-0 left-0 w-[240px] bg-white border-r border-gray-100 flex flex-col z-40">
+    <aside className="fixed inset-y-0 left-0 w-[240px] bg-white border-r border-gray-200 flex flex-col z-40">
 
-      {/* Logo */}
-      <div className="h-16 flex items-center px-5 border-b border-gray-100 shrink-0">
-        <Link href="/dashboard" className="hover:opacity-75 transition-opacity">
+      {/* Logo + Console label */}
+      <div className="h-16 flex items-center gap-3 px-5 border-b border-gray-200 shrink-0">
+        <Link href="/dashboard" className="hover:opacity-75 transition-opacity flex items-center gap-3">
           <Logo color="black" />
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest border-l border-gray-200 pl-3">
+            Console
+          </span>
         </Link>
       </div>
 
@@ -69,7 +69,7 @@ export function DashboardSidebar({ profile, userEmail, userMetadata }: Dashboard
               <li key={href}>
                 <Link
                   href={href}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
+                  className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium tracking-wide transition-all duration-150 ${
                     active
                       ? 'bg-gray-900 text-white'
                       : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
@@ -84,23 +84,53 @@ export function DashboardSidebar({ profile, userEmail, userMetadata }: Dashboard
         </ul>
       </nav>
 
+      {/* Bottom nav: Settings + Assistenza */}
+      <div className="shrink-0 border-t border-gray-200 px-3 py-2 space-y-0.5">
+        {([
+          { href: '/dashboard/settings', icon: Settings, label: td.tabs.settings },
+        ] as const).map(({ href, icon: Icon, label }) => {
+          const active = activeNav === href
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium tracking-wide transition-all duration-150 ${
+                active
+                  ? 'bg-gray-900 text-white'
+                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <Icon className="w-4 h-4 shrink-0" />
+              {label}
+            </Link>
+          )
+        })}
+        <a
+          href="mailto:info@histyon.com"
+          className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium tracking-wide text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-all duration-150"
+        >
+          <Mail className="w-4 h-4 shrink-0" />
+          {td.header.assistance}
+        </a>
+      </div>
+
       {/* User section */}
-      <div className="shrink-0 border-t border-gray-100 p-3 space-y-0.5">
+      <div className="shrink-0 border-t border-gray-200 p-3 space-y-0.5">
         <div className="flex items-center gap-3 px-3 py-2.5">
-          <div className="w-8 h-8 rounded-lg bg-gray-900 text-white flex items-center justify-center shrink-0">
+          <div className="w-8 h-8 border border-gray-900 bg-white text-gray-900 flex items-center justify-center shrink-0">
             <span className="text-xs font-bold">{initial}</span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-gray-900 truncate leading-tight">{displayName}</p>
-            <p className="text-xs text-gray-400 truncate mt-0.5">Medico</p>
+            <p className="text-sm font-bold text-gray-900 truncate leading-tight">{displayName}</p>
+            <p className="text-xs text-gray-400 font-medium truncate mt-0.5">{td.header.role}</p>
           </div>
         </div>
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-150 font-medium"
+          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-150"
         >
           <LogOut className="w-4 h-4 shrink-0" />
-          Esci
+          {td.header.logout}
         </button>
       </div>
 

@@ -10,9 +10,7 @@ export default async function TicketPage(props: {
 }) {
   const { id } = await props.params
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
   const dict = await getDictionary()
@@ -28,21 +26,22 @@ export default async function TicketPage(props: {
   if (!ticket) return notFound()
 
   return (
-    <div className="layout-container py-8 space-y-8">      
-      <div className="flex items-center gap-4">
-        <Link 
-            href={`/dashboard/patient/${ticket.patient_id}?tab=analysis`}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+    <div className="layout-container py-10 space-y-8">
+
+      <div className="flex items-center gap-4 pb-8 border-b border-gray-100">
+        <Link
+          href={`/dashboard/patient/${ticket.patient_id}`}
+          className="p-2 border border-transparent hover:border-gray-200 hover:bg-gray-100 transition-colors"
         >
-            <ArrowLeft className="w-6 h-6 text-gray-700" />
+          <ArrowLeft className="w-5 h-5 text-gray-600" />
         </Link>
         <div>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900 flex items-center gap-3">
-                {t.analysis} #{ticket.id.slice(0, 8)}
-            </h1>
-            <p className="text-gray-500 text-sm mt-1">
-                {t.patient}: <span className="font-bold text-black">{ticket.patients.first_name} {ticket.patients.last_name}</span>
-            </p>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+            {t.analysis} #{ticket.id.slice(0, 8)}
+          </h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {t.patient}: <span className="font-bold text-black">{ticket.patients.first_name} {ticket.patients.last_name}</span>
+          </p>
         </div>
       </div>
 

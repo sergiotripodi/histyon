@@ -54,7 +54,8 @@ export const ar = {
       docs: "وثائق",
       contact: "اتصل بنا",
       legal: "معلومات قانونية"
-    }
+    },
+    header: { toConsole: "العودة إلى وحدة التحكم" }
   },
   auth: {
     sidebar: {
@@ -135,8 +136,8 @@ export const ar = {
     }
   },
   dashboard: {
-    header: { console: "وحدة التحكم", unassigned: "غير معين", logout: "خروج" },
-    tabs: { patients: "مرضى", analysis: "تحليلات", profile: "ملف شخصي" },
+    header: { console: "وحدة التحكم", unassigned: "غير معين", logout: "خروج", role: "طبيب", assistance: "الدعم" },
+    tabs: { patients: "مرضى", analysis: "تحليلات", profile: "ملف شخصي", settings: "الإعدادات" },
     titles: {
       main: "وحدة طبية", patientRegistry: "سجل المرضى", globalHistory: "سجل عالمي",
       uploadHistory: "سجل التحميل", patientFolder: "ملف شخصي"
@@ -147,6 +148,13 @@ export const ar = {
       modal: {
         title: "تسجيل مريض", subtitle: "تعبئة الحقول المطلوبة (*)",
         btnSave: "إنشاء ملف", btnSaving: "جاري الحفظ..."
+      },
+      delete: {
+        title: "حذف المريض", subtitle: "سيتم حذف جميع البيانات نهائياً. هذا الإجراء لا رجعة فيه.",
+        warningLabel: "تحذير", warning: "سيتم حذف جميع ملفات التحليل نهائياً من التخزين السحابي.",
+        ticketCount: "تحليلات سيتم حذفها",
+        confirm: "أدخل الرمز الضريبي للتأكيد:", placeholder: "الرمز الضريبي",
+        btnCancel: "إلغاء", btnDelete: "حذف نهائياً", btnDeleting: "جاري الحذف..."
       }
     },
     tickets: {
@@ -176,7 +184,15 @@ export const ar = {
       queuedTitle: "في الانتظار", processingTitle: "جاري التحليل",
       queuedDesc: "الملف آمن. في انتظار محرك الذكاء الاصطناعي.",
       processingDesc: "تحليل الأنسجة وإنشاء JSON.",
-      outputNotReady: "المخرج غير جاهز."
+      outputNotReady: "المخرج غير جاهز.",
+      interrupted: "التحليل مقاطع",
+      reportReady: "التقرير متاح",
+      analyzing: "التحليل جارٍ",
+      openViewer: "العارض",
+      downloadQupath: "QuPath",
+      downloadRegion: "المناطق",
+      tissueStats: "الإحصاء",
+      reportUnavailable: "التقرير غير متاح"
     },
     results: {
       title: "نتائج تحليل AI", tissueView: "عرض الأنسجة",
@@ -195,7 +211,8 @@ export const ar = {
         residence: "إقامة",
         professional: "بيانات مهنية",
         email: "بريد إلكتروني",
-        password: "كلمة المرور"
+        password: "كلمة المرور",
+        security: "الحساب والأمان"
       },
       form: {
         updateBtn: "حفظ التغييرات",
@@ -219,13 +236,14 @@ export const ar = {
       termsTitle: "الشروط والأحكام", termsSub: "لوائح الاستخدام",
       cookieTitle: "سياسة الكوكيز", cookieSub: "شفافية التتبع",
       dpaTitle: "الأمان والمعالجة", dpaSub: "ملحق فني",
-      disclaimer: "تنبيه - إخلاء مسؤولية طبي:",
+      disclaimer: "إخلاء المسؤولية الطبية",
       disclaimerText: "Histyon أداة تقنية ولا تحل محل الحكم الطبي. يجب التحقق من AI.",
       privacy: {
         sec1: { title: "1. المراقب", body: "فريق Histyon مسؤول عن بيانات الحساب." },
         sec2: { title: "2. البيانات المجمعة", body: "بيانات مهنية وبيانات صحية للمرضى (مشفرة)." },
         sec3: { title: "3. الغرض", body: "خدمة SaaS، دعم التشخيص، الأمان." },
-        sec4: { title: "4. الموقع", body: "البيانات في المنطقة الاقتصادية الأوروبية (EEA)." }
+        sec4: { title: "4. الموقع", body: "البيانات في المنطقة الاقتصادية الأوروبية (EEA)." },
+        sec5: { title: "5. حق الحذف (المادة 17 من اللائحة الأوروبية)", body: "لديك الحق في الحذف الدائم لبيانات المريض وجميع ملفات التحليل. يتم الحذف فوراً ولا يمكن التراجع عنه." }
       },
       terms: {
         sec1: { title: "1. المتطلبات", body: "الوصول للمهنيين الطبيين المسجلين فقط." },
@@ -268,6 +286,7 @@ export const ar = {
     fileNotFound: "لم يتم العثور على الملف.",
     fileRetrievalError: "تعذر استرداد الملف",
     credentialsInvalid: "بيانات الاعتماد غير صالحة",
-    linkSent: "تم إرسال الرابط بنجاح"
+    linkSent: "تم إرسال الرابط بنجاح",
+    deletePatientError: "فشل في حذف بيانات المريض."
   }
 }

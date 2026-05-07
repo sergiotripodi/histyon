@@ -107,8 +107,8 @@ export default async function LandingPage() {
                       {dict.landing.workflow.f2_desc}
                     </p>
                     <div className="flex gap-2 opacity-60">
-                       <span className="px-2 py-1 bg-gray-50 border border-gray-200 text-[10px] uppercase font-bold text-gray-500 rounded">{dict.landing.workflow.f2_tag1}</span>
-                       <span className="px-2 py-1 bg-gray-50 border border-gray-200 text-[10px] uppercase font-bold text-gray-500 rounded">{dict.landing.workflow.f2_tag2}</span>
+                       <span className="px-2 py-1 bg-gray-50 border border-gray-200 text-[10px] uppercase font-bold text-gray-500">{dict.landing.workflow.f2_tag1}</span>
+                       <span className="px-2 py-1 bg-gray-50 border border-gray-200 text-[10px] uppercase font-bold text-gray-500">{dict.landing.workflow.f2_tag2}</span>
                     </div>
                  </div>
               </div>
@@ -160,7 +160,7 @@ export default async function LandingPage() {
 
                 <Link 
                   href="/auth/register" 
-                  className="group inline-flex items-center gap-3 px-8 py-3 border border-gray-950 text-gray-950 text-base font-medium rounded hover:bg-gray-950 hover:text-white transition-all duration-300"
+                  className="group inline-flex items-center gap-3 px-8 py-3 border border-gray-950 text-gray-950 text-base font-medium hover:bg-gray-950 hover:text-white transition-all duration-300"
                 >
                   <span>{dict.landing.cta.btn}</span>
                   <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />

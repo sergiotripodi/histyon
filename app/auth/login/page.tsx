@@ -50,19 +50,19 @@ export default async function LoginPage(props: {
       <div className="flex-1 flex flex-col items-center justify-center p-6 relative">
         <div className="max-w-md w-full">
           <div className="mb-8">
-            <h1 className="font-serif text-4xl mb-2">{t.heading}</h1>
+            <h1 className="text-3xl font-bold tracking-tight mb-2">{t.heading}</h1>
             <p className="text-gray-500">{t.subheading}</p>
           </div>
 
           {errorMessage && (
-            <div className="mb-6 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm flex items-center gap-3 shadow-sm animate-in fade-in slide-in-from-top-2">
+            <div className="mb-6 bg-red-50 border border-red-200 text-red-600 px-4 py-3 text-sm flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
               <AlertCircle className="w-5 h-5 flex-shrink-0" />
               <p>{errorMessage}</p>
             </div>
           )}
 
           {successMessage && (
-            <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-sm flex items-center gap-3 shadow-sm animate-in fade-in slide-in-from-top-2">
+            <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 text-sm flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
               <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
               <p>{successMessage}</p>
             </div>
@@ -100,7 +100,7 @@ export default async function LoginPage(props: {
 
           <div className="mt-10 pt-10 border-t border-gray-100">
             <p className="text-sm text-gray-500 mb-4">{t.noCredentials}</p>
-            <Link href="/auth/register" className="group flex items-center justify-between p-4 rounded-md border border-gray-300 hover:border-gray-900 hover:bg-gray-50 transition-all cursor-pointer">
+            <Link href="/auth/register" className="group flex items-center justify-between p-5 border border-gray-200 hover:border-gray-900 hover:bg-gray-50 transition-all cursor-pointer">
                 <div className="flex items-center gap-3">
                     <div className="bg-gray-100 p-2 rounded-lg group-hover:bg-white transition-colors">
                         <UserPlus className="w-5 h-5 text-gray-700" />

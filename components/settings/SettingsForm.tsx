@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { ChevronDown, User, MapPin, Building2, ShieldCheck, Save, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { updateProfile, updateEmail, updatePassword } from '@/lib/actions/settings'
-import { User, Lock, Building2, MapPin, Save, Loader2, AlertCircle, CheckCircle2, Mail, KeyRound, ShieldCheck } from 'lucide-react'
 import { DateOfBirthPicker } from '@/components/ui/DateOfBirthPicker'
 import { ValidatedInput } from '../ui/FormElements'
 import { GlobalLocationSelector } from '../auth/GlobalLocationSelector'
@@ -14,13 +14,65 @@ interface SettingsFormProps {
   dict: any
 }
 
+interface AccordionProps {
+  id: string
+  icon: any
+  title: string
+  isOpen: boolean
+  onToggle: (id: string) => void
+  children: React.ReactNode
+}
+
+function AccordionSection({ id, icon: Icon, title, isOpen, onToggle, children }: AccordionProps) {
+  return (
+    <div className="border-b border-gray-100 last:border-b-0">
+      <button
+        type="button"
+        onClick={() => onToggle(id)}
+        className="w-full flex items-center justify-between px-6 py-5 text-left hover:bg-gray-50/50 transition-colors group"
+      >
+        <div className="flex items-center gap-3">
+          <Icon className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
+          <span className="text-sm font-semibold text-gray-900 tracking-wide">{title}</span>
+        </div>
+        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      {isOpen && (
+        <div className="px-6 pb-7 animate-in fade-in slide-in-from-top-1 duration-200">
+          {children}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function InlineFeedback({ section, feedback }: { section: string; feedback: any }) {
+  if (!feedback || feedback.section !== section) return null
+  const ok = feedback.type === 'success'
+  return (
+    <div className={`mb-5 p-4 flex items-center gap-3 text-sm font-medium border ${ok ? 'bg-green-50 text-green-800 border-green-200' : 'bg-red-50 text-red-800 border-red-200'}`}>
+      {ok ? <CheckCircle2 className="w-4 h-4 shrink-0 text-green-600" /> : <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />}
+      {feedback.text}
+    </div>
+  )
+}
+
 export function SettingsForm({ user, profile, dict }: SettingsFormProps) {
-  const [activeTab, setActiveTab] = useState<'profile' | 'security'>('profile')
+  const [openSections, setOpenSections] = useState<Set<string>>(new Set(['personal']))
   const [isPending, startTransition] = useTransition()
-  const [feedback, setFeedback] = useState<{ section: string, type: 'success' | 'error', text: string } | null>(null)
-  
+  const [feedback, setFeedback] = useState<{ section: string; type: 'success' | 'error'; text: string } | null>(null)
+
   const d = dict.dashboard.settings
-  const f = dict.auth.form 
+  const f = dict.auth.form
+
+  const toggleSection = (id: string) => {
+    setOpenSections((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   const handleSubmit = async (action: Function, formData: FormData, section: string) => {
     setFeedback(null)
@@ -34,193 +86,96 @@ export function SettingsForm({ user, profile, dict }: SettingsFormProps) {
     })
   }
 
-  const labelClass = "text-sm font-semibold text-gray-700 block mb-2"
-
   return (
     <div className="w-full">
-      
-      <div className="flex gap-1 p-1 bg-white rounded-md w-fit mb-8 border border-gray-200">
-        <button 
-            onClick={() => setActiveTab('profile')} 
-            className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-sm transition-all ${activeTab === 'profile' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
-        >
-          <User className="w-4 h-4" /> {d.tabs.profile}
-        </button>
-        <button 
-            onClick={() => setActiveTab('security')} 
-            className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-sm transition-all ${activeTab === 'security' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
-        >
-          <ShieldCheck className="w-4 h-4" /> {d.tabs.security}
-        </button>
-      </div>
+      <InlineFeedback section="profile" feedback={feedback} />
 
-      {activeTab === 'profile' && (
-        <form action={(fd) => handleSubmit(updateProfile, fd, 'profile')} className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-          
-          {feedback?.section === 'profile' && (
-            <div className={`p-4 rounded-xl flex items-center gap-3 text-sm font-medium border ${feedback.type === 'success' ? 'bg-green-50 text-green-800 border-green-200' : 'bg-red-50 text-red-800 border-red-200'}`}>
-              {feedback.type === 'success' ? <CheckCircle2 className="w-5 h-5 text-green-600" /> : <AlertCircle className="w-5 h-5 text-red-600" />}
-              {feedback.text}
+      <div className="bg-white border border-gray-200">
+
+        {/* === Profile form wraps sections 1-3 === */}
+        <form action={(fd) => handleSubmit(updateProfile, fd, 'profile')}>
+
+          <AccordionSection id="personal" icon={User} title={d.sections.personal} isOpen={openSections.has('personal')} onToggle={toggleSection}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <ValidatedInput name="firstName" label={f.labels.firstName} defaultValue={profile?.first_name} required />
+              <ValidatedInput name="lastName" label={f.labels.lastName} defaultValue={profile?.last_name} required />
+              <PhoneInput label={f.labels.phone} defaultValue={profile?.phone_number} />
+              <ValidatedInput name="placeOfBirth" label={f.labels.birthPlace} defaultValue={profile?.place_of_birth} />
             </div>
-          )}
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-8">
-              
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex items-center gap-3">
-                    <div className="p-2 bg-white rounded-lg border border-gray-200 text-gray-700 shadow-sm">
-                        <User className="w-4 h-4" />
-                    </div>
-                    <h3 className="text-base font-semibold text-gray-900">{d.sections.personal}</h3>
-                </div>
-                <div className="p-6 space-y-6">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                        <ValidatedInput name="firstName" label={f.labels.firstName} defaultValue={profile?.first_name} required />
-                        <ValidatedInput name="lastName" label={f.labels.lastName} defaultValue={profile?.last_name} required />
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                        <PhoneInput label={f.labels.phone} defaultValue={profile?.phone_number} />
-                        <ValidatedInput name="placeOfBirth" label={f.labels.birthPlace} defaultValue={profile?.place_of_birth} />
-                    </div>
-                    <div>
-                        <label className={labelClass}>{f.labels.dob}</label>
-                        <DateOfBirthPicker 
-                            name="birth_date" 
-                            dict={dict} 
-                            defaultDate={profile?.date_of_birth} 
-                        />
-                    </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex items-center gap-3">
-                    <div className="p-2 bg-white rounded-lg border border-gray-200 text-gray-700 shadow-sm">
-                        <MapPin className="w-4 h-4" />
-                    </div>
-                    <h3 className="text-base font-semibold text-gray-900">{d.sections.residence}</h3>
-                </div>
-                <div className="p-6">
-                    <GlobalLocationSelector 
-                        dict={dict} 
-                        defaults={{
-                            country: profile?.country,
-                            addressStreet: profile?.address_street,
-                            addressCivic: profile?.address_civic,
-                            postalCode: profile?.postal_code,
-                            city: profile?.city,
-                            region: profile?.province
-                        }} 
-                    />
-                </div>
-              </div>
+            <div className="mt-5">
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">{f.labels.dob}</label>
+              <DateOfBirthPicker name="birth_date" dict={dict} defaultDate={profile?.date_of_birth} />
             </div>
+          </AccordionSection>
 
-            <div className="space-y-8 flex flex-col h-full">
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex-1">
-                    <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex items-center gap-3">
-                        <div className="p-2 bg-white rounded-lg border border-gray-200 text-gray-700 shadow-sm">
-                            <Building2 className="w-4 h-4" />
-                        </div>
-                        <h3 className="text-base font-semibold text-gray-900">{d.sections.professional}</h3>
-                    </div>
-                    <div className="p-6 space-y-6">
-                        <ValidatedInput name="hospitalName" label={f.labels.hospital} defaultValue={profile?.hospital_name} />
-                        <ValidatedInput name="medicalLicense" label={f.labels.medicalLicense} defaultValue={profile?.medical_license_number} />
-                    </div>
-                </div>
-                
-                <div className="sticky bottom-4">
-                    <button
-                        type="submit"
-                        disabled={isPending}
-                        className="btn-elegant w-full py-3.5"
-                    >
-                        {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />} 
-                        {isPending ? d.form.updating : d.form.updateBtn}
-                    </button>
-                </div>
+          <AccordionSection id="residence" icon={MapPin} title={d.sections.residence} isOpen={openSections.has('residence')} onToggle={toggleSection}>
+            <GlobalLocationSelector
+              dict={dict}
+              defaults={{
+                country: profile?.country,
+                addressStreet: profile?.address_street,
+                addressCivic: profile?.address_civic,
+                postalCode: profile?.postal_code,
+                city: profile?.city,
+                region: profile?.province,
+              }}
+            />
+          </AccordionSection>
+
+          <AccordionSection id="professional" icon={Building2} title={d.sections.professional} isOpen={openSections.has('professional')} onToggle={toggleSection}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <ValidatedInput name="hospitalName" label={f.labels.hospital} defaultValue={profile?.hospital_name} />
+              <ValidatedInput name="medicalLicense" label={f.labels.medicalLicense} defaultValue={profile?.medical_license_number} />
             </div>
+          </AccordionSection>
+
+          {/* Profile save */}
+          <div className="px-6 py-5 bg-gray-50 border-t border-gray-200">
+            <button type="submit" disabled={isPending} className="btn-elegant py-2.5 px-6">
+              {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              {isPending ? d.form.updating : d.form.updateBtn}
+            </button>
           </div>
+
         </form>
-      )}
 
-      {activeTab === 'security' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-2 duration-300 items-stretch">
-          
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-full">
-            <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex items-center gap-3">
-                <div className="p-2 bg-white rounded-lg border border-gray-200 text-gray-700 shadow-sm">
-                    <Mail className="w-4 h-4" />
+        {/* === Security section — separate forms, outside profile form === */}
+        <AccordionSection id="security" icon={ShieldCheck} title={d.sections.security} isOpen={openSections.has('security')} onToggle={toggleSection}>
+          <div className="space-y-8">
+
+            {/* Email */}
+            <div>
+              <InlineFeedback section="email" feedback={feedback} />
+              <form action={(fd) => handleSubmit(updateEmail, fd, 'email')} className="space-y-4">
+                <ValidatedInput name="email" label={f.labels.email} defaultValue={user.email} />
+                <div className="flex items-start gap-3 bg-gray-50 border border-gray-200 p-4 text-sm text-gray-500">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-gray-400 mt-0.5" />
+                  <p>{d.form.emailNotice}</p>
                 </div>
-                <h3 className="text-base font-semibold text-gray-900">{d.sections.email}</h3>
+                <button type="submit" disabled={isPending} className="btn-elegant-soft py-2.5 px-5">
+                  {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {isPending ? d.form.updating : d.form.updateBtn}
+                </button>
+              </form>
             </div>
-            
-            <div className="p-6 flex-1 flex flex-col">
-                {feedback?.section === 'email' && (
-                    <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-sm font-medium border ${feedback.type === 'success' ? 'bg-green-50 text-green-800 border-green-200' : 'bg-red-50 text-red-800 border-red-200'}`}>
-                        {feedback.text}
-                    </div>
-                )}
-                
-                <form action={(fd) => handleSubmit(updateEmail, fd, 'email')} className="flex-1 flex flex-col">
-                    <div className="space-y-6 flex-1">
-                        <ValidatedInput name="email" label={f.labels.email} defaultValue={user.email} />
-                        
-                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 text-gray-600 text-sm flex gap-3">
-                            <AlertCircle className="w-5 h-5 shrink-0 text-gray-400" />
-                            <p>{d.form.emailNotice}</p>
-                        </div>
-                    </div>
-                    
-                    <button
-                        type="submit"
-                        disabled={isPending}
-                        className="btn-elegant-soft w-full mt-8 py-3"
-                    >
-                        {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                        {isPending ? d.form.updating : d.form.updateBtn}
-                    </button>
-                </form>
+
+            {/* Password */}
+            <div className="border-t border-gray-100 pt-7">
+              <InlineFeedback section="password" feedback={feedback} />
+              <form id="password-form" action={(fd) => handleSubmit(updatePassword, fd, 'password')} className="space-y-4">
+                <ValidatedInput name="password" type="password" label={d.form.newPassword} placeholder="••••••••" />
+                <ValidatedInput name="confirm_password" type="password" label={d.form.confirmPassword} placeholder="••••••••" />
+                <button type="submit" disabled={isPending} className="btn-elegant py-2.5 px-5">
+                  {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {isPending ? d.form.updating : d.form.savePassword}
+                </button>
+              </form>
             </div>
+
           </div>
+        </AccordionSection>
 
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-full">
-            <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex items-center gap-3">
-                <div className="p-2 bg-white rounded-lg border border-gray-200 text-gray-700 shadow-sm">
-                    <KeyRound className="w-4 h-4" />
-                </div>
-                <h3 className="text-base font-semibold text-gray-900">{d.sections.password}</h3>
-            </div>
-
-            <div className="p-6 flex-1 flex flex-col">
-                {feedback?.section === 'password' && (
-                    <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-sm font-medium border ${feedback.type === 'success' ? 'bg-green-50 text-green-800 border-green-200' : 'bg-red-50 text-red-800 border-red-200'}`}>
-                        {feedback.text}
-                    </div>
-                )}
-
-                <form id="password-form" action={(fd) => handleSubmit(updatePassword, fd, 'password')} className="flex-1 flex flex-col">
-                    <div className="space-y-6 flex-1">
-                        <ValidatedInput name="password" type="password" label={d.form.newPassword} placeholder="••••••••" />
-                        <ValidatedInput name="confirm_password" type="password" label={d.form.confirmPassword} placeholder="••••••••" />
-                    </div>
-                    
-                    <button
-                        type="submit"
-                        disabled={isPending}
-                        className="btn-elegant w-full mt-8 py-3"
-                    >
-                        {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                        {isPending ? d.form.updating : d.form.savePassword}
-                    </button>
-                </form>
-            </div>
-          </div>
-
-        </div>
-      )}
+      </div>
     </div>
   )
 }

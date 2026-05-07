@@ -106,7 +106,7 @@ export async function getPresignedUploadUrl(
       id: ticketId,
       doctor_id: user.id,
       patient_id: patientId,
-      input_file_url: filePath,
+      input_file: filePath,
       file_name: customFileName,
       file_size: fileSize,
       status: 'UPLOADING',
@@ -193,16 +193,16 @@ export async function getTicketProjectDownloadUrl(ticketId: string) {
 
   const { data: ticket, error } = await supabase
     .from('tickets')
-    .select('project_file_url')
+    .select('qupath_project')
     .eq('id', ticketId)
     .eq('doctor_id', user.id)
     .maybeSingle()
 
-  if (error || !ticket?.project_file_url) {
+  if (error || !ticket?.qupath_project) {
     return { error: dictionary.validation.fileRetrievalError }
   }
 
-  const projectUrl = ticket.project_file_url as string
+  const projectUrl = ticket.qupath_project as string
 
   if (/^https?:\/\//i.test(projectUrl.trim())) {
     if (!isAllowedAssetUrl(projectUrl.trim())) {
@@ -231,6 +231,57 @@ export async function getTicketProjectDownloadUrl(ticketId: string) {
     return { success: true, url: signedUrl }
   } catch (e) {
     console.error('getTicketProjectDownloadUrl:', e)
+    return { error: dictionary.validation.fileRetrievalError }
+  }
+}
+
+export async function getRegionDownloadUrl(ticketId: string) {
+  if (!UUID_RE.test(ticketId)) {
+    return { error: dictionary.validation.fileRetrievalError }
+  }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: dictionary.validation.unauthorized }
+
+  const { data: ticket, error } = await supabase
+    .from('tickets')
+    .select('output_region')
+    .eq('id', ticketId)
+    .eq('doctor_id', user.id)
+    .maybeSingle()
+
+  if (error || !ticket?.output_region) {
+    return { error: dictionary.validation.fileRetrievalError }
+  }
+
+  const regionUrl = ticket.output_region as string
+
+  if (/^https?:\/\//i.test(regionUrl.trim())) {
+    if (!isAllowedAssetUrl(regionUrl.trim())) {
+      return { error: dictionary.validation.fileRetrievalError }
+    }
+    return { success: true, url: regionUrl.trim() }
+  }
+
+  const key = regionUrl.replace(/^\/+/, '')
+  if (!key.startsWith(`${user.id}/`)) {
+    return { error: dictionary.validation.unauthorized }
+  }
+
+  const bucket = process.env.R2_OUTPUT_BUCKET_NAME
+  if (!bucket) return { error: dictionary.validation.fileRetrievalError }
+
+  try {
+    const command = new GetObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      ResponseContentDisposition: 'attachment',
+    })
+    const signedUrl = await getSignedUrl(r2Client, command, { expiresIn: 900 })
+    return { success: true, url: signedUrl }
+  } catch (e) {
+    console.error('getRegionDownloadUrl:', e)
     return { error: dictionary.validation.fileRetrievalError }
   }
 }

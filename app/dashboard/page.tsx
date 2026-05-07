@@ -22,13 +22,11 @@ export default async function DashboardPage() {
 
   return (
     <div className="layout-container py-10">
-      <div className="flex justify-between items-start mb-8">
+      <div className="flex items-end justify-between pb-8 mb-8 border-b border-gray-100">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{t.tabs.patients}</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {count === 0
-              ? 'Nessun paziente registrato'
-              : `${count} ${count === 1 ? 'paziente registrato' : 'pazienti registrati'}`}
+          <p className="text-sm text-gray-500 mt-1.5">
+            {count === 0 ? 'Nessun paziente registrato' : `${count} ${count === 1 ? 'paziente registrato' : 'pazienti registrati'}`}
           </p>
         </div>
         <AddPatientModal dict={dict} />

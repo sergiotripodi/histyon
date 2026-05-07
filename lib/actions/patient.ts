@@ -2,9 +2,33 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { dictionary } from '@/lib/dictionary'
 import { REGEX_VALIDATORS } from '@/lib/constants'
+import { r2Client } from '@/lib/storage/r2'
+import { ListObjectsV2Command, DeleteObjectsCommand } from '@aws-sdk/client-s3'
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+async function deleteR2Prefix(bucket: string, prefix: string) {
+  let token: string | undefined
+  do {
+    const list = await r2Client.send(new ListObjectsV2Command({
+      Bucket: bucket,
+      Prefix: prefix,
+      ContinuationToken: token,
+    }))
+    const keys = (list.Contents ?? []).map(o => ({ Key: o.Key! })).filter(o => o.Key)
+    if (keys.length > 0) {
+      await r2Client.send(new DeleteObjectsCommand({
+        Bucket: bucket,
+        Delete: { Objects: keys, Quiet: true },
+      }))
+    }
+    token = list.IsTruncated ? list.NextContinuationToken : undefined
+  } while (token)
+}
 
 const PatientSchema = z.object({
   firstName: z.string().min(2),
@@ -98,4 +122,54 @@ export async function addPatient(prevState: unknown, formData: FormData) {
 
   revalidatePath('/dashboard')
   return { success: true }
+}
+
+export async function deletePatient(patientId: string) {
+  if (!UUID_RE.test(patientId)) return { error: dictionary.validation.genericError }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: dictionary.validation.unauthorized }
+
+  // Verify ownership
+  const { data: patient } = await supabase
+    .from('patients')
+    .select('id')
+    .eq('id', patientId)
+    .eq('doctor_id', user.id)
+    .maybeSingle()
+
+  if (!patient) return { error: dictionary.validation.unauthorized }
+
+  // Delete all R2 files under {userId}/{patientId}/ in both buckets
+  const prefix = `${user.id}/${patientId}/`
+  const inputBucket = process.env.R2_INPUT_BUCKET_NAME
+  const outputBucket = process.env.R2_OUTPUT_BUCKET_NAME
+
+  try {
+    await Promise.all([
+      inputBucket  ? deleteR2Prefix(inputBucket,  prefix) : Promise.resolve(),
+      outputBucket ? deleteR2Prefix(outputBucket, prefix) : Promise.resolve(),
+    ])
+  } catch (err) {
+    console.error('deletePatient R2 cleanup:', err)
+    // Continue with DB deletion even if R2 partial cleanup fails
+  }
+
+  // Delete tickets then patient (order matters for FK constraints)
+  await supabase.from('tickets').delete().eq('patient_id', patientId).eq('doctor_id', user.id)
+
+  const { error } = await supabase
+    .from('patients')
+    .delete()
+    .eq('id', patientId)
+    .eq('doctor_id', user.id)
+
+  if (error) {
+    console.error('deletePatient DB:', error)
+    return { error: dictionary.validation.genericError }
+  }
+
+  revalidatePath('/dashboard')
+  redirect('/dashboard')
 }

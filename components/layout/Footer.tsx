@@ -1,15 +1,12 @@
 import Link from 'next/link'
 import { Logo } from '@/components/ui/Logo'
-import { getDictionary } from '@/lib/dictionary'
+import { getDictionary, getLocale } from '@/lib/dictionary'
 
 export async function Footer() {
-  const dict = await getDictionary()
+  const [dict, lang] = await Promise.all([getDictionary(), getLocale()])
   const t = dict.landing.footer
+  const tl = dict.legal.tabs
   const currentYear = new Date().getFullYear()
-  
-  // Definiamo la lingua di default per i link (es. 'it' o 'en')
-  // Dato che la landing è nella root, impostiamo un default.
-  const lang = 'it' 
 
   return (
     <footer className="w-full border-t border-gray-100 bg-white py-12 md:py-20">
@@ -36,19 +33,22 @@ export async function Footer() {
         <nav className="flex flex-col md:flex-row gap-8 md:gap-16 text-sm text-gray-600 font-medium">
            <div className="flex flex-col gap-4">
              <span className="text-xs font-mono text-gray-400 uppercase tracking-widest">{t.platform}</span>
-             <Link href={`/${lang}/auth/login`} className="hover:text-black transition-colors">{t.login}</Link>
-             <Link href={`/${lang}/auth/register`} className="hover:text-black transition-colors">{t.register}</Link>
+             <Link href="/auth/login" className="hover:text-black transition-colors">{t.login}</Link>
+             <Link href="/auth/register" className="hover:text-black transition-colors">{t.register}</Link>
            </div>
 
            <div className="flex flex-col gap-4">
              <span className="text-xs font-mono text-gray-400 uppercase tracking-widest">{t.support}</span>
-             <Link href={`/${lang}/documentation`} className="hover:text-black transition-colors">{t.docs}</Link>
+             <Link href="/documentation" className="hover:text-black transition-colors">{t.docs}</Link>
              <Link href="mailto:info@histyon.com" className="hover:text-black transition-colors">{t.contact}</Link>
            </div>
-           
+
            <div className="flex flex-col gap-4">
              <span className="text-xs font-mono text-gray-400 uppercase tracking-widest">{t.legalSection}</span>
-             <Link href={`/${lang}/legal`} className="hover:text-black transition-colors">{t.legal}</Link>
+             <Link href={`/${lang}/legal/privacy`} className="hover:text-black transition-colors">{tl.privacy}</Link>
+             <Link href={`/${lang}/legal/terms`} className="hover:text-black transition-colors">{tl.terms}</Link>
+             <Link href={`/${lang}/legal/cookie`} className="hover:text-black transition-colors">{tl.cookie}</Link>
+             <Link href={`/${lang}/legal/dpa`} className="hover:text-black transition-colors">{tl.dpa}</Link>
            </div>
         </nav>
       </div>

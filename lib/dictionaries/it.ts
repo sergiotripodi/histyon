@@ -60,7 +60,8 @@ export const it = {
       docs: "Documentazione",
       contact: "Contattaci",
       legal: "Info Legali"
-    }
+    },
+    header: { toConsole: "Torna alla Console" }
   },
   auth: {
     sidebar: {
@@ -143,8 +144,8 @@ export const it = {
     }
   },
   dashboard: {
-    header: { console: "Console", unassigned: "Non assegnato", logout: "Esci" },
-    tabs: { patients: "Pazienti", analysis: "Analisi", profile: "Dati Anagrafici" },
+    header: { console: "Console", unassigned: "Non assegnato", logout: "Esci", role: "Medico", assistance: "Assistenza" },
+    tabs: { patients: "Pazienti", analysis: "Analisi", profile: "Dati Anagrafici", settings: "Impostazioni" },
     titles: {
       main: "Console Medica", patientRegistry: "Anagrafica Pazienti", globalHistory: "Cronologia Globale Analisi",
       uploadHistory: "Storico Caricamenti", patientFolder: "Cartella Personale"
@@ -155,6 +156,13 @@ export const it = {
       modal: {
         title: "Anagrafica Paziente", subtitle: "Compilare tutti i campi obbligatori (*)",
         btnSave: "Crea Cartella Paziente", btnSaving: "Salvataggio..."
+      },
+      delete: {
+        title: "Elimina Paziente", subtitle: "Tutti i dati verranno eliminati definitivamente. Operazione irreversibile.",
+        warningLabel: "Attenzione", warning: "Tutti i file di analisi (scansioni, tile DZI, progetti QuPath, maschere di regione) verranno eliminati definitivamente dallo storage cloud.",
+        ticketCount: "analisi saranno eliminate",
+        confirm: "Digita il codice fiscale per confermare:", placeholder: "Codice fiscale",
+        btnCancel: "Annulla", btnDelete: "Elimina Definitivamente", btnDeleting: "Eliminazione..."
       }
     },
     tickets: {
@@ -184,7 +192,15 @@ export const it = {
       queuedTitle: "In Coda sul Cloud", processingTitle: "Analisi in Corso",
       queuedDesc: "Il file è al sicuro. Aspettiamo che il motore AI lo prenda in carico.",
       processingDesc: "Sto analizzando i tessuti e generando i risultati JSON.",
-      outputNotReady: "File di output non ancora pronto."
+      outputNotReady: "File di output non ancora pronto.",
+      interrupted: "Analisi Interrotta",
+      reportReady: "Report Disponibile",
+      analyzing: "Analisi in corso",
+      openViewer: "Visualizzatore",
+      downloadQupath: "QuPath",
+      downloadRegion: "Regioni",
+      tissueStats: "Statistiche",
+      loadingTissues: "Caricamento...", reportUnavailable: "Report Non Disponibile"
     },
     results: {
       title: "Risultati Analisi AI", tissueView: "Visualizzazione Tessuto",
@@ -203,7 +219,8 @@ export const it = {
         residence: "Residenza",
         professional: "Dati Professionali",
         email: "Indirizzo Email",
-        password: "Password"
+        password: "Password",
+        security: "Account e Sicurezza"
       },
       form: {
         updateBtn: "Salva Modifiche",
@@ -231,7 +248,7 @@ export const it = {
       cookieSub: "Trasparenza sui tracciamenti",
       dpaTitle: "Data Processing & Sicurezza", 
       dpaSub: "Appendice tecnica sulla sicurezza dei dati",
-      disclaimer: "ATTENZIONE - DISCLAIMER MEDICO:",
+      disclaimer: "Disclaimer Medico",
       disclaimerText: "Histyon è uno strumento di supporto tecnico e non sostituisce in alcun modo il giudizio professionale del medico. L'analisi AI è probabilistica e deve essere sempre validata da un patologo umano. Histyon non è responsabile per diagnosi errate basate esclusivamente sull'output dell'software.",
       
       privacy: {
@@ -250,7 +267,8 @@ export const it = {
         sec4: { 
             title: "4. Luogo del Trattamento e Fornitori", 
             body: "I dati sono ospitati su infrastrutture cloud localizzate all'interno dello Spazio Economico Europeo (SEE) o in paesi che garantiscono un livello di protezione adeguato.\n\nFornitori principali:\n- Supabase (Database & Auth): Francoforte, Germania (AWS).\n- Cloudflare R2 (Storage WSI): Crittografia lato server e distribuzione sicura." 
-        }
+        },
+        sec5: { title: "5. Diritto alla Cancellazione (Art. 17 GDPR)", body: "Hai il diritto alla cancellazione permanente dei dati del paziente e di tutti i file di analisi associati. La cancellazione può essere eseguita in qualsiasi momento dalla dashboard ed è immediata e irreversibile: scansioni, tile DZI, progetti QuPath e maschere di regione vengono rimossi definitivamente dal cloud." }
       },
       terms: {
         sec1: { 
@@ -317,6 +335,7 @@ export const it = {
     fileNotFound: "Impossibile trovare il file nello storage.",
     fileRetrievalError: "Impossibile recuperare il file",
     credentialsInvalid: "Credenziali non valide",
-    linkSent: "Link inviato correttamente" 
+    linkSent: "Link inviato correttamente",
+    deletePatientError: "Errore durante l'eliminazione del paziente."
   }
 }

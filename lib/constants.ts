@@ -11,7 +11,7 @@ export const LOCALES = [
   { code: 'ru', name: 'Русский', flag: '🇷🇺' }
 ] as const;
 
-export const DEFAULT_LOCALE = 'it';
+export const DEFAULT_LOCALE = 'en';
 
 export const COUNTRY_MAP = [
   { name: "Afghanistan", code: "AF", dial_code: "+93", flag: "🇦🇫" },

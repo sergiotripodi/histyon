@@ -37,7 +37,7 @@ export default async function RegisterPage() {
             </div>
 
             <div className="mt-6 pt-6 border-t border-gray-100">
-                <Link href="/auth/login" className="group flex items-center justify-between p-4 rounded-xl border border-gray-200 hover:border-black hover:bg-gray-50 transition-all cursor-pointer shadow-sm">
+                <Link href="/auth/login" className="group flex items-center justify-between p-5 border border-gray-200 hover:border-gray-900 hover:bg-gray-50 transition-all cursor-pointer">
                     <div className="flex items-center gap-3">
                         <div className="bg-gray-100 p-2 rounded-lg group-hover:bg-white transition-colors">
                             <LogIn className="w-5 h-5 text-gray-700" />

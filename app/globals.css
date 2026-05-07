@@ -30,7 +30,7 @@ body {
   }
 
   .card-elegant {
-    @apply rounded-2xl border border-gray-200 bg-white shadow-sm;
+    @apply border border-gray-200 bg-white;
   }
 
   .tint-elegant {

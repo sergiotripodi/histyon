@@ -1,15 +1,13 @@
 import Link from 'next/link'
 import { Logo } from '@/components/ui/Logo'
-import { UserDropdown } from './UserDropdown'
 import { createClient } from '@/lib/supabase/server'
 import { getDictionary } from '@/lib/dictionary'
 
 interface HeaderProps {
   variant?: 'public' | 'dashboard'
-  userProfile?: any
 }
 
-export async function Header({ variant = 'public', userProfile }: HeaderProps) {
+export async function Header({ variant = 'public' }: HeaderProps) {
   const supabase = await createClient()
   const dict = await getDictionary()
   const { data: { user } } = await supabase.auth.getUser()
@@ -33,17 +31,22 @@ export async function Header({ variant = 'public', userProfile }: HeaderProps) {
 
         <div className="flex items-center gap-3 md:gap-6">
           {user ? (
-            <UserDropdown user={user} profile={userProfile} dict={dict as any} />
+            <Link
+              href="/dashboard"
+              className="btn-elegant whitespace-nowrap text-xs md:text-sm md:px-5 md:py-2.5"
+            >
+              {dict.landing.header.toConsole}
+            </Link>
           ) : (
             <div className="flex items-center gap-2 md:gap-4">
-              <Link 
-                href="/auth/login" 
+              <Link
+                href="/auth/login"
                 className="text-xs md:text-sm font-medium text-gray-600 hover:text-black transition-colors border-b border-transparent hover:border-gray-900"
               >
                 {dict.auth.login.btn}
               </Link>
-              <Link 
-                href="/auth/register" 
+              <Link
+                href="/auth/register"
                 className="btn-elegant whitespace-nowrap text-xs md:text-sm md:px-5 md:py-2.5"
               >
                 {dict.auth.login.requestAccess}

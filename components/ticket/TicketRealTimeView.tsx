@@ -2,165 +2,301 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { HardDrive, BrainCircuit, FileText, Server, RefreshCw, Activity, Maximize2, FolderArchive } from 'lucide-react'
-import { StatusTimeline } from '@/components/ticket/StatusTimeline'
+import {
+  HardDrive, FileText, Maximize2, FolderArchive, Download,
+  RefreshCw, BrainCircuit, Server, Activity, Check,
+  UploadCloud, FileCheck, XCircle, X
+} from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { getTicketProjectDownloadUrl } from '@/lib/actions/storage'
+import { getTicketProjectDownloadUrl, getRegionDownloadUrl } from '@/lib/actions/storage'
 
-interface RealTimeProps {
-    initialTicket: any
-    dict: any
-}
+interface RealTimeProps { initialTicket: any; dict: any }
 
+// ─── Status theme palette ───────────────────────────────────────────────────
+const THEME = {
+  UPLOADING: {
+    border:    'border-gray-200',
+    headerBg:  'bg-gray-50',
+    bodyBg:    'bg-white',
+    track:     'bg-gray-400',
+    dotDone:   'bg-gray-700 border-gray-700',
+    dotActive: 'border-gray-500',
+    pulse:     'bg-gray-500',
+    label:     'text-gray-600',
+    title:     'text-gray-700',
+  },
+  QUEUED: {
+    border:    'border-amber-200',
+    headerBg:  'bg-amber-50/60',
+    bodyBg:    'bg-amber-50/25',
+    track:     'bg-amber-400',
+    dotDone:   'bg-amber-600 border-amber-600',
+    dotActive: 'border-amber-500',
+    pulse:     'bg-amber-500',
+    label:     'text-amber-700',
+    title:     'text-amber-900',
+  },
+  PROCESSING: {
+    border:    'border-blue-200',
+    headerBg:  'bg-blue-50/60',
+    bodyBg:    'bg-blue-50/25',
+    track:     'bg-blue-400',
+    dotDone:   'bg-blue-600 border-blue-600',
+    dotActive: 'border-blue-500',
+    pulse:     'bg-blue-500',
+    label:     'text-blue-700',
+    title:     'text-blue-900',
+  },
+  COMPLETED: {
+    border:    'border-emerald-200',
+    headerBg:  'bg-emerald-50/60',
+    bodyBg:    'bg-emerald-50/25',
+    track:     'bg-emerald-400',
+    dotDone:   'bg-emerald-600 border-emerald-600',
+    dotActive: 'border-emerald-500',
+    pulse:     'bg-emerald-500',
+    label:     'text-emerald-700',
+    title:     'text-emerald-900',
+  },
+  ERROR: {
+    border:    'border-red-200',
+    headerBg:  'bg-red-100/60',
+    bodyBg:    'bg-red-50/60',
+    track:     'bg-red-400',
+    dotDone:   'bg-red-600 border-red-600',
+    dotActive: 'border-red-400',
+    pulse:     'bg-red-400',
+    label:     'text-red-700',
+    title:     'text-red-900',
+  },
+} as const
+
+// ─── Component ───────────────────────────────────────────────────────────────
 export function TicketRealtimeView({ initialTicket, dict }: RealTimeProps) {
   const [ticket, setTicket] = useState(initialTicket)
-  const [isDownloadingProject, setIsDownloadingProject] = useState(false)
+  const [dlProject, setDlProject] = useState(false)
+  const [dlRegion,  setDlRegion]  = useState(false)
   const supabase = createClient()
-  const router = useRouter()
-  const t = dict.dashboard.realtime;
+  const router   = useRouter()
+  const t  = dict.dashboard.realtime
+  const tr = dict.dashboard.results
 
-  const status = (ticket.status || 'UPLOADING').toUpperCase().trim()
-  const isError = ['ERROR', 'FAILED', 'FAIL'].includes(status)
+  const status      = (ticket.status || 'UPLOADING').toUpperCase().trim()
+  const isError     = ['ERROR', 'FAILED', 'FAIL'].includes(status)
   const isCompleted = status === 'COMPLETED'
-  const isProcessing = !isError && !isCompleted
+  const cfg = THEME[status as keyof typeof THEME] ?? THEME.UPLOADING
+
+  const STEPS = [
+    { id: 'UPLOADING',  label: dict.dashboard.tickets.steps.uploading,  icon: UploadCloud },
+    { id: 'QUEUED',     label: dict.dashboard.tickets.steps.queued,     icon: Server },
+    { id: 'PROCESSING', label: dict.dashboard.tickets.steps.processing, icon: BrainCircuit },
+    { id: 'COMPLETED',  label: dict.dashboard.tickets.steps.completed,  icon: FileCheck },
+  ]
+  // For error: show full track so all steps appear "reached but cancelled"
+  const currentIdx = isError ? STEPS.length : STEPS.findIndex(s => s.id === status)
 
   useEffect(() => {
-    const channel = supabase.channel(`ticket-view-${ticket.id}`)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets', filter: `id=eq.${ticket.id}` },
-        (payload) => {
-          setTicket(payload.new)
-          if (payload.new.status === 'COMPLETED') router.refresh()
-        }
-      ).subscribe()
-    return () => { supabase.removeChannel(channel) }
+    const ch = supabase.channel(`ticket-view-${ticket.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'tickets',
+        filter: `id=eq.${ticket.id}`,
+      }, (payload) => {
+        setTicket(payload.new)
+        if (payload.new.status === 'COMPLETED') router.refresh()
+      }).subscribe()
+    return () => { supabase.removeChannel(ch) }
   }, [ticket.id, supabase, router])
 
+  const triggerDownload = (url: string, name: string) => {
+    const a = document.createElement('a')
+    a.href = url; a.setAttribute('download', name); a.rel = 'noopener noreferrer'
+    document.body.appendChild(a); a.click(); document.body.removeChild(a)
+  }
+
   const handleProjectDownload = async () => {
-    if (!ticket.project_file_url) return
-    setIsDownloadingProject(true)
+    if (!ticket.qupath_project || dlProject) return
+    setDlProject(true)
     try {
       const res = await getTicketProjectDownloadUrl(ticket.id)
-      if (res.success && 'url' in res && res.url) {
-        const link = document.createElement('a')
-        link.href = res.url
-        link.setAttribute('download', 'qupath_project.zip')
-        link.rel = 'noopener noreferrer'
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-      }
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setIsDownloadingProject(false)
-    }
+      if (res.success && 'url' in res && res.url) triggerDownload(res.url, 'qupath_project.zip')
+    } finally { setDlProject(false) }
   }
 
-  const getBoxClasses = () => {
-    if (isError) return 'tint-elegant border-red-200 from-red-50/70 to-white text-red-900'
-    if (isCompleted) return 'tint-elegant border-emerald-200 from-emerald-50/70 to-white text-emerald-900'
-    if (status === 'PROCESSING') return 'tint-elegant border-amber-200 from-amber-50/70 to-white text-amber-900'
-    return 'tint-elegant border-gray-200 from-gray-50 to-white text-gray-700'
+  const handleRegionDownload = async () => {
+    if (!ticket.output_region || dlRegion) return
+    setDlRegion(true)
+    try {
+      const res = await getRegionDownloadUrl(ticket.id)
+      if (res.success && 'url' in res && res.url) triggerDownload(res.url, 'output_regions.zip')
+    } finally { setDlRegion(false) }
   }
 
-  const stats = ticket.ai_results?.summary;
+  const stats = ticket.ai_results?.summary
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm w-full">
-         <StatusTimeline status={status} dict={dict} />
+    <div className="space-y-6 animate-in fade-in duration-500">
+
+      {/* ── Main unified status + result box ── */}
+      <div className={`border ${cfg.border} overflow-hidden`}>
+
+        {/* Header: always shows the 4 step indicators */}
+        <div className={`${cfg.headerBg} px-8 py-5 border-b ${cfg.border}`}>
+          <div className="relative flex items-start justify-between">
+            {/* Track base */}
+            <div className="absolute top-3.5 inset-x-3 h-px bg-gray-200 z-0" />
+            {/* Track fill — error uses muted red across full width */}
+            <div
+              className={`absolute top-3.5 left-3 h-px z-0 transition-all duration-700 ${
+                isError ? 'bg-red-200' : cfg.track
+              }`}
+              style={{
+                width: isError
+                  ? 'calc(100% - 48px)'
+                  : currentIdx > 0
+                    ? `calc(${(currentIdx / (STEPS.length - 1)) * 100}% - 24px)`
+                    : '0%'
+              }}
+            />
+
+            {STEPS.map((step, i) => {
+              const done   = !isError && i < currentIdx
+              const active = !isError && i === currentIdx
+              return (
+                <div key={step.id} className="relative flex flex-col items-center gap-2.5 flex-1 z-10">
+                  {/* Dot */}
+                  <div className={`w-7 h-7 flex items-center justify-center border transition-all duration-500 ${
+                    isError  ? 'border-red-200 bg-red-50/80' :
+                    done     ? `${cfg.dotDone} text-white` :
+                    active   ? `${cfg.dotActive} bg-white` :
+                    'border-gray-200 bg-white'
+                  }`}>
+                    {isError  && <X className="w-3 h-3 text-red-300" />}
+                    {!isError && done   && <Check className="w-3.5 h-3.5 text-white" />}
+                    {!isError && active && <div className={`w-2.5 h-2.5 ${cfg.pulse} animate-pulse`} />}
+                  </div>
+                  {/* Label — line-through when error */}
+                  <span className={`text-[10px] font-bold uppercase tracking-widest text-center transition-colors ${
+                    isError  ? 'line-through text-red-200' :
+                    active   ? cfg.label :
+                    done     ? 'text-gray-400' :
+                    'text-gray-200'
+                  }`}>
+                    {step.label}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className={`${cfg.bodyBg} p-8`}>
+
+          {isCompleted && (
+            <div className="space-y-7">
+              <div>
+                <p className={`text-sm font-bold mb-5 ${cfg.title}`}>{t.reportReady}</p>
+                <div className="flex gap-2">
+                  <Link
+                    href={`/dashboard/viewer/${ticket.id}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="btn-elegant-soft flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-medium"
+                  >
+                    <Maximize2 className="w-3.5 h-3.5" /> {t.openViewer}
+                  </Link>
+                  <button
+                    onClick={handleProjectDownload}
+                    disabled={dlProject || !ticket.qupath_project}
+                    className="btn-elegant-soft flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-medium disabled:opacity-40"
+                  >
+                    {dlProject ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FolderArchive className="w-3.5 h-3.5" />}
+                    {t.downloadQupath}
+                  </button>
+                  <button
+                    onClick={handleRegionDownload}
+                    disabled={dlRegion || !ticket.output_region}
+                    className="btn-elegant-soft flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-medium disabled:opacity-40"
+                  >
+                    {dlRegion ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                    {t.downloadRegion}
+                  </button>
+                </div>
+              </div>
+
+              {stats && (
+                <div className="border-t border-current/10 pt-6">
+                  <h4 className={`text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 mb-4 opacity-60`}>
+                    <Activity className="w-3.5 h-3.5" /> {t.tissueStats}
+                  </h4>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { label: tr.sickTissue,  value: `${stats.percentuale_tessuto_malato?.toFixed(1)}%` },
+                      { label: tr.totalGlom,   value: stats.counts?.glomeruli || 0 },
+                      { label: tr.scleroGlom,  value: stats.counts?.glomeruli_sclerotici || 0 },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="bg-white/60 border border-current/10 p-4">
+                        <p className="text-[10px] uppercase font-bold opacity-50 mb-1">{label}</p>
+                        <p className="text-2xl font-bold">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {!isCompleted && !isError && (
+            <div className="flex flex-col items-center justify-center gap-4 py-6 text-center">
+              <div className="w-14 h-14 bg-white/60 border border-current/10 flex items-center justify-center">
+                {status === 'PROCESSING'
+                  ? <BrainCircuit className={`w-6 h-6 ${cfg.label} animate-pulse`} />
+                  : <Server className={`w-6 h-6 ${cfg.label}`} />
+                }
+              </div>
+              <p className={`text-sm font-medium ${cfg.title}`}>{t.analyzing}</p>
+            </div>
+          )}
+
+          {isError && (
+            <div className="space-y-5">
+              <p className={`text-sm font-bold ${cfg.title}`}>{t.reportUnavailable}</p>
+              <div className="border-l-2 border-red-400 bg-red-50/60 px-5 py-4 flex items-start gap-3">
+                <XCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-bold text-red-800 tracking-tight">
+                    {dict.dashboard.tickets.status.failedAnalysis}
+                  </p>
+                  <p className="text-xs text-red-500 mt-0.5 leading-relaxed">{t.genericError}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
-         <div className="lg:col-span-1 flex flex-col gap-6">
-            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm text-sm text-gray-900">
-                <h3 className="font-bold mb-4 flex items-center gap-2 text-gray-400 uppercase tracking-widest text-xs">
-                    <HardDrive className="w-4 h-4" /> Dati Sorgente
-                </h3>
-                <div className="space-y-3">
-                    <p className="font-mono break-all bg-gray-50 p-2 rounded-lg border text-xs">{ticket.file_name}</p>
-                    <div className="flex justify-between font-medium">
-                        <span>{(ticket.file_size / (1024*1024)).toFixed(2)} MB</span>
-                        <span suppressHydrationWarning>{new Date(ticket.created_at).toLocaleDateString('it-IT')}</span>
-                    </div>
-                </div>
-            </div>
-            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col h-full">
-                <h3 className="font-bold text-xs text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                    <FileText className="w-4 h-4" /> Note Cliniche
-                </h3>
-                <div className="bg-yellow-50/50 p-4 rounded-xl border border-yellow-100 flex-grow text-sm italic text-gray-700">
-                    {ticket.notes || "Nessuna nota presente."}
-                </div>
-            </div>
-         </div>
+      {/* ── Bottom 2 boxes: source + notes ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-         <div className="lg:col-span-2 h-full">
-            <div className={`p-8 rounded-2xl h-full flex flex-col transition-all duration-500 border ${getBoxClasses()}`}>
-                <h3 className="font-serif text-3xl mb-8 tracking-tight">
-                    {isError ? "Analisi Interrotta" : isCompleted ? "Report Disponibile" : "Analisi AI in corso..."}
-                </h3>
+        <div className="bg-white border border-gray-200 p-6">
+          <h3 className="font-bold text-xs text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <HardDrive className="w-3.5 h-3.5" /> {t.sourceData}
+          </h3>
+          <p className="font-mono break-all bg-gray-50 p-2 border border-gray-200 text-xs mb-3">{ticket.file_name}</p>
+          <div className="flex justify-between text-xs text-gray-500 font-medium">
+            <span>{(ticket.file_size / (1024 * 1024)).toFixed(2)} MB</span>
+            <span suppressHydrationWarning>{new Date(ticket.created_at).toLocaleDateString()}</span>
+          </div>
+        </div>
 
-                {isCompleted && (
-                    <div className="space-y-8 flex-1 flex flex-col justify-center">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <Link 
-                                href={`/dashboard/viewer/${ticket.id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="btn-elegant flex items-center justify-center gap-3 px-6 py-4 rounded-md font-bold"
-                            >
-                                <Maximize2 className="w-5 h-5 text-green-600" />
-                                APRI VISUALIZZATORE
-                            </Link>
+        <div className="bg-white border border-gray-200 p-6">
+          <h3 className="font-bold text-xs text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <FileText className="w-3.5 h-3.5" /> {t.clinicalNotes}
+          </h3>
+          <p className="text-sm text-gray-600 italic leading-relaxed">{ticket.notes || t.noNotes}</p>
+        </div>
 
-                            <button 
-                                onClick={handleProjectDownload}
-                                disabled={isDownloadingProject || !ticket.project_file_url}
-                                className="btn-elegant flex items-center justify-center gap-3 px-6 py-4 rounded-md font-bold"
-                            >
-                                {isDownloadingProject ? <RefreshCw className="w-5 h-5 animate-spin" /> : <FolderArchive className="w-5 h-5 text-blue-600" />}
-                                DOWNLOAD QUPATH
-                            </button>
-                        </div>
-
-                        <div className="pt-6 border-t border-current/15">
-                            <h4 className="text-xs uppercase tracking-widest font-bold opacity-80 flex items-center gap-2 mb-4">
-                                <Activity className="w-4 h-4" /> Statistiche Tessutali
-                            </h4>
-                            {stats ? (
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                    <div className="bg-white p-4 rounded-md border border-current/15">
-                                        <p className="text-[10px] uppercase font-bold opacity-70 mb-1">Tessuto Malato</p>
-                                        <p className="text-2xl font-bold">{stats.percentuale_tessuto_malato?.toFixed(1)}%</p>
-                                    </div>
-                                    <div className="bg-white p-4 rounded-md border border-current/15">
-                                        <p className="text-[10px] uppercase font-bold opacity-70 mb-1">Glomeruli Totali</p>
-                                        <p className="text-2xl font-bold">{stats.counts?.glomeruli || 0}</p>
-                                    </div>
-                                    <div className="bg-white p-4 rounded-md border border-current/15">
-                                        <p className="text-[10px] uppercase font-bold opacity-70 mb-1">Glom. Sclerotici</p>
-                                        <p className="text-2xl font-bold">{stats.counts?.glomeruli_sclerotici || 0}</p>
-                                    </div>
-                                </div>
-                            ) : (
-                                <p className="text-sm opacity-60 italic py-4 text-center">Dati quantitativi non estratti.</p>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {isProcessing && (
-                    <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4">
-                        <div className="w-20 h-20 rounded-md bg-white border border-current/20 flex items-center justify-center">
-                            {status === 'PROCESSING' ? <BrainCircuit className="w-10 h-10 animate-pulse" /> : <Server className="w-10 h-10" />}
-                        </div>
-                        <p className="text-xl font-bold uppercase tracking-tight">Elaborazione in corso...</p>
-                    </div>
-                )}
-            </div>
-         </div>
       </div>
     </div>
   )

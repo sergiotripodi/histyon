@@ -54,7 +54,8 @@ export const ru = {
       docs: "Документация",
       contact: "Контакты",
       legal: "Правовая информация"
-    }
+    },
+    header: { toConsole: "Вернуться в консоль" }
   },
   auth: {
     sidebar: {
@@ -135,8 +136,8 @@ export const ru = {
     }
   },
   dashboard: {
-    header: { console: "Консоль", unassigned: "Не назначено", logout: "Выход" },
-    tabs: { patients: "Пациенты", analysis: "Анализы", profile: "Профиль" },
+    header: { console: "Консоль", unassigned: "Не назначено", logout: "Выход", role: "Врач", assistance: "Поддержка" },
+    tabs: { patients: "Пациенты", analysis: "Анализы", profile: "Профиль", settings: "Настройки" },
     titles: {
       main: "Мед. Консоль", patientRegistry: "Реестр пациентов", globalHistory: "История анализов",
       uploadHistory: "История загрузок", patientFolder: "Личная папка"
@@ -147,6 +148,13 @@ export const ru = {
       modal: {
         title: "Регистрация пациента", subtitle: "Заполните обязательные поля (*)",
         btnSave: "Создать папку", btnSaving: "Сохранение..."
+      },
+      delete: {
+        title: "Удалить пациента", subtitle: "Все данные будут безвозвратно удалены. Действие необратимо.",
+        warningLabel: "Внимание", warning: "Все файлы анализов будут навсегда удалены из облачного хранилища.",
+        ticketCount: "анализов будет удалено",
+        confirm: "Введите налоговый код для подтверждения:", placeholder: "Налоговый код",
+        btnCancel: "Отмена", btnDelete: "Удалить навсегда", btnDeleting: "Удаление..."
       }
     },
     tickets: {
@@ -176,7 +184,15 @@ export const ru = {
       queuedTitle: "В очереди", processingTitle: "Идет анализ",
       queuedDesc: "Файл в безопасности. Ожидание движка ИИ.",
       processingDesc: "Анализ тканей и генерация JSON.",
-      outputNotReady: "Результат не готов."
+      outputNotReady: "Результат не готов.",
+      interrupted: "Анализ прерван",
+      reportReady: "Отчёт доступен",
+      analyzing: "Анализ выполняется",
+      openViewer: "Просмотрщик",
+      downloadQupath: "QuPath",
+      downloadRegion: "Регионы",
+      tissueStats: "Статистика",
+      reportUnavailable: "Отчёт недоступен"
     },
     results: {
       title: "Результаты ИИ", tissueView: "Визуализация",
@@ -195,7 +211,8 @@ export const ru = {
         residence: "Проживание",
         professional: "Проф. данные",
         email: "Email",
-        password: "Пароль"
+        password: "Пароль",
+        security: "Аккаунт и безопасность"
       },
       form: {
         updateBtn: "Сохранить",
@@ -219,13 +236,14 @@ export const ru = {
       termsTitle: "Условия использования", termsSub: "Правила консоли",
       cookieTitle: "Политика Cookie", cookieSub: "Прозрачность трекинга",
       dpaTitle: "Безопасность и DPA", dpaSub: "Техническое приложение",
-      disclaimer: "ВНИМАНИЕ - МЕДИЦИНСКИЙ ОТКАЗ:",
+      disclaimer: "Медицинский дисклеймер",
       disclaimerText: "Histyon — технический инструмент, не заменяет врача. ИИ требует валидации.",
       privacy: {
         sec1: { title: "1. Контроллер", body: "Histyon Team управляет данными аккаунта." },
         sec2: { title: "2. Данные", body: "Проф. данные и данные пациентов (зашифрованы)." },
         sec3: { title: "3. Цель", body: "SaaS сервис, Диагностика, Безопасность." },
-        sec4: { title: "4. Локация", body: "Данные в ЕЭЗ (Европейская экономическая зона)." }
+        sec4: { title: "4. Локация", body: "Данные в ЕЭЗ (Европейская экономическая зона)." },
+        sec5: { title: "5. Право на удаление (ст. 17 GDPR)", body: "Вы имеете право на безвозвратное удаление данных пациентов и всех связанных файлов анализов. Удаление выполняется из панели управления в любое время и является немедленным и необратимым." }
       },
       terms: {
         sec1: { title: "1. Требования", body: "Доступ только для зарегистрированных врачей." },
@@ -268,6 +286,7 @@ export const ru = {
     fileNotFound: "Файл не найден.",
     fileRetrievalError: "Невозможно получить файл",
     credentialsInvalid: "Неверные данные",
-    linkSent: "Ссылка успешно отправлена"
+    linkSent: "Ссылка успешно отправлена",
+    deletePatientError: "Ошибка при удалении данных пациента."
   }
 }
