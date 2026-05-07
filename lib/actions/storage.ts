@@ -22,6 +22,24 @@ const ALLOWED_UPLOAD_TYPES = new Set([
   'image/webp',
   'application/octet-stream',
 ])
+const ALLOWED_UPLOAD_EXTENSIONS = new Set([
+  'pdf',
+  'jpg',
+  'jpeg',
+  'png',
+  'tif',
+  'tiff',
+  'webp',
+  'svs',
+  'ndpi',
+  'mrxs',
+  'vms',
+  'vmu',
+  'scn',
+  'btf',
+  'dcm',
+  'czi',
+])
 
 function sanitizeExtension(originalName: string): string {
   const raw = (originalName.split('.').pop() || '')
@@ -57,10 +75,14 @@ export async function getPresignedUploadUrl(
     return { error: dictionary.validation.genericError }
   }
 
+  const ext = sanitizeExtension(originalName)
   const normalizedType = (fileType || '').toLowerCase().split(';')[0].trim()
-  if (!ALLOWED_UPLOAD_TYPES.has(normalizedType)) {
+  const hasAllowedMime = normalizedType.length > 0 && ALLOWED_UPLOAD_TYPES.has(normalizedType)
+  const hasKnownExtension = ALLOWED_UPLOAD_EXTENSIONS.has(ext)
+  if (!hasAllowedMime && !hasKnownExtension) {
     return { error: dictionary.validation.uploadError }
   }
+  const contentTypeForUpload = hasAllowedMime ? normalizedType : 'application/octet-stream'
 
   const { data: patientRow, error: patientErr } = await supabase
     .from('patients')
@@ -76,7 +98,6 @@ export async function getPresignedUploadUrl(
   const ticketId = uuidv4()
 
   try {
-    const ext = sanitizeExtension(originalName)
     const customFileName = `scaninput-${ticketId}.${ext}`
     const filePath = `${user.id}/${patientId}/${customFileName}`
 
@@ -99,7 +120,7 @@ export async function getPresignedUploadUrl(
     const command = new PutObjectCommand({
       Bucket: process.env.R2_INPUT_BUCKET_NAME,
       Key: filePath,
-      ContentType: normalizedType,
+      ContentType: contentTypeForUpload,
       Metadata: { originalName: originalName.slice(0, 512) },
     })
 
