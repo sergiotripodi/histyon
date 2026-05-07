@@ -17,15 +17,15 @@ export function StatusTimeline({ status: rawStatus, dict }: { status: string, di
   const currentIndex = isError ? 0 : STEPS.findIndex(s => s.id === status)
 
   const getColors = (color: string, isActive: boolean, isCompleted: boolean) => {
-    if (isError) return 'bg-gray-100 text-gray-400 border-gray-200' 
+    if (isError) return 'bg-gray-100 text-gray-400 border-gray-200'
     
     if (isActive) {
-       if (color === 'purple') return 'bg-purple-100 text-purple-700 border-purple-300 ring-4 ring-purple-50 animate-pulse'
-       if (color === 'yellow') return 'bg-yellow-100 text-yellow-700 border-yellow-300 ring-4 ring-yellow-50 animate-pulse'
-       if (color === 'gray') return 'bg-gray-100 text-gray-700 border-gray-300 ring-4 ring-gray-50'
-       if (color === 'green') return 'bg-green-100 text-green-700 border-green-300'
+       if (color === 'purple') return 'bg-violet-50 text-violet-700 border-violet-300'
+       if (color === 'yellow') return 'bg-amber-50 text-amber-700 border-amber-300'
+       if (color === 'gray') return 'bg-gray-100 text-gray-700 border-gray-300'
+       if (color === 'green') return 'bg-emerald-50 text-emerald-700 border-emerald-300'
     }
-    if (isCompleted) return 'bg-black text-white border-black'
+    if (isCompleted) return 'bg-gray-900 text-white border-gray-900'
     return 'bg-white text-gray-300 border-gray-100'
   }
 
@@ -49,7 +49,7 @@ export function StatusTimeline({ status: rawStatus, dict }: { status: string, di
 
             return (
                 <div key={step.id} className="flex flex-col items-center gap-3 bg-white px-2 z-10">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center border-2 transition-all duration-500 ${colorClasses} ${isCompleted ? 'shadow-md scale-105' : ''}`}>
+                <div className={`w-12 h-12 rounded-md flex items-center justify-center border transition-all duration-500 ${colorClasses} ${isCompleted ? 'shadow-sm scale-105' : ''}`}>
                     {isCompleted ? <Check className="w-5 h-5" /> : <step.icon className="w-5 h-5" />}
                 </div>
                 <span className={`text-[10px] font-bold uppercase tracking-wider ${isCurrent ? 'text-black' : 'text-gray-400'}`}>
@@ -61,7 +61,7 @@ export function StatusTimeline({ status: rawStatus, dict }: { status: string, di
         </div>
 
         {isError && (
-             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-red-600 text-white px-6 py-3 rounded-2xl shadow-xl shadow-red-500/20 z-20 flex items-center gap-3 animate-in zoom-in slide-in-from-bottom-2 duration-300">
+             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white text-red-700 border border-red-200 px-6 py-3 rounded-md shadow-lg z-20 flex items-center gap-3 animate-in zoom-in slide-in-from-bottom-2 duration-300">
                 <XCircle className="w-6 h-6" />
                 <span className="font-bold text-sm tracking-wide">{tStatus.failedAnalysis}</span>
              </div>

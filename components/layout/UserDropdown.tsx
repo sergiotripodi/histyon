@@ -34,11 +34,11 @@ export function UserDropdown({ user, profile, dict }: UserDropdownProps) {
 
   return (
     <div className="relative">
-      <button 
+      <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-3 pl-1.5 pr-3 py-1.5 rounded-full hover:bg-gray-50 transition-all border border-transparent hover:border-gray-200 group"
+        className="flex items-center gap-3 pl-1.5 pr-3 py-1.5 rounded-md hover:bg-gray-50 transition-all border border-gray-200 group"
       >
-        <div className="w-9 h-9 bg-black text-white rounded-full flex items-center justify-center shadow-md ring-2 ring-transparent group-hover:ring-gray-200 transition-all">
+        <div className="w-9 h-9 bg-white text-gray-900 rounded-md border border-gray-900 flex items-center justify-center transition-all">
           <span className="font-bold text-sm">{initial}</span>
         </div>
         
@@ -53,7 +53,7 @@ export function UserDropdown({ user, profile, dict }: UserDropdownProps) {
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-md shadow-lg border border-gray-200 p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
             
             <div className="px-3 py-3 border-b border-gray-50 mb-1">
               <p className="font-bold text-sm text-gray-900 truncate">{user.email}</p>
@@ -66,7 +66,7 @@ export function UserDropdown({ user, profile, dict }: UserDropdownProps) {
               <Link 
                 href="/dashboard" 
                 onClick={() => setIsOpen(false)}
-                className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-xl transition-colors font-medium"
+                className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors font-medium"
               >
                 <LayoutDashboard className="w-4 h-4 text-gray-500" />
                 Console
@@ -75,7 +75,7 @@ export function UserDropdown({ user, profile, dict }: UserDropdownProps) {
               <Link 
                 href="/dashboard/settings" 
                 onClick={() => setIsOpen(false)}
-                className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-xl transition-colors font-medium"
+                className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors font-medium"
               >
                 <Settings className="w-4 h-4 text-gray-500" />
                 {dict.dashboard.settings.title}
@@ -85,7 +85,7 @@ export function UserDropdown({ user, profile, dict }: UserDropdownProps) {
             <div className="border-t border-gray-50 mt-1 pt-1">
               <button 
                 onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-xl transition-colors font-medium"
+                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-red-700 hover:bg-red-50 rounded-md transition-colors font-medium"
               >
                 <LogOut className="w-4 h-4" />
                 {dict.dashboard.header.logout}

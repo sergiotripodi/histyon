@@ -39,16 +39,16 @@ export function SettingsForm({ user, profile, dict }: SettingsFormProps) {
   return (
     <div className="w-full">
       
-      <div className="flex gap-1 p-1 bg-gray-100/80 rounded-xl w-fit mb-8 border border-gray-200/50">
+      <div className="flex gap-1 p-1 bg-white rounded-md w-fit mb-8 border border-gray-200">
         <button 
             onClick={() => setActiveTab('profile')} 
-            className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-lg transition-all ${activeTab === 'profile' ? 'bg-white text-gray-900 shadow-sm border border-gray-200/50' : 'text-gray-500 hover:text-gray-900'}`}
+            className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-sm transition-all ${activeTab === 'profile' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
         >
           <User className="w-4 h-4" /> {d.tabs.profile}
         </button>
         <button 
             onClick={() => setActiveTab('security')} 
-            className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-lg transition-all ${activeTab === 'security' ? 'bg-white text-gray-900 shadow-sm border border-gray-200/50' : 'text-gray-500 hover:text-gray-900'}`}
+            className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-sm transition-all ${activeTab === 'security' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
         >
           <ShieldCheck className="w-4 h-4" /> {d.tabs.security}
         </button>
@@ -132,10 +132,10 @@ export function SettingsForm({ user, profile, dict }: SettingsFormProps) {
                 </div>
                 
                 <div className="sticky bottom-4">
-                    <button 
-                        type="submit" 
-                        disabled={isPending} 
-                        className="w-full bg-gray-900 text-white py-3.5 rounded-xl text-sm font-semibold hover:bg-black transition-all flex items-center justify-center gap-2 disabled:opacity-70 shadow-sm active:scale-[0.98]"
+                    <button
+                        type="submit"
+                        disabled={isPending}
+                        className="btn-elegant w-full py-3.5"
                     >
                         {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />} 
                         {isPending ? d.form.updating : d.form.updateBtn}
@@ -174,10 +174,10 @@ export function SettingsForm({ user, profile, dict }: SettingsFormProps) {
                         </div>
                     </div>
                     
-                    <button 
-                        type="submit" 
-                        disabled={isPending} 
-                        className="w-full mt-8 bg-white border border-gray-200 text-gray-900 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm"
+                    <button
+                        type="submit"
+                        disabled={isPending}
+                        className="btn-elegant-soft w-full mt-8 py-3"
                     >
                         {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                         {isPending ? d.form.updating : d.form.updateBtn}
@@ -207,10 +207,10 @@ export function SettingsForm({ user, profile, dict }: SettingsFormProps) {
                         <ValidatedInput name="confirm_password" type="password" label={d.form.confirmPassword} placeholder="••••••••" />
                     </div>
                     
-                    <button 
-                        type="submit" 
-                        disabled={isPending} 
-                        className="w-full mt-8 bg-gray-900 text-white py-3 rounded-xl text-sm font-semibold hover:bg-black transition-all shadow-sm active:scale-[0.98] disabled:opacity-70 flex items-center justify-center gap-2"
+                    <button
+                        type="submit"
+                        disabled={isPending}
+                        className="btn-elegant w-full mt-8 py-3"
                     >
                         {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                         {isPending ? d.form.updating : d.form.savePassword}

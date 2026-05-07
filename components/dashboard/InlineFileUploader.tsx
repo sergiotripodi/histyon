@@ -83,11 +83,11 @@ export function InlineFileUploader({ patientId, dict }: UploaderProps) {
         <div 
           onClick={() => status === 'idle' && !file && fileInputRef.current?.click()}
           className={`
-            relative w-full border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center transition-all bg-white
+            relative w-full border-2 border-dashed rounded-md p-6 flex flex-col items-center justify-center transition-all bg-white
             ${status === 'uploading' ? 'border-gray-300 cursor-wait bg-gray-50' : ''}
             ${status === 'idle' && !file ? 'border-gray-300 hover:border-black hover:bg-gray-50 cursor-pointer h-48' : 'border-gray-300'}
-            ${status === 'success' ? 'border-green-500 bg-green-50 h-48' : ''}
-            ${status === 'error' ? 'border-red-500 bg-red-50 h-48' : ''}
+            ${status === 'success' ? 'border-emerald-400 bg-emerald-50/40 h-48' : ''}
+            ${status === 'error' ? 'border-red-300 bg-red-50/40 h-48' : ''}
           `}
         >
           <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" disabled={status !== 'idle'} />
@@ -105,8 +105,8 @@ export function InlineFileUploader({ patientId, dict }: UploaderProps) {
           {status === 'idle' && file && (
             <div className="w-full max-w-md space-y-4 cursor-default">
               <div className="flex items-center gap-4 bg-gray-50 p-3 rounded-lg border border-gray-200">
-                 <div className="bg-black p-2 rounded-lg">
-                    <File className="w-5 h-5 text-white" />
+                 <div className="bg-white p-2 rounded-md border border-gray-900">
+                    <File className="w-5 h-5 text-gray-900" />
                  </div>
                  <div className="flex-1 min-w-0">
                     <p className="font-bold text-sm text-gray-900 truncate">{file.name}</p>
@@ -123,14 +123,14 @@ export function InlineFileUploader({ patientId, dict }: UploaderProps) {
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     placeholder={t.notesPlaceholder}
-                    className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:border-black focus:ring-1 focus:ring-black min-h-[80px] resize-none"
+                    className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-md outline-none focus:border-gray-900 min-h-[80px] resize-none"
                     onClick={(e) => e.stopPropagation()} 
                  />
               </div>
               
               <button 
                 onClick={(e) => { e.stopPropagation(); startUpload(); }}
-                className="w-full bg-black text-white px-6 py-3 rounded-xl text-sm font-bold hover:bg-gray-800 transition-all shadow-lg hover:-translate-y-0.5 flex items-center justify-center gap-2"
+                className="btn-elegant w-full px-6 py-3 text-sm font-bold"
               >
                 <UploadCloud className="w-4 h-4" /> {t.btnStart}
               </button>

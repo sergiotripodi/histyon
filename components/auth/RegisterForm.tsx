@@ -119,7 +119,7 @@ export function RegisterForm({ dict }: RegisterFormProps) {
                 ))}
             </div>
 
-            <h2 className="text-2xl font-bold">
+            <h2 className="font-serif text-3xl">
                 {currentStep === 1 && t.steps.registry}
                 {currentStep === 2 && t.steps.residence}
                 {currentStep === 3 && t.steps.profession}
@@ -144,16 +144,16 @@ export function RegisterForm({ dict }: RegisterFormProps) {
 
         <div className="mt-8 pt-6 border-t border-gray-100 flex items-center gap-3">
             {currentStep > 1 && (
-                <button type="button" onClick={prevStep} className="flex-1 bg-white text-gray-900 border border-gray-200 py-3.5 rounded-xl font-bold hover:bg-gray-50 transition-all flex items-center justify-center gap-2">
+                <button type="button" onClick={prevStep} className="btn-elegant-soft flex-1 py-3.5 rounded-md font-bold">
                     <ArrowLeft className="w-4 h-4" /> {t.buttons.back}
                 </button>
             )}
             {currentStep < 3 ? (
-                <button type="button" onClick={nextStep} className="flex-[2] bg-black text-white py-3.5 rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg flex items-center justify-center gap-2">
+                <button type="button" onClick={nextStep} className="btn-elegant flex-[2] py-3.5 rounded-md font-bold">
                     {t.buttons.next} <ArrowRight className="w-4 h-4" />
                 </button>
             ) : (
-                <button type="submit" className="flex-[2] bg-black text-white py-3.5 rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg flex items-center justify-center gap-2">
+                <button type="submit" className="btn-elegant flex-[2] py-3.5 rounded-md font-bold">
                     {t.buttons.complete} <Check className="w-4 h-4" />
                 </button>
             )}

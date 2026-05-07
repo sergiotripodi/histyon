@@ -15,7 +15,7 @@ export async function Header({ variant = 'public', userProfile }: HeaderProps) {
   const { data: { user } } = await supabase.auth.getUser()
 
   return (
-    <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 w-full transition-all">
+    <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-200 w-full transition-all">
       <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 md:h-20 flex items-center justify-between">
         
         <div className="flex items-center gap-3">
@@ -38,13 +38,13 @@ export async function Header({ variant = 'public', userProfile }: HeaderProps) {
             <div className="flex items-center gap-2 md:gap-4">
               <Link 
                 href="/auth/login" 
-                className="text-xs md:text-sm font-medium text-gray-600 hover:text-black transition-colors"
+                className="text-xs md:text-sm font-medium text-gray-600 hover:text-black transition-colors border-b border-transparent hover:border-gray-900"
               >
                 {dict.auth.login.btn}
               </Link>
               <Link 
                 href="/auth/register" 
-                className="bg-black text-white px-3 py-2 md:px-5 md:py-2.5 rounded-full text-xs md:text-sm font-medium hover:bg-gray-800 transition-all shadow-md hover:shadow-lg whitespace-nowrap"
+                className="btn-elegant whitespace-nowrap text-xs md:text-sm md:px-5 md:py-2.5"
               >
                 {dict.auth.login.requestAccess}
               </Link>

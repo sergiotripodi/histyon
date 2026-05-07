@@ -18,7 +18,7 @@ function SubmitButton({ dict }: { dict: any }) {
   const { pending } = useFormStatus()
   const t = dict.dashboard.patients.modal;
   return (
-    <button disabled={pending} className="w-full bg-black text-white py-3 rounded-xl font-medium hover:bg-gray-800 disabled:opacity-50 mt-6 shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99]">
+    <button disabled={pending} className="btn-elegant w-full py-3 mt-6">
       {pending ? t.btnSaving : t.btnSave}
     </button>
   )
@@ -51,7 +51,7 @@ export function AddPatientModal({ dict }: ModalProps) {
 
   if (!isOpen) {
     return (
-      <button onClick={() => setIsOpen(true)} className="bg-black text-white px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 hover:bg-gray-900 transition-shadow shadow-sm">
+      <button onClick={() => setIsOpen(true)} className="btn-elegant px-5 py-2.5 text-sm font-semibold">
         <Plus className="w-4 h-4" /> {tPatients.btnNew}
       </button>
     )
@@ -59,14 +59,14 @@ export function AddPatientModal({ dict }: ModalProps) {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
-      <div className="bg-white rounded-2xl w-full max-w-2xl p-8 shadow-2xl border border-gray-100 max-h-[90vh] overflow-y-auto scrollbar-hide relative">
+      <div className="bg-white rounded-md w-full max-w-2xl p-8 shadow-xl border border-gray-200 max-h-[90vh] overflow-y-auto scrollbar-hide relative">
         
         <div className="flex justify-between items-start mb-6">
           <div>
-            <h3 className="font-bold text-2xl tracking-tight">{t.title}</h3>
+            <h3 className="font-serif text-3xl tracking-tight">{t.title}</h3>
             <p className="text-sm text-gray-500">{t.subtitle}</p>
           </div>
-          <button onClick={() => setIsOpen(false)} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+          <button onClick={() => setIsOpen(false)} className="p-2 bg-white border border-gray-300 hover:border-gray-900 rounded-md transition-colors"><X className="w-5 h-5" /></button>
         </div>
 
         {error && (
@@ -91,7 +91,7 @@ export function AddPatientModal({ dict }: ModalProps) {
                 <ValidatedInput name="fiscalCode" label={tf.labels.fiscalCode} className="uppercase font-mono" maxLength={16} placeholder={tf.placeholders.cf} required />
                 <div className="relative">
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">{tf.labels.gender} *</label>
-                    <select name="gender" required defaultValue="" className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl appearance-none cursor-pointer outline-none focus:ring-4 focus:ring-gray-100 transition-all">
+                    <select name="gender" required defaultValue="" className="w-full px-4 py-3 bg-white border border-gray-300 rounded-md appearance-none cursor-pointer outline-none focus:border-gray-900 transition-all">
                         <option value="" disabled>{tf.placeholders.select}</option>
                         <option value="M">{tf.options.male}</option>
                         <option value="F">{tf.options.female}</option>

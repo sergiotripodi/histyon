@@ -24,7 +24,7 @@ export default async function UpdatePasswordPage(props: {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-8 animate-in fade-in zoom-in-95">
         
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.heading}</h2>
+        <h2 className="font-serif text-3xl text-gray-900 mb-2">{t.heading}</h2>
         <p className="text-sm text-gray-600 mb-8">{t.subheading}</p>
 
         {errorMessage && (
@@ -47,7 +47,7 @@ export default async function UpdatePasswordPage(props: {
             label={tf.labels.confirmPassword}
             required 
           />
-          <button formAction={updatePassword} className="w-full bg-black text-white py-3.5 rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg">
+          <button formAction={updatePassword} className="btn-elegant w-full py-3.5">
             {t.btn}
           </button>
         </form>

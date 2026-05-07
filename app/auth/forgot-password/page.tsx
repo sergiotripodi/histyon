@@ -28,7 +28,7 @@ export default async function ForgotPasswordPage(props: {
           <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle2 className="w-8 h-8 text-green-600" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.successTitle}</h2>
+          <h2 className="font-serif text-3xl text-gray-900 mb-2">{t.successTitle}</h2>
           <p className="text-gray-600 mb-8 leading-relaxed">
             {t.successDesc}
           </p>
@@ -47,7 +47,7 @@ export default async function ForgotPasswordPage(props: {
           <ArrowLeft className="w-4 h-4 mr-2" /> {t.backToLogin}
         </Link>
 
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.heading}</h2>
+        <h2 className="font-serif text-3xl text-gray-900 mb-2">{t.heading}</h2>
         <p className="text-sm text-gray-600 mb-8">{t.subheading}</p>
 
         {errorMessage && (
@@ -64,7 +64,7 @@ export default async function ForgotPasswordPage(props: {
             label={tf.labels.emailSimple}
             required 
           />
-          <button formAction={resetPassword} className="w-full bg-black text-white py-3.5 rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg">
+          <button formAction={resetPassword} className="btn-elegant w-full py-3.5">
             {t.btn}
           </button>
         </form>

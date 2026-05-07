@@ -11,7 +11,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       <input
         type={type}
         ref={ref}
-        className={`flex h-12 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-inset disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 ${className}`}
+        className={`flex h-12 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-0 focus-visible:border-gray-900 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 ${className}`}
         {...props}
       />
     )
@@ -69,7 +69,7 @@ export function SelectTrigger({ children, className }: { children: React.ReactNo
   const ctx = useContext(SelectContext)
   if (!ctx) throw new Error("SelectTrigger must be used within Select")
   return (
-    <button type="button" onClick={() => ctx.setOpen(!ctx.open)} className={`flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm ring-offset-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-black focus:ring-inset disabled:cursor-not-allowed disabled:opacity-50 ${className}`}>
+    <button type="button" onClick={() => ctx.setOpen(!ctx.open)} className={`flex w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-3 text-sm ring-offset-white placeholder:text-gray-400 focus:outline-none focus:border-gray-900 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}>
       {children}
       <ChevronDown className="h-4 w-4 opacity-50 transition-transform duration-200" style={{ transform: ctx.open ? 'rotate(180deg)' : 'rotate(0deg)' }} />
     </button>
@@ -84,7 +84,7 @@ export function SelectContent({ children, className }: { children: React.ReactNo
   const ctx = useContext(SelectContext)
   if (!ctx || !ctx.open) return null
   return (
-    <div className={`absolute top-full left-0 mt-1 w-full min-w-[8rem] overflow-hidden rounded-xl border border-gray-200 bg-white text-gray-950 shadow-xl animate-in fade-in-80 zoom-in-95 z-50 ${className}`}>
+    <div className={`absolute top-full left-0 mt-1 w-full min-w-[8rem] overflow-hidden rounded-md border border-gray-200 bg-white text-gray-950 shadow-lg animate-in fade-in-80 zoom-in-95 z-50 ${className}`}>
       <div className="p-1 max-h-[250px] overflow-y-auto custom-scrollbar">{children}</div>
     </div>
   )
@@ -150,10 +150,10 @@ export function ValidatedInput({ label, type, pattern, errorMessage, externalErr
   const inputType = type === 'password' ? (showPassword ? 'text' : 'password') : type
   
   const borderClass = isError 
-    ? 'border-red-500 focus-visible:ring-red-200 bg-red-50/10' 
+    ? 'border-red-300 bg-red-50/40' 
     : isSuccess 
-        ? 'border-green-500 focus-visible:ring-green-200 bg-green-50/10' 
-        : 'border-gray-200 focus-visible:ring-gray-200'
+        ? 'border-emerald-300 bg-emerald-50/30' 
+        : 'border-gray-300'
 
   const displayError = activeExternalError || (isError ? errorMessage : null)
 

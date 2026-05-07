@@ -58,10 +58,10 @@ export function TicketRealtimeView({ initialTicket, dict }: RealTimeProps) {
   }
 
   const getBoxClasses = () => {
-    if (isError) return 'bg-red-600 text-white shadow-xl shadow-red-500/20'
-    if (isCompleted) return 'bg-green-600 text-white shadow-xl shadow-green-500/20'
-    if (status === 'PROCESSING') return 'bg-purple-600 text-white animate-pulse shadow-xl shadow-purple-500/20'
-    return 'bg-gray-800 text-gray-300'
+    if (isError) return 'tint-elegant border-red-200 from-red-50/70 to-white text-red-900'
+    if (isCompleted) return 'tint-elegant border-emerald-200 from-emerald-50/70 to-white text-emerald-900'
+    if (status === 'PROCESSING') return 'tint-elegant border-amber-200 from-amber-50/70 to-white text-amber-900'
+    return 'tint-elegant border-gray-200 from-gray-50 to-white text-gray-700'
   }
 
   const stats = ticket.ai_results?.summary;
@@ -97,8 +97,8 @@ export function TicketRealtimeView({ initialTicket, dict }: RealTimeProps) {
          </div>
 
          <div className="lg:col-span-2 h-full">
-            <div className={`p-8 rounded-3xl h-full flex flex-col transition-all duration-500 ${getBoxClasses()}`}>
-                <h3 className="font-bold text-2xl opacity-90 mb-8 uppercase tracking-tight text-white">
+            <div className={`p-8 rounded-2xl h-full flex flex-col transition-all duration-500 border ${getBoxClasses()}`}>
+                <h3 className="font-serif text-3xl mb-8 tracking-tight">
                     {isError ? "Analisi Interrotta" : isCompleted ? "Report Disponibile" : "Analisi AI in corso..."}
                 </h3>
 
@@ -109,7 +109,7 @@ export function TicketRealtimeView({ initialTicket, dict }: RealTimeProps) {
                                 href={`/dashboard/viewer/${ticket.id}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center justify-center gap-3 bg-white text-gray-900 px-6 py-4 rounded-2xl font-bold hover:bg-gray-50 transition-all shadow-md hover:shadow-lg border border-white/20 hover:scale-[1.02] active:scale-95"
+                                className="btn-elegant flex items-center justify-center gap-3 px-6 py-4 rounded-md font-bold"
                             >
                                 <Maximize2 className="w-5 h-5 text-green-600" />
                                 APRI VISUALIZZATORE
@@ -118,34 +118,34 @@ export function TicketRealtimeView({ initialTicket, dict }: RealTimeProps) {
                             <button 
                                 onClick={handleProjectDownload}
                                 disabled={isDownloadingProject || !ticket.project_file_url}
-                                className="flex items-center justify-center gap-3 bg-white text-gray-900 px-6 py-4 rounded-2xl font-bold hover:bg-gray-50 transition-all shadow-md hover:shadow-lg border border-white/20 hover:scale-[1.02] active:scale-95"
+                                className="btn-elegant flex items-center justify-center gap-3 px-6 py-4 rounded-md font-bold"
                             >
                                 {isDownloadingProject ? <RefreshCw className="w-5 h-5 animate-spin" /> : <FolderArchive className="w-5 h-5 text-blue-600" />}
                                 DOWNLOAD QUPATH
                             </button>
                         </div>
 
-                        <div className="pt-6 border-t border-white/20">
-                            <h4 className="text-xs uppercase tracking-widest font-bold opacity-80 flex items-center gap-2 mb-4 text-white">
+                        <div className="pt-6 border-t border-current/15">
+                            <h4 className="text-xs uppercase tracking-widest font-bold opacity-80 flex items-center gap-2 mb-4">
                                 <Activity className="w-4 h-4" /> Statistiche Tessutali
                             </h4>
                             {stats ? (
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                    <div className="bg-white/10 p-4 rounded-xl border border-white/10 backdrop-blur-sm text-white">
+                                    <div className="bg-white p-4 rounded-md border border-current/15">
                                         <p className="text-[10px] uppercase font-bold opacity-70 mb-1">Tessuto Malato</p>
                                         <p className="text-2xl font-bold">{stats.percentuale_tessuto_malato?.toFixed(1)}%</p>
                                     </div>
-                                    <div className="bg-white/10 p-4 rounded-xl border border-white/10 backdrop-blur-sm text-white">
+                                    <div className="bg-white p-4 rounded-md border border-current/15">
                                         <p className="text-[10px] uppercase font-bold opacity-70 mb-1">Glomeruli Totali</p>
                                         <p className="text-2xl font-bold">{stats.counts?.glomeruli || 0}</p>
                                     </div>
-                                    <div className="bg-white/10 p-4 rounded-xl border border-white/10 backdrop-blur-sm text-white">
+                                    <div className="bg-white p-4 rounded-md border border-current/15">
                                         <p className="text-[10px] uppercase font-bold opacity-70 mb-1">Glom. Sclerotici</p>
                                         <p className="text-2xl font-bold">{stats.counts?.glomeruli_sclerotici || 0}</p>
                                     </div>
                                 </div>
                             ) : (
-                                <p className="text-sm opacity-60 italic py-4 text-white text-center">Dati quantitativi non estratti.</p>
+                                <p className="text-sm opacity-60 italic py-4 text-center">Dati quantitativi non estratti.</p>
                             )}
                         </div>
                     </div>
@@ -153,10 +153,10 @@ export function TicketRealtimeView({ initialTicket, dict }: RealTimeProps) {
 
                 {isProcessing && (
                     <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4">
-                        <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md">
-                            {status === 'PROCESSING' ? <BrainCircuit className="w-10 h-10 animate-pulse text-white" /> : <Server className="w-10 h-10 text-white" />}
+                        <div className="w-20 h-20 rounded-md bg-white border border-current/20 flex items-center justify-center">
+                            {status === 'PROCESSING' ? <BrainCircuit className="w-10 h-10 animate-pulse" /> : <Server className="w-10 h-10" />}
                         </div>
-                        <p className="text-xl font-bold text-white uppercase tracking-tight">Elaborazione in corso...</p>
+                        <p className="text-xl font-bold uppercase tracking-tight">Elaborazione in corso...</p>
                     </div>
                 )}
             </div>

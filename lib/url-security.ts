@@ -1,4 +1,3 @@
-/** Same-origin style path for DZI (no scheme/host). */
 export function isSafeDziSource(urlString: string): boolean {
   const t = urlString.trim()
   if (!t) return false
@@ -6,11 +5,6 @@ export function isSafeDziSource(urlString: string): boolean {
   return isAllowedAssetUrl(t)
 }
 
-/**
- * Remote asset URLs (DZI, downloads) must match an allowlist to limit SSRF / open redirects.
- * Set NEXT_PUBLIC_ALLOWED_ASSET_HOSTS to a comma-separated list of hostnames.
- * Without it, hosts derived from NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SITE_URL, and common R2 hostnames are allowed.
- */
 export function isAllowedAssetUrl(urlString: string): boolean {
   try {
     const u = new URL(urlString)

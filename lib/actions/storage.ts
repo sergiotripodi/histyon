@@ -39,6 +39,7 @@ const ALLOWED_UPLOAD_EXTENSIONS = new Set([
   'btf',
   'dcm',
   'czi',
+  'bif'
 ])
 
 function sanitizeExtension(originalName: string): string {

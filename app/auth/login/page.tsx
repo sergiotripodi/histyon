@@ -50,7 +50,7 @@ export default async function LoginPage(props: {
       <div className="flex-1 flex flex-col items-center justify-center p-6 relative">
         <div className="max-w-md w-full">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2">{t.heading}</h1>
+            <h1 className="font-serif text-4xl mb-2">{t.heading}</h1>
             <p className="text-gray-500">{t.subheading}</p>
           </div>
 
@@ -93,14 +93,14 @@ export default async function LoginPage(props: {
                 </div>
             </div>
             
-            <button formAction={login} className="w-full bg-black text-white py-4 rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg mt-4">
+            <button formAction={login} className="btn-elegant w-full py-3.5 mt-4">
               {t.btn}
             </button>
           </form>
 
           <div className="mt-10 pt-10 border-t border-gray-100">
             <p className="text-sm text-gray-500 mb-4">{t.noCredentials}</p>
-            <Link href="/auth/register" className="group flex items-center justify-between p-4 rounded-xl border border-gray-200 hover:border-black hover:bg-gray-50 transition-all cursor-pointer">
+            <Link href="/auth/register" className="group flex items-center justify-between p-4 rounded-md border border-gray-300 hover:border-gray-900 hover:bg-gray-50 transition-all cursor-pointer">
                 <div className="flex items-center gap-3">
                     <div className="bg-gray-100 p-2 rounded-lg group-hover:bg-white transition-colors">
                         <UserPlus className="w-5 h-5 text-gray-700" />
