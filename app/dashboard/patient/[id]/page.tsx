@@ -44,8 +44,8 @@ export default async function PatientDetailPage(props: {
     <div className="layout-container py-8 space-y-8 relative min-h-screen">      
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-4">
-          <Link 
-            href="/dashboard?tab=patients" 
+          <Link
+            href="/dashboard"
             className="p-2 hover:bg-gray-100 rounded-full transition-colors border border-transparent hover:border-gray-200"
           >
             <ArrowLeft className="w-5 h-5 text-gray-600" />

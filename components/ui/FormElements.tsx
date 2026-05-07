@@ -104,23 +104,17 @@ export function SelectItem({ value, children, className }: { value: string, chil
 
 interface ValidatedInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string
-  pattern?: string 
+  pattern?: string
   errorMessage?: string
-  externalError?: string 
+  externalError?: string
 }
 
-export function ValidatedInput({ label, type, pattern, errorMessage, externalError, className, ...props }: ValidatedInputProps) {
-  const [value, setValue] = useState(props.defaultValue || '')
+export function ValidatedInput({ label, type, pattern, errorMessage, externalError, className, defaultValue, ...props }: ValidatedInputProps) {
+  const [value, setValue] = useState(defaultValue || '')
   const [touched, setTouched] = useState(false)
   const [hasInteracted, setHasInteracted] = useState(false)
-  const [isTyping, setIsTyping] = useState(false) 
+  const [isTyping, setIsTyping] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-
-  useEffect(() => {
-    if (props.defaultValue !== undefined) {
-        setValue(props.defaultValue)
-    }
-  }, [props.defaultValue]) 
 
   const isNotEmpty = String(value).trim().length > 0;
   

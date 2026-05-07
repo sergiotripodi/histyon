@@ -23,7 +23,7 @@ export default async function SettingsPage() {
     <div className="layout-container py-10 space-y-8">
       
       <div className="flex flex-col gap-1 pb-6 border-b border-gray-100">
-        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">{dict.dashboard.settings.title}</h1>
+        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{dict.dashboard.settings.title}</h1>
         <p className="text-lg text-gray-500">{dict.dashboard.settings.subtitle}</p>
       </div>
       
