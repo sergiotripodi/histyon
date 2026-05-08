@@ -32,8 +32,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/auth/login', request.url))
   }
   if (user && request.nextUrl.pathname.startsWith('/auth')) {
-    if (!request.nextUrl.pathname.includes('/verified')) {
-       return NextResponse.redirect(new URL('/dashboard', request.url))
+    const authAllowlist = ['/verified', '/update-password']
+    const isAllowed = authAllowlist.some(p => request.nextUrl.pathname.includes(p))
+    if (!isAllowed) {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
     }
   }
   return response
