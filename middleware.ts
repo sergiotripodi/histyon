@@ -26,6 +26,23 @@ export async function middleware(request: NextRequest) {
     }
   )
 
+  // Forward Supabase auth params that land on the root to the callback route
+  const { searchParams, pathname } = request.nextUrl
+  if (pathname === '/') {
+    const code = searchParams.get('code')
+    const token_hash = searchParams.get('token_hash')
+    const type = searchParams.get('type')
+    if (code || token_hash) {
+      const callbackUrl = new URL('/auth/callback', request.url)
+      if (code) callbackUrl.searchParams.set('code', code)
+      if (token_hash) callbackUrl.searchParams.set('token_hash', token_hash)
+      if (type) callbackUrl.searchParams.set('type', type)
+      const next = searchParams.get('next')
+      if (next) callbackUrl.searchParams.set('next', next)
+      return NextResponse.redirect(callbackUrl)
+    }
+  }
+
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
