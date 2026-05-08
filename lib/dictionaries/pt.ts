@@ -78,7 +78,13 @@ export const pt = {
       forgotPassword: "Esqueceu a senha?",
       successRedirect: "Conta verificada. Faça login.",
       emailConfirmed: "E-mail confirmado com sucesso. Agora você pode entrar.",
-      linkInvalid: "Link inválido ou expirado."
+      linkInvalid: "Link inválido ou expirado.",
+      errorInvalidCredentials: "Email ou senha incorretos.",
+      errorAccountLocked: "Sua conta está temporariamente bloqueada.",
+      errorUnverified: "Verifique seu email antes de fazer login.",
+      errorGeneric: "Ocorreu um erro ao fazer login.",
+      successRegistered: "Registro concluído. Faça login.",
+      successPasswordReset: "Senha atualizada. Faça login."
     },
     forgotPassword: {
       title: "Recuperar Senha",
@@ -96,7 +102,14 @@ export const pt = {
       subheading: "Escolha uma senha segura.",
       btn: "Atualizar Senha",
       success: "Senha atualizada. Redirecionando...",
-      errorMatch: "As senhas não coincidem."
+      errorMatch: "As senhas não coincidem.",
+      errorUpdateFailed: "Não foi possível atualizar a senha. Tente novamente.",
+      errorDefault: "Ocorreu um erro."
+    },
+    verified: {
+      title: "Email Confirmado",
+      desc: "Sua conta foi ativada com sucesso.",
+      btn: "Entrar"
     },
     register: {
       title: "Registrar",

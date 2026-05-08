@@ -3,12 +3,13 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { dictionary } from '@/lib/dictionary'
 
 const optionalString = z.union([z.string(), z.null(), z.undefined(), z.literal('')])
 
 const ProfileSchema = z.object({
-  first_name: z.string().min(2, "Nome troppo corto"),
-  last_name: z.string().min(2, "Cognome troppo corto"),
+  first_name: z.string().min(2, dictionary.validation.name),
+  last_name: z.string().min(2, dictionary.validation.name),
   phone_number: optionalString,
   date_of_birth: optionalString,
   place_of_birth: optionalString,
@@ -26,7 +27,7 @@ export async function updateProfile(formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user) return { error: 'Non autorizzato' }
+  if (!user) return { error: dictionary.validation.unauthorized }
 
   const pPrefix = formData.get('phonePrefix')
   const pNum = formData.get('phone')
@@ -50,7 +51,6 @@ export async function updateProfile(formData: FormData) {
 
   const validated = ProfileSchema.safeParse(rawData)
   if (!validated.success) {
-    console.error("Errore Validazione Zod:", validated.error.format())
     return { error: validated.error.issues[0].message }
   }
 
@@ -65,37 +65,36 @@ export async function updateProfile(formData: FormData) {
     .select()
 
   if (error) {
-    console.error('Errore Database Supabase:', error.message)
-    return { error: "Impossibile salvare. Riprova più tardi." }
+    console.error('Supabase DB error:', error.message)
+    return { error: dictionary.validation.genericError }
   }
 
   if (!data || data.length === 0) {
-    console.warn("Nessun errore, ma nessuna riga aggiornata. Controlla l'ID utente.")
-    return { error: "Errore nell'aggiornamento: profilo non trovato." }
+    return { error: dictionary.validation.genericError }
   }
 
   revalidatePath('/dashboard', 'layout')
-  return { success: true, message: 'Impostazioni salvate con successo!' }
+  return { success: true, message: dictionary.dashboard.settings.form.success }
 }
 
-const EmailSchema = z.string().email("Email non valida")
+const EmailSchema = z.string().email(dictionary.validation.emailInvalid)
 const PasswordSchema = z.string()
-  .min(8, "Minimo 8 caratteri")
-  .regex(/[A-Z]/, "Serve una maiuscola")
-  .regex(/[0-9]/, "Serve un numero")
-  .regex(/[^a-zA-Z0-9]/, "Serve un carattere speciale")
+  .min(8, dictionary.validation.passwordLength)
+  .regex(/[A-Z]/, dictionary.validation.passwordComplexity)
+  .regex(/[0-9]/, dictionary.validation.passwordComplexity)
+  .regex(/[^a-zA-Z0-9]/, dictionary.validation.passwordSpecial)
 
 export async function updateEmail(formData: FormData) {
   const supabase = await createClient()
   const newEmail = formData.get('email') as string
-  
+
   const valid = EmailSchema.safeParse(newEmail)
   if (!valid.success) return { error: valid.error.issues[0].message }
 
   const { error } = await supabase.auth.updateUser({ email: newEmail })
-  if (error) return { error: 'Impossibile aggiornare l\'email. Riprova.' }
+  if (error) return { error: dictionary.validation.genericError }
 
-  return { success: true, message: 'Link di conferma inviato.' }
+  return { success: true, message: dictionary.validation.linkSent }
 }
 
 export async function updatePassword(formData: FormData) {
@@ -103,17 +102,13 @@ export async function updatePassword(formData: FormData) {
   const newPassword = formData.get('password') as string
   const confirm = formData.get('confirm_password') as string
 
-  if (newPassword !== confirm) return { error: "Le password non coincidono." }
+  if (newPassword !== confirm) return { error: dictionary.validation.passwordMismatch }
 
   const valid = PasswordSchema.safeParse(newPassword)
   if (!valid.success) return { error: valid.error.issues[0].message }
 
   const { error } = await supabase.auth.updateUser({ password: newPassword })
-  if (error) return { error: 'Impossibile aggiornare la password. Riprova.' }
+  if (error) return { error: dictionary.validation.genericError }
 
-  return { success: true, message: 'Password aggiornata.' }
+  return { success: true, message: dictionary.auth.updatePassword.success }
 }
-
-
-
-

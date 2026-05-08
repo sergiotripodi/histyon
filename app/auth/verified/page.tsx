@@ -1,17 +1,27 @@
 import Link from 'next/link'
 import { CheckCircle2 } from 'lucide-react'
+import { getDictionary } from '@/lib/dictionary'
 
-export default function VerifiedPage() {
+export default async function VerifiedPage() {
+  const dict = await getDictionary()
+  const t = dict.auth.verified
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-       <div className="max-w-md w-full bg-white rounded-2xl p-8 text-center shadow-sm">
-          <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold mb-2">Email Confirmed!</h1>
-          <p className="text-gray-500 mb-6">Your account has been activated.</p>
-          <Link href="/auth/login" className="block w-full bg-black text-white py-3 rounded-xl font-bold">
-             Login Now
-          </Link>
-       </div>
+    <div className="min-h-screen flex items-center justify-center bg-white p-4 font-sans">
+      <div className="max-w-md w-full bg-white border border-gray-100 p-12 text-center">
+        <div className="w-12 h-12 border border-gray-200 flex items-center justify-center mx-auto mb-8">
+          <CheckCircle2 className="w-5 h-5 text-gray-900" strokeWidth={1.5} />
+        </div>
+        <p className="text-[10px] font-mono font-medium text-gray-400 uppercase tracking-[0.14em] mb-4">Histyon</p>
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900 mb-3">{t.title}</h1>
+        <p className="text-sm text-gray-500 leading-relaxed mb-10">{t.desc}</p>
+        <Link
+          href="/auth/login"
+          className="btn-elegant inline-flex items-center justify-center px-8 py-3 text-sm font-semibold uppercase tracking-wide"
+        >
+          {t.btn}
+        </Link>
+      </div>
     </div>
   )
 }

@@ -78,7 +78,13 @@ export const de = {
       forgotPassword: "Passwort vergessen?",
       successRedirect: "Konto verifiziert. Bitte anmelden.",
       emailConfirmed: "E-Mail erfolgreich bestätigt. Sie können sich jetzt anmelden.",
-      linkInvalid: "Ungültiger oder abgelaufener Link."
+      linkInvalid: "Ungültiger oder abgelaufener Link.",
+      errorInvalidCredentials: "E-Mail oder Passwort ungültig.",
+      errorAccountLocked: "Ihr Konto ist vorübergehend gesperrt.",
+      errorUnverified: "Bitte verifizieren Sie Ihre E-Mail vor der Anmeldung.",
+      errorGeneric: "Bei der Anmeldung ist ein Fehler aufgetreten.",
+      successRegistered: "Registrierung abgeschlossen. Bitte anmelden.",
+      successPasswordReset: "Passwort aktualisiert. Bitte anmelden."
     },
     forgotPassword: {
       title: "Passwort-Wiederherstellung",
@@ -96,7 +102,14 @@ export const de = {
       subheading: "Wählen Sie ein sicheres Passwort.",
       btn: "Passwort aktualisieren",
       success: "Passwort aktualisiert. Weiterleitung...",
-      errorMatch: "Passwörter stimmen nicht überein."
+      errorMatch: "Passwörter stimmen nicht überein.",
+      errorUpdateFailed: "Passwort konnte nicht aktualisiert werden. Bitte erneut versuchen.",
+      errorDefault: "Ein Fehler ist aufgetreten."
+    },
+    verified: {
+      title: "E-Mail Bestätigt",
+      desc: "Ihr Konto wurde erfolgreich aktiviert.",
+      btn: "Anmelden"
     },
     register: {
       title: "Registrieren",

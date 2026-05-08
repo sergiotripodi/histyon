@@ -78,7 +78,13 @@ export const fr = {
       forgotPassword: "Mot de passe oublié ?",
       successRedirect: "Compte vérifié. Veuillez vous connecter.",
       emailConfirmed: "Email confirmé avec succès. Vous pouvez maintenant vous connecter.",
-      linkInvalid: "Lien invalide ou expiré."
+      linkInvalid: "Lien invalide ou expiré.",
+      errorInvalidCredentials: "Email ou mot de passe incorrects.",
+      errorAccountLocked: "Votre compte est temporairement bloqué.",
+      errorUnverified: "Vérifiez votre email avant de vous connecter.",
+      errorGeneric: "Une erreur est survenue lors de la connexion.",
+      successRegistered: "Inscription complète. Veuillez vous connecter.",
+      successPasswordReset: "Mot de passe mis à jour. Connectez-vous."
     },
     forgotPassword: {
       title: "Récupération",
@@ -96,7 +102,14 @@ export const fr = {
       subheading: "Choisissez un mot de passe sécurisé.",
       btn: "Mettre à jour",
       success: "Mot de passe mis à jour. Redirection...",
-      errorMatch: "Les mots de passe ne correspondent pas."
+      errorMatch: "Les mots de passe ne correspondent pas.",
+      errorUpdateFailed: "Impossible de mettre à jour le mot de passe. Réessayez.",
+      errorDefault: "Une erreur est survenue."
+    },
+    verified: {
+      title: "Email Confirmé",
+      desc: "Votre compte a été activé avec succès.",
+      btn: "Se connecter"
     },
     register: {
       title: "Inscription",

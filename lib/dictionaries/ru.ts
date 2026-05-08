@@ -78,7 +78,13 @@ export const ru = {
       forgotPassword: "Забыли пароль?",
       successRedirect: "Аккаунт подтвержден. Войдите.",
       emailConfirmed: "Email успешно подтвержден. Теперь вы можете войти.",
-      linkInvalid: "Ссылка недействительна или истекла."
+      linkInvalid: "Ссылка недействительна или истекла.",
+      errorInvalidCredentials: "Неверный email или пароль.",
+      errorAccountLocked: "Ваш аккаунт временно заблокирован.",
+      errorUnverified: "Пожалуйста, подтвердите email перед входом.",
+      errorGeneric: "При входе произошла ошибка.",
+      successRegistered: "Регистрация завершена. Войдите в систему.",
+      successPasswordReset: "Пароль обновлён. Войдите в систему."
     },
     forgotPassword: {
       title: "Восстановление",
@@ -96,7 +102,14 @@ export const ru = {
       subheading: "Выберите надежный пароль.",
       btn: "Обновить пароль",
       success: "Пароль обновлен. Перенаправление...",
-      errorMatch: "Пароли не совпадают."
+      errorMatch: "Пароли не совпадают.",
+      errorUpdateFailed: "Не удалось обновить пароль. Попробуйте снова.",
+      errorDefault: "Произошла ошибка."
+    },
+    verified: {
+      title: "Email Подтверждён",
+      desc: "Ваш аккаунт успешно активирован.",
+      btn: "Войти"
     },
     register: {
       title: "Регистрация",

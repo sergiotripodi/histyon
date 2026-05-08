@@ -84,7 +84,13 @@ export const it = {
       forgotPassword: "Password dimenticata?",
       successRedirect: "Account verificato. Effettua l'accesso.",
       emailConfirmed: "Email confermata con successo. Ora puoi accedere.",
-      linkInvalid: "Link non valido o scaduto."
+      linkInvalid: "Link non valido o scaduto.",
+      errorInvalidCredentials: "Email o password non validi.",
+      errorAccountLocked: "Il tuo account è temporaneamente bloccato.",
+      errorUnverified: "Verifica la tua email prima di accedere.",
+      errorGeneric: "Si è verificato un errore durante l'accesso.",
+      successRegistered: "Registrazione completata. Effettua l'accesso.",
+      successPasswordReset: "Password aggiornata. Effettua l'accesso."
     },
     forgotPassword: {
       title: "Recupero Password",
@@ -102,7 +108,14 @@ export const it = {
       subheading: "Scegli una password sicura per il tuo account.",
       btn: "Aggiorna Password",
       success: "Password aggiornata con successo. Reindirizzamento...",
-      errorMatch: "Le password non coincidono."
+      errorMatch: "Le password non coincidono.",
+      errorUpdateFailed: "Impossibile aggiornare la password. Riprova.",
+      errorDefault: "Si è verificato un errore."
+    },
+    verified: {
+      title: "Email Confermata",
+      desc: "Il tuo account è stato attivato con successo.",
+      btn: "Accedi"
     },
     register: {
       title: "Registrati",

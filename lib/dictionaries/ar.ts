@@ -78,7 +78,13 @@ export const ar = {
       forgotPassword: "نسيت كلمة المرور؟",
       successRedirect: "تم التحقق من الحساب. الرجاء تسجيل الدخول.",
       emailConfirmed: "تم تأكيد البريد الإلكتروني بنجاح. يمكنك الآن الدخول.",
-      linkInvalid: "الرابط غير صالح أو منتهي الصلاحية."
+      linkInvalid: "الرابط غير صالح أو منتهي الصلاحية.",
+      errorInvalidCredentials: "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
+      errorAccountLocked: "حسابك محظور مؤقتاً.",
+      errorUnverified: "يرجى التحقق من بريدك الإلكتروني قبل تسجيل الدخول.",
+      errorGeneric: "حدث خطأ أثناء تسجيل الدخول.",
+      successRegistered: "اكتمل التسجيل. يرجى تسجيل الدخول.",
+      successPasswordReset: "تم تحديث كلمة المرور. يرجى تسجيل الدخول."
     },
     forgotPassword: {
       title: "استعادة كلمة المرور",
@@ -96,7 +102,14 @@ export const ar = {
       subheading: "اختر كلمة مرور آمنة.",
       btn: "تحديث كلمة المرور",
       success: "تم التحديث. جاري إعادة التوجيه...",
-      errorMatch: "كلمات المرور غير متطابقة."
+      errorMatch: "كلمات المرور غير متطابقة.",
+      errorUpdateFailed: "تعذر تحديث كلمة المرور. حاول مرة أخرى.",
+      errorDefault: "حدث خطأ."
+    },
+    verified: {
+      title: "تم تأكيد البريد الإلكتروني",
+      desc: "تم تفعيل حسابك بنجاح.",
+      btn: "تسجيل الدخول"
     },
     register: {
       title: "تسجيل",

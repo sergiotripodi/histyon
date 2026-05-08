@@ -78,7 +78,13 @@ export const es = {
       forgotPassword: "¿Olvidaste la contraseña?",
       successRedirect: "Cuenta verificada. Inicia sesión.",
       emailConfirmed: "Email confirmada con éxito. Ahora puedes acceder.",
-      linkInvalid: "Enlace no válido o caducado."
+      linkInvalid: "Enlace no válido o caducado.",
+      errorInvalidCredentials: "Email o contraseña incorrectos.",
+      errorAccountLocked: "Tu cuenta está temporalmente bloqueada.",
+      errorUnverified: "Verifica tu email antes de iniciar sesión.",
+      errorGeneric: "Se produjo un error al iniciar sesión.",
+      successRegistered: "Registro completado. Inicia sesión.",
+      successPasswordReset: "Contraseña actualizada. Inicia sesión."
     },
     forgotPassword: {
       title: "Recuperar Contraseña",
@@ -96,7 +102,14 @@ export const es = {
       subheading: "Elige una contraseña segura.",
       btn: "Actualizar Contraseña",
       success: "Contraseña actualizada. Redirigiendo...",
-      errorMatch: "Las contraseñas no coinciden."
+      errorMatch: "Las contraseñas no coinciden.",
+      errorUpdateFailed: "No se pudo actualizar la contraseña. Inténtalo de nuevo.",
+      errorDefault: "Se produjo un error."
+    },
+    verified: {
+      title: "Email Confirmado",
+      desc: "Tu cuenta ha sido activada con éxito.",
+      btn: "Iniciar Sesión"
     },
     register: {
       title: "Registro",

@@ -9,15 +9,15 @@ export default async function UpdatePasswordPage(props: {
   const searchParams = await props.searchParams
   const errorCode = typeof searchParams.error === 'string' ? searchParams.error : null
 
-  const ERROR_MAP: Record<string, string> = {
-    password_mismatch: "Le password non coincidono.",
-    password_update_failed: "Impossibile aggiornare la password. Riprova.",
-    default: "Si è verificato un errore.",
-  }
-  const errorMessage = errorCode ? ERROR_MAP[errorCode] || ERROR_MAP.default : null
-
   const dict = await getDictionary()
   const t = dict.auth.updatePassword
+
+  const ERROR_MAP: Record<string, string> = {
+    password_mismatch: t.errorMatch,
+    password_update_failed: t.errorUpdateFailed,
+    default: t.errorDefault,
+  }
+  const errorMessage = errorCode ? (ERROR_MAP[errorCode] ?? ERROR_MAP.default) : null
   const tf = dict.auth.form
 
   return (

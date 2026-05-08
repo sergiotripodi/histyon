@@ -84,7 +84,13 @@ export const en = {
       forgotPassword: "Forgot password?",
       successRedirect: "Account verified. Please sign in.",
       emailConfirmed: "Email successfully confirmed. You can now login.",
-      linkInvalid: "Invalid or expired link."
+      linkInvalid: "Invalid or expired link.",
+      errorInvalidCredentials: "Email or password are incorrect.",
+      errorAccountLocked: "Your account is temporarily locked.",
+      errorUnverified: "Please verify your email before signing in.",
+      errorGeneric: "An error occurred while signing in.",
+      successRegistered: "Registration complete. Please sign in.",
+      successPasswordReset: "Password updated. Please sign in."
     },
     forgotPassword: {
       title: "Password Recovery",
@@ -102,7 +108,14 @@ export const en = {
       subheading: "Choose a secure password for your account.",
       btn: "Update Password",
       success: "Password updated successfully. Redirecting...",
-      errorMatch: "Passwords do not match."
+      errorMatch: "Passwords do not match.",
+      errorUpdateFailed: "Unable to update password. Please try again.",
+      errorDefault: "An error occurred."
+    },
+    verified: {
+      title: "Email Confirmed",
+      desc: "Your account has been successfully activated.",
+      btn: "Sign In"
     },
     register: {
       title: "Register",

@@ -13,33 +13,31 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 }
 
-const ERROR_MAP: Record<string, string> = {
-  invalid_credentials: "Email o password non validi.",
-  oauth_failed: "Accesso non riuscito. Riprova o contatta il supporto.",
-  account_locked: "Il tuo account è temporaneamente bloccato.",
-  unverified: "Verifica la tua email prima di accedere.",
-  default: "Si è verificato un errore durante l'accesso."
-}
-
-const SUCCESS_MAP: Record<string, string> = {
-  registered: "Registrazione completata. Effettua l'accesso.",
-  password_reset: "Password aggiornata con successo.",
-  default: "Operazione completata con successo."
-}
-
 export default async function LoginPage(props: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
   const searchParams = await props.searchParams
-  
+
   const errorCode = typeof searchParams.error === 'string' ? searchParams.error : null
   const successCode = typeof searchParams.success === 'string' ? searchParams.success : null
 
-  const errorMessage = errorCode ? (ERROR_MAP[errorCode] || ERROR_MAP.default) : null
-  const successMessage = successCode ? (SUCCESS_MAP[successCode] || SUCCESS_MAP.default) : null
-  
   const dict = await getDictionary()
   const t = dict.auth.login
+
+  const ERROR_MAP: Record<string, string> = {
+    invalid_credentials: t.errorInvalidCredentials,
+    oauth_failed: t.errorGeneric,
+    account_locked: t.errorAccountLocked,
+    unverified: t.errorUnverified,
+    default: t.errorGeneric,
+  }
+  const SUCCESS_MAP: Record<string, string> = {
+    registered: t.successRegistered,
+    password_reset: t.successPasswordReset,
+  }
+
+  const errorMessage = errorCode ? (ERROR_MAP[errorCode] ?? ERROR_MAP.default) : null
+  const successMessage = successCode ? (SUCCESS_MAP[successCode] ?? null) : null
   const tf = dict.auth.form
 
   return (

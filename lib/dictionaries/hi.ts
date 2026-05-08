@@ -78,7 +78,13 @@ export const hi = {
       forgotPassword: "पासवर्ड भूल गए?",
       successRedirect: "खाता सत्यापित। कृपया साइन इन करें।",
       emailConfirmed: "ईमेल सफलतापूर्वक पुष्टि की गई। अब आप लॉग इन कर सकते हैं।",
-      linkInvalid: "अमान्य या समाप्त लिंक।"
+      linkInvalid: "अमान्य या समाप्त लिंक।",
+      errorInvalidCredentials: "ईमेल या पासवर्ड गलत है।",
+      errorAccountLocked: "आपका खाता अस्थायी रूप से लॉक है।",
+      errorUnverified: "साइन इन से पहले अपना ईमेल सत्यापित करें।",
+      errorGeneric: "साइन इन करते समय एक त्रुटि हुई।",
+      successRegistered: "पंजीकरण पूर्ण। साइन इन करें।",
+      successPasswordReset: "पासवर्ड अपडेट हुआ। साइन इन करें।"
     },
     forgotPassword: {
       title: "पासवर्ड रिकवरी",
@@ -96,7 +102,14 @@ export const hi = {
       subheading: "एक सुरक्षित पासवर्ड चुनें।",
       btn: "पासवर्ड अपडेट करें",
       success: "पासवर्ड अपडेट किया गया। रीडायरेक्ट किया जा रहा है...",
-      errorMatch: "पासवर्ड मेल नहीं खाते।"
+      errorMatch: "पासवर्ड मेल नहीं खाते।",
+      errorUpdateFailed: "पासवर्ड अपडेट नहीं हो सका। पुनः प्रयास करें।",
+      errorDefault: "एक त्रुटि हुई।"
+    },
+    verified: {
+      title: "ईमेल पुष्टि हो गई",
+      desc: "आपका खाता सफलतापूर्वक सक्रिय हो गया।",
+      btn: "साइन इन करें"
     },
     register: {
       title: "रजिस्टर",

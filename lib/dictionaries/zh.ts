@@ -78,7 +78,13 @@ export const zh = {
       forgotPassword: "忘记密码？",
       successRedirect: "账户已验证。请登录。",
       emailConfirmed: "邮箱确认成功。现在可以登录。",
-      linkInvalid: "链接无效或已过期。"
+      linkInvalid: "链接无效或已过期。",
+      errorInvalidCredentials: "邮箱或密码不正确。",
+      errorAccountLocked: "您的账户已被暂时锁定。",
+      errorUnverified: "请在登录前验证您的邮箱。",
+      errorGeneric: "登录时发生错误。",
+      successRegistered: "注册完成。请登录。",
+      successPasswordReset: "密码已更新。请登录。"
     },
     forgotPassword: {
       title: "密码恢复",
@@ -96,7 +102,14 @@ export const zh = {
       subheading: "选择一个安全的密码。",
       btn: "更新密码",
       success: "密码已更新。正在重定向...",
-      errorMatch: "密码不匹配。"
+      errorMatch: "密码不匹配。",
+      errorUpdateFailed: "无法更新密码。请重试。",
+      errorDefault: "发生了错误。"
+    },
+    verified: {
+      title: "邮箱已确认",
+      desc: "您的账户已成功激活。",
+      btn: "登录"
     },
     register: {
       title: "注册",
