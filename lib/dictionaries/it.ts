@@ -109,6 +109,8 @@ export const it = {
       btn: "Aggiorna Password",
       success: "Password aggiornata con successo. Reindirizzamento...",
       errorMatch: "Le password non coincidono.",
+      errorWeak: "La password non soddisfa i requisiti di sicurezza.",
+      errorSame: "La nuova password deve essere diversa da quella attuale.",
       errorUpdateFailed: "Impossibile aggiornare la password. Riprova.",
       errorDefault: "Si è verificato un errore."
     },

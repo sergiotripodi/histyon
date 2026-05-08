@@ -14,6 +14,8 @@ export default async function UpdatePasswordPage(props: {
 
   const ERROR_MAP: Record<string, string> = {
     password_mismatch: t.errorMatch,
+    password_weak: t.errorWeak,
+    password_same: t.errorSame,
     password_update_failed: t.errorUpdateFailed,
     default: t.errorDefault,
   }

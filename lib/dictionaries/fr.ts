@@ -103,6 +103,8 @@ export const fr = {
       btn: "Mettre à jour",
       success: "Mot de passe mis à jour. Redirection...",
       errorMatch: "Les mots de passe ne correspondent pas.",
+      errorWeak: "Le mot de passe ne respecte pas les exigences de sécurité.",
+      errorSame: "Le nouveau mot de passe doit être différent de l'actuel.",
       errorUpdateFailed: "Impossible de mettre à jour le mot de passe. Réessayez.",
       errorDefault: "Une erreur est survenue."
     },

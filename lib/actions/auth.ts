@@ -228,9 +228,18 @@ export async function updatePassword(formData: FormData) {
     redirect('/auth/update-password?error=password_mismatch')
   }
 
+  const passCheck = PasswordSchema.safeParse(password)
+  if (!passCheck.success) {
+    redirect('/auth/update-password?error=password_weak')
+  }
+
   const { error } = await supabase.auth.updateUser({ password })
 
   if (error) {
+    const msg = error.message?.toLowerCase() ?? ''
+    if (msg.includes('same password') || msg.includes('different from')) {
+      redirect('/auth/update-password?error=password_same')
+    }
     redirect('/auth/update-password?error=password_update_failed')
   }
 

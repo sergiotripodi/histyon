@@ -103,6 +103,8 @@ export const pt = {
       btn: "Atualizar Senha",
       success: "Senha atualizada. Redirecionando...",
       errorMatch: "As senhas não coincidem.",
+      errorWeak: "A senha não atende aos requisitos de segurança.",
+      errorSame: "A nova senha deve ser diferente da atual.",
       errorUpdateFailed: "Não foi possível atualizar a senha. Tente novamente.",
       errorDefault: "Ocorreu um erro."
     },

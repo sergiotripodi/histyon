@@ -103,6 +103,8 @@ export const de = {
       btn: "Passwort aktualisieren",
       success: "Passwort aktualisiert. Weiterleitung...",
       errorMatch: "Passwörter stimmen nicht überein.",
+      errorWeak: "Das Passwort erfüllt die Sicherheitsanforderungen nicht.",
+      errorSame: "Das neue Passwort muss sich vom aktuellen unterscheiden.",
       errorUpdateFailed: "Passwort konnte nicht aktualisiert werden. Bitte erneut versuchen.",
       errorDefault: "Ein Fehler ist aufgetreten."
     },

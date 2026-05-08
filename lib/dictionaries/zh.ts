@@ -103,6 +103,8 @@ export const zh = {
       btn: "更新密码",
       success: "密码已更新。正在重定向...",
       errorMatch: "密码不匹配。",
+      errorWeak: "密码不符合安全要求。",
+      errorSame: "新密码必须与当前密码不同。",
       errorUpdateFailed: "无法更新密码。请重试。",
       errorDefault: "发生了错误。"
     },
