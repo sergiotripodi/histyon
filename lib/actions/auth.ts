@@ -59,7 +59,7 @@ export async function signup(prevState: SignupState, formData: FormData): Promis
     const year = formData.get('dob_year')
 
     if (!year || !month || !day) {
-      return { status: 'error', message: 'Data di nascita incompleta.', inputs: rawData }
+      return { status: 'error', message: dictionary.validation.required, inputs: rawData }
     }
     fullDob = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
   }

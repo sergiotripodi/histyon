@@ -21,7 +21,7 @@ interface RegisterFormProps {
   dict: any
 }
 
-function StepOne({ state, dict, tf, dob, setDob, isActive }: any) {
+function StepOne({ state, dict, tf, dob, setDob, gender, setGender, isActive }: any) {
 
     return (
         <div className={`${isActive ? 'block space-y-6 animate-in fade-in slide-in-from-right-4 duration-300' : 'hidden'}`}>
@@ -33,7 +33,13 @@ function StepOne({ state, dict, tf, dob, setDob, isActive }: any) {
                 <ValidatedInput name="fiscalCode" label={tf.labels.fiscalCode} className="uppercase font-mono" maxLength={16} pattern={REGEX_VALIDATORS.FISCAL_CODE} errorMessage={dict.validation.fiscalCodeLen} defaultValue={state.inputs?.fiscalCode} required />
                 <div className="relative">
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">{tf.labels.gender} *</label>
-                    <select name="gender" required defaultValue={state.inputs?.gender || ""} className="flex h-12 w-full rounded-none border border-gray-300 bg-white px-3 py-2 text-sm appearance-none cursor-pointer focus-visible:outline-none focus-visible:border-gray-900 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200">
+                    <select
+                        name="gender"
+                        required
+                        value={gender}
+                        onChange={(e) => setGender(e.target.value)}
+                        className="flex h-12 w-full rounded-none border border-gray-300 bg-white px-3 py-2 text-sm appearance-none cursor-pointer focus-visible:outline-none focus-visible:border-gray-900 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200"
+                    >
                         <option value="" disabled>{tf.placeholders.select}</option>
                         <option value="M">{tf.options.male}</option>
                         <option value="F">{tf.options.female}</option>
@@ -80,13 +86,19 @@ function StepThree({ state, dict, tf, isActive }: any) {
 export function RegisterForm({ dict }: RegisterFormProps) {
   const [state, formAction] = useActionState(signup, initialState)
   const [currentStep, setCurrentStep] = useState(1)
-  
+
   const [dob, setDob] = useState<Date | undefined>(() => dobFromInputs(initialState.inputs?.dob))
+  const [gender, setGender] = useState<string>('')
 
   useEffect(() => {
     const next = dobFromInputs(state.inputs?.dob)
     if (next) setDob(next)
   }, [state.inputs?.dob])
+
+  useEffect(() => {
+    const g = state.inputs?.gender as string | undefined
+    if (g) setGender(g)
+  }, [state.inputs?.gender])
   
   const t = dict.auth.register;
   const tf = dict.auth.form;
@@ -137,7 +149,7 @@ export function RegisterForm({ dict }: RegisterFormProps) {
         )}
 
         <div className="flex-1 overflow-y-auto pr-1 pb-4 space-y-6">
-            <StepOne state={state} dict={dict} tf={tf} dob={dob} setDob={setDob} isActive={currentStep === 1} />
+            <StepOne state={state} dict={dict} tf={tf} dob={dob} setDob={setDob} gender={gender} setGender={setGender} isActive={currentStep === 1} />
             <StepTwo dict={dict} isActive={currentStep === 2} />
             <StepThree state={state} dict={dict} tf={tf} isActive={currentStep === 3} />
         </div>
