@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { DoctorRegistrationSchema, PasswordSchema } from '@/lib/schemas'
@@ -205,6 +206,15 @@ export async function resetPassword(formData: FormData) {
   if (error) {
     redirect('/auth/forgot-password?error=reset_failed')
   }
+
+  const cookieStore = await cookies()
+  cookieStore.set('histyon_auth_next', 'update-password', {
+    maxAge: 600,
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+  })
 
   redirect('/auth/forgot-password?success=true')
 }
