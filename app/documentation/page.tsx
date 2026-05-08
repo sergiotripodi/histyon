@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: 'Documentation | Histyon' }
+  return { title: 'Documentation' }
 }
 
 const SECTIONS = [
@@ -97,7 +97,7 @@ export default async function DocumentationPage() {
               <Microscope className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
               <p className="text-xs text-gray-500 leading-relaxed">
                 <strong className="text-gray-700">Supported formats:</strong> SVS, NDPI, TIFF, MRXS, SCN, CZI, BIF, DCM. 
-                Maximum file size: 500 MB per upload.
+                Maximum file size: 5 GB per upload.
               </p>
             </div>
           </Section>

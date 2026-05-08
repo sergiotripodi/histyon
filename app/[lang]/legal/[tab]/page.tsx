@@ -28,7 +28,7 @@ export async function generateMetadata(
     dpa: dict.legal.tabs.dpa,
   }
   return {
-    title: `${tabLabels[tab] ?? dict.legal.title} — Histyon`,
+    title: tabLabels[tab] ?? dict.legal.title,
   }
 }
 
