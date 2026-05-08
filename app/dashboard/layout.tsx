@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { DashboardSidebar } from '@/components/layout/DashboardSidebar'
+import { MobileDesktopGate } from '@/components/layout/MobileDesktopGate'
 import { IdleTimeout } from '@/components/auth/IdleTimeout'
 import { getDictionary } from '@/lib/dictionary'
 
@@ -17,6 +18,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
+      <MobileDesktopGate />
       <IdleTimeout />
       <DashboardSidebar
         profile={profile}
