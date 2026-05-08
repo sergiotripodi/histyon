@@ -21,31 +21,31 @@ export default async function UpdatePasswordPage(props: {
   const tf = dict.auth.form
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-8 animate-in fade-in zoom-in-95">
-        
-        <h2 className="font-serif text-3xl text-gray-900 mb-2">{t.heading}</h2>
-        <p className="text-sm text-gray-600 mb-8">{t.subheading}</p>
+    <div className="min-h-screen flex items-center justify-center bg-white p-4">
+      <div className="max-w-md w-full border border-gray-200 bg-white p-12">
+        <p className="text-[10px] font-medium text-gray-400 uppercase tracking-[0.14em] mb-4">Histyon</p>
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900 mb-3">{t.heading}</h1>
+        <p className="text-sm text-gray-500 mb-8">{t.subheading}</p>
 
         {errorMessage && (
-            <div className="mb-6 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 flex-shrink-0" />
-              <p>{errorMessage}</p>
-            </div>
+          <div className="mb-6 border-l-2 border-red-400 bg-red-50 px-4 py-3 text-sm text-red-600 flex items-center gap-3">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <p>{errorMessage}</p>
+          </div>
         )}
 
         <form className="space-y-6">
-          <ValidatedInput 
-            name="password" 
-            type="password" 
+          <ValidatedInput
+            name="password"
+            type="password"
             label={tf.labels.passwordSimple}
-            required 
+            required
           />
-           <ValidatedInput 
-            name="confirmPassword" 
-            type="password" 
+          <ValidatedInput
+            name="confirmPassword"
+            type="password"
             label={tf.labels.confirmPassword}
-            required 
+            required
           />
           <button formAction={updatePassword} className="btn-elegant w-full py-3.5">
             {t.btn}
