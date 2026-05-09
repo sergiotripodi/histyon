@@ -139,6 +139,7 @@ export async function signup(prevState: SignupState, formData: FormData): Promis
   })
 
   if (authError) {
+    console.error('[signup] auth.signUp error:', authError.status, authError.message)
     const fieldErrors: Record<string, string> = {}
     if (authError.message.includes('already registered') || authError.status === 422) {
       fieldErrors.email = dictionary.validation.alreadyRegistered
@@ -183,7 +184,7 @@ export async function signup(prevState: SignupState, formData: FormData): Promis
       .eq('id', authData.user.id)
 
     if (profileError) {
-      console.error('Errore creazione profilo:', profileError)
+      console.error('[signup] profile update error:', profileError.code, profileError.message, profileError.details)
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
       return { status: 'error', message: dictionary.validation.genericError, inputs: rawData }
     }
