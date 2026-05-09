@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useActionState, useEffect } from 'react'
+import { useState, useActionState, useEffect, useCallback } from 'react'
 import { signup, SignupState } from '@/lib/actions/auth'
 import { ValidatedInput } from '@/components/ui/FormElements'
 import { GlobalLocationSelector } from '@/components/auth/GlobalLocationSelector'
@@ -8,6 +8,7 @@ import { PhoneInput } from '@/components/shared/PhoneInput'
 import { DateOfBirthPicker } from '@/components/ui/DateOfBirthPicker'
 import { AlertTriangle, ArrowRight, ArrowLeft, Check } from 'lucide-react'
 import { REGEX_VALIDATORS } from '@/lib/constants'
+import { TurnstileWidget } from './TurnstileWidget'
 
 const initialState: SignupState = { status: 'idle', inputs: {} }
 
@@ -89,6 +90,10 @@ export function RegisterForm({ dict }: RegisterFormProps) {
 
   const [dob, setDob] = useState<Date | undefined>(() => dobFromInputs(initialState.inputs?.dob))
   const [gender, setGender] = useState<string>('')
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
+  const [turnstileReady, setTurnstileReady] = useState(!siteKey)
+  const handleTurnstileSuccess = useCallback(() => setTurnstileReady(true), [])
+  const handleTurnstileError = useCallback(() => setTurnstileReady(false), [])
 
   useEffect(() => {
     const next = dobFromInputs(state.inputs?.dob)
@@ -154,21 +159,30 @@ export function RegisterForm({ dict }: RegisterFormProps) {
             <StepThree state={state} dict={dict} tf={tf} isActive={currentStep === 3} />
         </div>
 
-        <div className="mt-8 pt-6 border-t border-gray-100 flex items-center gap-3">
-            {currentStep > 1 && (
-                <button type="button" onClick={prevStep} className="btn-elegant-soft flex-1 py-3.5 rounded-md font-bold">
-                    <ArrowLeft className="w-4 h-4" /> {t.buttons.back}
-                </button>
+        <div className="mt-8 pt-6 border-t border-gray-100 space-y-4">
+            {currentStep === 3 && siteKey && (
+              <TurnstileWidget
+                siteKey={siteKey}
+                onSuccess={handleTurnstileSuccess}
+                onError={handleTurnstileError}
+              />
             )}
-            {currentStep < 3 ? (
-                <button type="button" onClick={nextStep} className="btn-elegant flex-[2] py-3.5 rounded-md font-bold">
-                    {t.buttons.next} <ArrowRight className="w-4 h-4" />
-                </button>
-            ) : (
-                <button type="submit" className="btn-elegant flex-[2] py-3.5 rounded-md font-bold">
-                    {t.buttons.complete} <Check className="w-4 h-4" />
-                </button>
-            )}
+            <div className="flex items-center gap-3">
+                {currentStep > 1 && (
+                    <button type="button" onClick={prevStep} className="btn-elegant-soft flex-1 py-3.5 rounded-md font-bold">
+                        <ArrowLeft className="w-4 h-4" /> {t.buttons.back}
+                    </button>
+                )}
+                {currentStep < 3 ? (
+                    <button type="button" onClick={nextStep} className="btn-elegant flex-[2] py-3.5 rounded-md font-bold">
+                        {t.buttons.next} <ArrowRight className="w-4 h-4" />
+                    </button>
+                ) : (
+                    <button type="submit" disabled={!turnstileReady} className="btn-elegant flex-[2] py-3.5 rounded-md font-bold disabled:opacity-40 disabled:cursor-not-allowed">
+                        {t.buttons.complete} <Check className="w-4 h-4" />
+                    </button>
+                )}
+            </div>
         </div>
     </form>
   )

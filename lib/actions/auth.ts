@@ -52,6 +52,19 @@ export async function login(formData: FormData) {
 }
 
 export async function signup(prevState: SignupState, formData: FormData): Promise<SignupState> {
+  const turnstileSecret = process.env.TURNSTILE_SECRET_KEY
+  if (turnstileSecret) {
+    const token = formData.get('cf-turnstile-response') as string | null
+    if (!token) return { status: 'error', message: dictionary.validation.genericError }
+    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ secret: turnstileSecret, response: token }),
+    })
+    const result = await res.json() as { success: boolean }
+    if (!result.success) return { status: 'error', message: dictionary.validation.genericError }
+  }
+
   const supabase = await createClient()
   const rawData = Object.fromEntries(formData)
   const password = formData.get('password') as string
