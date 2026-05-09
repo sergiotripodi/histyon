@@ -144,10 +144,6 @@ export function DocContent() {
       {/* Header */}
       <div className="border-b border-gray-100 py-12">
         <div className="layout-container px-6">
-          <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-[0.14em] mb-3">
-            <BookOpen className="w-3 h-3" />
-            Documentazione
-          </div>
           <h1 className="text-3xl font-bold tracking-tight text-gray-900 mb-2">Guida alla Console Histyon</h1>
           <p className="text-sm text-gray-500 max-w-lg">
             Tutto quello che ti serve per gestire i pazienti, caricare le analisi istologiche e leggere i risultati AI.
