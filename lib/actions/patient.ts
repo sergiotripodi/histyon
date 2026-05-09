@@ -120,7 +120,62 @@ export async function addPatient(prevState: unknown, formData: FormData) {
     return { error: dictionary.validation.genericError }
   }
 
-  revalidatePath('/dashboard')
+  revalidatePath('/dashboard/patients')
+  return { success: true }
+}
+
+export async function deleteTicket(ticketId: string) {
+  if (!UUID_RE.test(ticketId)) return { error: dictionary.validation.genericError }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: dictionary.validation.unauthorized }
+
+  // Fetch ticket to get file paths and verify ownership
+  const { data: ticket } = await supabase
+    .from('tickets')
+    .select('id, doctor_id, patient_id, input_file, output_dzi, qupath_project, output_region')
+    .eq('id', ticketId)
+    .eq('doctor_id', user.id)
+    .maybeSingle()
+
+  if (!ticket) return { error: dictionary.validation.unauthorized }
+
+  const inputBucket = process.env.R2_INPUT_BUCKET_NAME!
+  const outputBucket = process.env.R2_OUTPUT_BUCKET_NAME!
+
+  // Collect specific keys to delete (avoids touching other tickets in same patient folder)
+  const inputKeys = [ticket.input_file].filter(Boolean).map(k => ({ Key: k as string }))
+  const outputKeys = [ticket.output_dzi, ticket.qupath_project, ticket.output_region]
+    .filter(Boolean)
+    .map(k => ({ Key: (k as string).replace(/^\/+/, '') }))
+
+  try {
+    await Promise.all([
+      inputKeys.length > 0
+        ? r2Client.send(new DeleteObjectsCommand({ Bucket: inputBucket, Delete: { Objects: inputKeys, Quiet: true } }))
+        : Promise.resolve(),
+      outputKeys.length > 0
+        ? r2Client.send(new DeleteObjectsCommand({ Bucket: outputBucket, Delete: { Objects: outputKeys, Quiet: true } }))
+        : Promise.resolve(),
+    ])
+  } catch (err) {
+    console.error('deleteTicket R2 cleanup:', err)
+  }
+
+  const { error } = await supabase
+    .from('tickets')
+    .delete()
+    .eq('id', ticketId)
+    .eq('doctor_id', user.id)
+
+  if (error) {
+    console.error('deleteTicket DB:', error)
+    return { error: dictionary.validation.genericError }
+  }
+
+  revalidatePath('/dashboard/patients')
+  revalidatePath('/dashboard/home')
   return { success: true }
 }
 
@@ -170,6 +225,6 @@ export async function deletePatient(patientId: string) {
     return { error: dictionary.validation.genericError }
   }
 
-  revalidatePath('/dashboard')
-  redirect('/dashboard')
+  revalidatePath('/dashboard/patients')
+  redirect('/dashboard/patients')
 }

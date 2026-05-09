@@ -24,6 +24,19 @@ async function resolveAppOrigin(): Promise<string> {
 }
 
 export async function login(formData: FormData) {
+  const turnstileSecret = process.env.TURNSTILE_SECRET_KEY
+  if (turnstileSecret) {
+    const token = formData.get('cf-turnstile-response') as string | null
+    if (!token) redirect('/auth/login?error=bot_detected')
+    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ secret: turnstileSecret, response: token }),
+    })
+    const result = await res.json() as { success: boolean }
+    if (!result.success) redirect('/auth/login?error=bot_detected')
+  }
+
   const supabase = await createClient()
   const data = {
     email: formData.get('email') as string,
@@ -35,7 +48,7 @@ export async function login(formData: FormData) {
   if (error) redirect('/auth/login?error=invalid_credentials')
 
   revalidatePath('/', 'layout')
-  redirect('/dashboard')
+  redirect('/dashboard/home')
 }
 
 export async function signup(prevState: SignupState, formData: FormData): Promise<SignupState> {
@@ -243,5 +256,5 @@ export async function updatePassword(formData: FormData) {
     redirect('/auth/update-password?error=password_update_failed')
   }
 
-  redirect('/dashboard')
+  redirect('/dashboard/home')
 }

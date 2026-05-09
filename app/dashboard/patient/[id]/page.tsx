@@ -40,7 +40,7 @@ export default async function PatientDetailPage(props: {
 
       {/* Page header */}
       <div className="flex items-center gap-4 pb-8 border-b border-gray-100">
-        <Link href="/dashboard" className="p-2 border border-transparent hover:border-gray-200 hover:bg-gray-100 transition-colors">
+        <Link href="/dashboard/patients" className="p-2 border border-transparent hover:border-gray-200 hover:bg-gray-100 transition-colors">
           <ArrowLeft className="w-5 h-5 text-gray-600" />
         </Link>
         <div className="flex-1">

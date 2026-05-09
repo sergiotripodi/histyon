@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Logo } from '@/components/ui/Logo'
-import { Users, Activity, Settings, LogOut, Mail } from 'lucide-react'
+import { Users, Activity, Settings, LogOut, Mail, LayoutDashboard } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface DashboardSidebarProps {
@@ -14,14 +14,15 @@ interface DashboardSidebarProps {
 }
 
 function getActiveNav(pathname: string): string {
-  if (pathname === '/dashboard' || pathname.startsWith('/dashboard/patient')) return '/dashboard'
+  if (pathname === '/dashboard/home') return '/dashboard/home'
+  if (pathname.startsWith('/dashboard/patients') || pathname.startsWith('/dashboard/patient/')) return '/dashboard/patients'
   if (
     pathname.startsWith('/dashboard/analysis') ||
     pathname.startsWith('/dashboard/ticket') ||
     pathname.startsWith('/dashboard/viewer')
   ) return '/dashboard/analysis'
   if (pathname.startsWith('/dashboard/settings')) return '/dashboard/settings'
-  return '/dashboard'
+  return '/dashboard/home'
 }
 
 export function DashboardSidebar({ profile, userEmail, userMetadata, dict }: DashboardSidebarProps) {
@@ -32,8 +33,9 @@ export function DashboardSidebar({ profile, userEmail, userMetadata, dict }: Das
   const td = dict.dashboard
 
   const navItems = [
-    { href: '/dashboard',          icon: Users,    label: td.tabs.patients  },
-    { href: '/dashboard/analysis', icon: Activity, label: td.tabs.analysis  },
+    { href: '/dashboard/home',     icon: LayoutDashboard, label: 'Home'            },
+    { href: '/dashboard/patients',  icon: Users,           label: td.tabs.patients  },
+    { href: '/dashboard/analysis', icon: Activity,        label: td.tabs.analysis  },
   ]
 
   const handleLogout = async () => {

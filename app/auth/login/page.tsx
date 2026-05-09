@@ -5,6 +5,7 @@ import { AlertCircle, CheckCircle2, UserPlus, ArrowRight } from 'lucide-react'
 import { ValidatedInput } from '@/components/ui/FormElements'
 import { getDictionary } from '@/lib/dictionary'
 import { Metadata } from 'next'
+import { TurnstileWidget } from '@/components/auth/TurnstileWidget'
 
 export async function generateMetadata(): Promise<Metadata> {
   const dict = await getDictionary()
@@ -29,6 +30,7 @@ export default async function LoginPage(props: {
     oauth_failed: t.errorGeneric,
     account_locked: t.errorAccountLocked,
     unverified: t.errorUnverified,
+    bot_detected: t.errorGeneric,
     default: t.errorGeneric,
   }
   const SUCCESS_MAP: Record<string, string> = {
@@ -91,6 +93,9 @@ export default async function LoginPage(props: {
                 </div>
             </div>
             
+            {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
+              <TurnstileWidget siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY} />
+            )}
             <button formAction={login} className="btn-elegant w-full py-3.5 mt-4">
               {t.btn}
             </button>
