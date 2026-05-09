@@ -56,7 +56,7 @@ export default async function DashboardHomePage() {
     await Promise.all([
       supabase
         .from('tickets')
-        .select('status, file_size, output_file_size, created_at')
+        .select('*')
         .eq('doctor_id', user.id)
         .order('created_at', { ascending: true }),
       supabase
