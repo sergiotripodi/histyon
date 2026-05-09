@@ -8,39 +8,19 @@ import { v4 as uuidv4 } from 'uuid'
 import { revalidatePath } from 'next/cache'
 import { dictionary } from '@/lib/dictionary'
 import { isAllowedAssetUrl } from '@/lib/url-security'
+import { ALLOWED_SLIDE_EXTENSIONS, MAX_UPLOAD_BYTES } from '@/lib/constants'
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
-const MAX_UPLOAD_BYTES = 5 * 1024 * 1024 * 1024
-
 const ALLOWED_UPLOAD_TYPES = new Set([
-  'application/pdf',
   'image/jpeg',
   'image/png',
   'image/tiff',
   'image/webp',
   'application/octet-stream',
 ])
-const ALLOWED_UPLOAD_EXTENSIONS = new Set([
-  'pdf',
-  'jpg',
-  'jpeg',
-  'png',
-  'tif',
-  'tiff',
-  'webp',
-  'svs',
-  'ndpi',
-  'mrxs',
-  'vms',
-  'vmu',
-  'scn',
-  'btf',
-  'dcm',
-  'czi',
-  'bif'
-])
+const ALLOWED_UPLOAD_EXTENSIONS = new Set<string>([...ALLOWED_SLIDE_EXTENSIONS])
 
 function sanitizeExtension(originalName: string): string {
   const raw = (originalName.split('.').pop() || '')
@@ -87,7 +67,7 @@ export async function getPresignedUploadUrl(
 
   const { data: patientRow, error: patientErr } = await supabase
     .from('patients')
-    .select('id')
+    .select('id, first_name, last_name')
     .eq('id', patientId)
     .eq('doctor_id', user.id)
     .maybeSingle()
@@ -96,10 +76,27 @@ export async function getPresignedUploadUrl(
     return { error: dictionary.validation.unauthorized }
   }
 
+  // Get ticket sequence number for this patient
+  const { count: patientTicketCount } = await supabase
+    .from('tickets')
+    .select('*', { count: 'exact', head: true })
+    .eq('patient_id', patientId)
+
+  const ticketSeq = (patientTicketCount ?? 0) + 1
+
+  // Build sanitized patient name for filenames
+  const patientSlug = `${patientRow.first_name}-${patientRow.last_name}`
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/-+/g, '-')
+    .slice(0, 40)
+
   const ticketId = uuidv4()
 
   try {
-    const customFileName = `scaninput-${ticketId}.${ext}`
+    const customFileName = `${patientSlug}-input-${ticketSeq}.${ext}`
     const filePath = `${user.id}/${patientId}/${customFileName}`
 
     const { error: dbError } = await supabase.from('tickets').insert({
@@ -193,7 +190,7 @@ export async function getTicketProjectDownloadUrl(ticketId: string) {
 
   const { data: ticket, error } = await supabase
     .from('tickets')
-    .select('qupath_project')
+    .select('qupath_project, patient_id, patients(first_name, last_name)')
     .eq('id', ticketId)
     .eq('doctor_id', user.id)
     .maybeSingle()
@@ -201,6 +198,20 @@ export async function getTicketProjectDownloadUrl(ticketId: string) {
   if (error || !ticket?.qupath_project) {
     return { error: dictionary.validation.fileRetrievalError }
   }
+
+  // Build download filename from patient name + ticket sequence
+  const pat = (ticket.patients as any)
+  const { count: seqCount } = await supabase
+    .from('tickets')
+    .select('*', { count: 'exact', head: true })
+    .eq('patient_id', ticket.patient_id)
+    .lte('created_at', new Date().toISOString())
+
+  const seq = seqCount ?? 1
+  const patSlug = pat
+    ? `${pat.first_name}-${pat.last_name}`.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').slice(0, 40)
+    : 'patient'
+  const downloadName = `${patSlug}-qupath-${seq}.zip`
 
   const projectUrl = ticket.qupath_project as string
 
@@ -225,7 +236,7 @@ export async function getTicketProjectDownloadUrl(ticketId: string) {
     const command = new GetObjectCommand({
       Bucket: bucket,
       Key: key,
-      ResponseContentDisposition: 'attachment',
+      ResponseContentDisposition: `attachment; filename="${downloadName}"`,
     })
     const signedUrl = await getSignedUrl(r2Client, command, { expiresIn: 900 })
     return { success: true, url: signedUrl }
@@ -246,7 +257,7 @@ export async function getRegionDownloadUrl(ticketId: string) {
 
   const { data: ticket, error } = await supabase
     .from('tickets')
-    .select('output_region')
+    .select('output_region, patient_id, patients(first_name, last_name)')
     .eq('id', ticketId)
     .eq('doctor_id', user.id)
     .maybeSingle()
@@ -254,6 +265,19 @@ export async function getRegionDownloadUrl(ticketId: string) {
   if (error || !ticket?.output_region) {
     return { error: dictionary.validation.fileRetrievalError }
   }
+
+  const pat2 = (ticket.patients as any)
+  const { count: seqCount2 } = await supabase
+    .from('tickets')
+    .select('*', { count: 'exact', head: true })
+    .eq('patient_id', ticket.patient_id)
+    .lte('created_at', new Date().toISOString())
+
+  const seq2 = seqCount2 ?? 1
+  const patSlug2 = pat2
+    ? `${pat2.first_name}-${pat2.last_name}`.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').slice(0, 40)
+    : 'patient'
+  const downloadName2 = `${patSlug2}-region-${seq2}.zip`
 
   const regionUrl = ticket.output_region as string
 
@@ -276,7 +300,7 @@ export async function getRegionDownloadUrl(ticketId: string) {
     const command = new GetObjectCommand({
       Bucket: bucket,
       Key: key,
-      ResponseContentDisposition: 'attachment',
+      ResponseContentDisposition: `attachment; filename="${downloadName2}"`,
     })
     const signedUrl = await getSignedUrl(r2Client, command, { expiresIn: 900 })
     return { success: true, url: signedUrl }

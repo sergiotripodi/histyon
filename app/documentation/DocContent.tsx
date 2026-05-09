@@ -6,8 +6,9 @@ import {
   UserPlus, LogIn, LayoutDashboard, Users, Upload,
   BarChart3, ScanSearch, FolderArchive, Settings,
   Trash2, HelpCircle, ChevronDown, CheckCircle2,
-  AlertCircle, Clock, Microscope, ArrowRight, ChevronRight
+  AlertCircle, Clock, Microscope, ArrowRight, BookOpen
 } from 'lucide-react'
+import { SLIDE_FORMATS_DISPLAY } from '@/lib/constants'
 
 const SECTIONS = [
   { id: 'registrazione',  icon: UserPlus,        label: 'Registrazione' },
@@ -54,7 +55,7 @@ const FAQS = [
   },
   {
     q: 'Quali formati di file sono supportati?',
-    a: 'Il sistema accetta i principali formati di vetrino digitale: SVS, NDPI, TIFF, MRXS, SCN, CZI, BIF, DCM. La dimensione massima per singolo file è 5 GB.',
+    a: `Il sistema accetta i principali formati di vetrino digitale: ${SLIDE_FORMATS_DISPLAY.join(', ')}. La dimensione massima per singolo file è 5 GB.`,
   },
   {
     q: 'L\'eliminazione dell\'account è reversibile?',
@@ -138,6 +139,22 @@ export function DocContent() {
   }, [])
 
   return (
+    <div className="flex flex-col flex-1">
+
+      {/* Header */}
+      <div className="border-b border-gray-100 py-12">
+        <div className="layout-container px-6">
+          <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-[0.14em] mb-3">
+            <BookOpen className="w-3 h-3" />
+            Documentazione
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900 mb-2">Guida alla Console Histyon</h1>
+          <p className="text-sm text-gray-500 max-w-lg">
+            Tutto quello che ti serve per gestire i pazienti, caricare le analisi istologiche e leggere i risultati AI.
+          </p>
+        </div>
+      </div>
+
     <div className="layout-container px-6 flex-1 flex flex-col md:flex-row gap-14 py-16">
 
       {/* Sticky sidebar */}
@@ -289,7 +306,7 @@ export function DocContent() {
             <div className="space-y-2">
               <Step n={1}>Dalla sezione <strong className="text-gray-800">Analisi</strong>, clicca <strong className="text-gray-800">"Nuova Analisi"</strong>.</Step>
               <Step n={2}>Seleziona il paziente dal menu a tendina.</Step>
-              <Step n={3}>Trascina il file nell'area di caricamento oppure clicca per selezionarlo. Formati accettati: SVS, NDPI, TIFF, MRXS, SCN, CZI, BIF, DCM (max 5 GB).</Step>
+              <Step n={3}>Trascina il file nell'area di caricamento oppure clicca per selezionarlo. Formati accettati: {SLIDE_FORMATS_DISPLAY.join(', ')} (max 5 GB).</Step>
               <Step n={4}>Aggiungi eventuali note cliniche nel campo apposito (opzionale).</Step>
               <Step n={5}>Clicca <strong className="text-gray-800">"Avvia Upload e Analisi"</strong>.</Step>
             </div>
@@ -461,6 +478,7 @@ export function DocContent() {
         </Section>
 
       </main>
+    </div>
     </div>
   )
 }

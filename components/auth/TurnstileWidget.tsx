@@ -34,7 +34,8 @@ export function TurnstileWidget({ siteKey, onSuccess, onError }: TurnstileWidget
       onError?.()
     }, 15_000)
     return () => { if (timerRef.current) clearTimeout(timerRef.current) }
-  }, [ready, onError])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready])
 
   if (!ready) return null
 
@@ -51,6 +52,7 @@ export function TurnstileWidget({ siteKey, onSuccess, onError }: TurnstileWidget
         options={{ theme: 'light', appearance: 'interaction-only' }}
         onSuccess={() => {
           if (timerRef.current) clearTimeout(timerRef.current)
+          setFailed(false)  // clear any transient error once token is obtained
           onSuccess?.()
         }}
         onError={() => {
@@ -58,7 +60,7 @@ export function TurnstileWidget({ siteKey, onSuccess, onError }: TurnstileWidget
           onError?.()
         }}
         onExpire={() => {
-          setFailed(true)
+          // Token expired — reset silently without showing an error (Cloudflare will re-verify)
           onError?.()
         }}
       />

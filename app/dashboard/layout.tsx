@@ -5,6 +5,8 @@ import { MobileDesktopGate } from '@/components/layout/MobileDesktopGate'
 import { IdleTimeout } from '@/components/auth/IdleTimeout'
 import { getDictionary } from '@/lib/dictionary'
 
+export const dynamic = 'force-dynamic'
+
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
 

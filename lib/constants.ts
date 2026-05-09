@@ -189,6 +189,18 @@ export const ITALIAN_PROVINCES = [
 
 export const DAYS = Array.from({ length: 31 }, (_, i) => i + 1);
 
+/** Single source of truth for accepted slide formats across UI, server actions, and docs. */
+export const ALLOWED_SLIDE_EXTENSIONS = [
+  'svs', 'ndpi', 'tiff', 'tif', 'mrxs', 'scn', 'czi', 'bif', 'dcm',
+  'vms', 'vmu', 'btf',
+] as const
+
+/** Formats shown to users in the UI (human-readable, uppercase). */
+export const SLIDE_FORMATS_DISPLAY = ['SVS', 'NDPI', 'TIFF', 'MRXS', 'SCN', 'CZI', 'BIF', 'DCM']
+
+/** Max upload size in bytes (5 GB). */
+export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024 * 1024
+
 export const REGEX_VALIDATORS = {
   NAME: "^[a-zA-Z\\s']+$",
   FISCAL_CODE: "^[a-zA-Z0-9]{16}$",
