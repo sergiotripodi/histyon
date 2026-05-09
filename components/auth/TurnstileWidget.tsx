@@ -15,9 +15,11 @@ declare global {
 
 interface TurnstileWidgetProps {
   siteKey: string
+  onSuccess?: () => void
+  onError?: () => void
 }
 
-export function TurnstileWidget({ siteKey }: TurnstileWidgetProps) {
+export function TurnstileWidget({ siteKey, onSuccess, onError }: TurnstileWidgetProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const widgetIdRef = useRef<string | null>(null)
 
@@ -28,6 +30,9 @@ export function TurnstileWidget({ siteKey }: TurnstileWidgetProps) {
         sitekey: siteKey,
         theme: 'light',
         size: 'normal',
+        callback: onSuccess,
+        'error-callback': onError,
+        'expired-callback': onError,
       })
     }
 
@@ -54,7 +59,7 @@ export function TurnstileWidget({ siteKey }: TurnstileWidgetProps) {
         widgetIdRef.current = null
       }
     }
-  }, [siteKey])
+  }, [siteKey, onSuccess, onError])
 
   return <div ref={containerRef} className="mt-1" />
 }

@@ -31,19 +31,6 @@ function formatBytes(bytes: number): string {
   return `${bytes} B`
 }
 
-function bytesFormatter(targetBytes: number) {
-  const { divisor, unit } =
-    targetBytes >= 1e9
-      ? { divisor: 1e9, unit: 'GB' }
-      : targetBytes >= 1e6
-      ? { divisor: 1e6, unit: 'MB' }
-      : targetBytes >= 1e3
-      ? { divisor: 1e3, unit: 'KB' }
-      : { divisor: 1, unit: 'B' }
-
-  return (v: number) => `${(v / divisor).toFixed(1)} ${unit}`
-}
-
 export default async function DashboardHomePage() {
   const dict = await getDictionary()
   const supabase = await createClient()
@@ -164,7 +151,7 @@ export default async function DashboardHomePage() {
       value: storageBytes,
       sparkline: storageSparkline,
       subtitle: formatBytes(storageBytes),
-      formatter: bytesFormatter(storageBytes),
+      format: 'bytes' as const,
     },
   ] as const
 
@@ -191,7 +178,7 @@ export default async function DashboardHomePage() {
             value={card.value}
             sparkline={[...card.sparkline]}
             subtitle={'subtitle' in card ? card.subtitle : undefined}
-            formatter={'formatter' in card ? card.formatter : undefined}
+            format={'format' in card ? card.format : 'number'}
             accent={('accent' in card ? card.accent : 'default') as 'default' | 'red'}
           />
         ))}

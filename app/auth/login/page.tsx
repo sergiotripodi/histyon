@@ -1,11 +1,9 @@
-import { login } from '../../../lib/actions/auth'
 import Link from 'next/link'
 import { AuthSidebar } from '@/components/auth/AuthSidebar'
 import { AlertCircle, CheckCircle2, UserPlus, ArrowRight } from 'lucide-react'
-import { ValidatedInput } from '@/components/ui/FormElements'
 import { getDictionary } from '@/lib/dictionary'
 import { Metadata } from 'next'
-import { TurnstileWidget } from '@/components/auth/TurnstileWidget'
+import { LoginForm } from '@/components/auth/LoginForm'
 
 export async function generateMetadata(): Promise<Metadata> {
   const dict = await getDictionary()
@@ -68,38 +66,15 @@ export default async function LoginPage(props: {
             </div>
           )}
 
-          <form className="space-y-5" noValidate>
-            <ValidatedInput 
-                name="email" 
-                type="email" 
-                label={tf.labels.emailSimple}
-                required 
-            />
-            
-            <div className="space-y-1">
-                <ValidatedInput 
-                    name="password" 
-                    type="password" 
-                    label={tf.labels.passwordSimple}
-                    required 
-                />
-                <div className="flex justify-end">
-                    <Link 
-                        href="/auth/forgot-password" 
-                        className="text-xs font-semibold text-gray-500 hover:text-black transition-colors"
-                    >
-                        {t.forgotPassword}
-                    </Link>
-                </div>
-            </div>
-            
-            {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
-              <TurnstileWidget siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY} />
-            )}
-            <button formAction={login} className="btn-elegant w-full py-3.5 mt-4">
-              {t.btn}
-            </button>
-          </form>
+          <LoginForm
+            turnstileSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || undefined}
+            labels={{
+              email: tf.labels.emailSimple,
+              password: tf.labels.passwordSimple,
+              forgotPassword: t.forgotPassword,
+              btn: t.btn,
+            }}
+          />
 
           <div className="mt-10 pt-10 border-t border-gray-100">
             <p className="text-sm text-gray-500 mb-4">{t.noCredentials}</p>

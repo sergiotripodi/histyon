@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { animate, useMotionValue } from 'framer-motion'
 import { Sparkline } from './Sparkline'
 
@@ -9,11 +9,23 @@ interface StatCardProps {
   value: number
   sparkline: number[]
   subtitle?: string
-  formatter?: (v: number) => string
+  format?: 'number' | 'bytes'
   accent?: 'default' | 'red'
 }
 
-function defaultFormatter(v: number): string {
+function makeBytesFormatter(targetBytes: number): (v: number) => string {
+  const { divisor, unit } =
+    targetBytes >= 1e9
+      ? { divisor: 1e9, unit: 'GB' }
+      : targetBytes >= 1e6
+      ? { divisor: 1e6, unit: 'MB' }
+      : targetBytes >= 1e3
+      ? { divisor: 1e3, unit: 'KB' }
+      : { divisor: 1, unit: 'B' }
+  return (v: number) => `${(v / divisor).toFixed(1)} ${unit}`
+}
+
+function numberFormatter(v: number): string {
   return Math.round(v).toLocaleString('it-IT')
 }
 
@@ -22,9 +34,14 @@ export function StatCard({
   value,
   sparkline,
   subtitle,
-  formatter = defaultFormatter,
+  format = 'number',
   accent = 'default',
 }: StatCardProps) {
+  const formatter = useMemo(
+    () => (format === 'bytes' ? makeBytesFormatter(value) : numberFormatter),
+    [format, value]
+  )
+
   const motionVal = useMotionValue(0)
   const [display, setDisplay] = useState(formatter(0))
 
