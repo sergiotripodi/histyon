@@ -101,7 +101,7 @@ export async function signup(prevState: SignupState, formData: FormData): Promis
   const validated = DoctorRegistrationSchema.safeParse(candidate)
   if (!validated.success) {
     const issue = validated.error.issues[0]
-    const field = issue?.path[0] ? ` (${issue.path[0]})` : ''
+    const field = issue?.path[0] ? ` (${String(issue.path[0])})` : ''
     return {
       status: 'error',
       message: (issue?.message || dictionary.validation.genericError) + field,
