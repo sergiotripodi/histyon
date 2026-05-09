@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, useTransition } from 'react'
-import { AlertTriangle, X, Loader2 } from 'lucide-react'
+import { AlertTriangle, X, Loader2, Trash2 } from 'lucide-react'
 import { deleteAccount } from '@/lib/actions/settings'
 
 interface DeleteAccountModalProps {
@@ -26,17 +26,17 @@ export function DeleteAccountModal({ dict }: DeleteAccountModalProps) {
   return (
     <>
       {/* Trigger button */}
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="w-full flex items-center justify-between px-5 py-4 border border-red-200 bg-red-50 hover:bg-red-100 hover:border-red-300 transition-colors text-left group"
-      >
-        <div>
-          <p className="text-sm font-semibold text-red-700">{d.deleteBtn}</p>
-          <p className="text-xs text-red-500 mt-0.5">{d.deleteDesc}</p>
-        </div>
-        <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 ml-4" />
-      </button>
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-red-400 max-w-xs">{d.deleteDesc}</p>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="inline-flex items-center gap-2 px-5 py-2.5 border border-red-200 text-red-500 text-sm font-semibold hover:bg-red-50 hover:border-red-300 hover:text-red-600 transition-all duration-150 shrink-0 ml-4"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          {d.deleteBtn}
+        </button>
+      </div>
 
       {/* Modal */}
       {open && (
@@ -110,7 +110,7 @@ export function DeleteAccountModal({ dict }: DeleteAccountModalProps) {
                   <button
                     type="submit"
                     disabled={isPending}
-                    className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+                    className="flex-1 py-2.5 border border-red-300 bg-red-50 hover:bg-red-100 hover:border-red-400 disabled:opacity-60 text-red-700 text-sm font-semibold transition-all duration-150 flex items-center justify-center gap-2"
                   >
                     {isPending ? (
                       <><Loader2 className="w-4 h-4 animate-spin" />{d.modal.deleting}</>

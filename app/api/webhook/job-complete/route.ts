@@ -39,8 +39,11 @@ export async function POST(request: Request) {
   if (typeof outputFileSizeBytes === 'number' && outputFileSizeBytes >= 0) {
     update.output_file_size = outputFileSizeBytes
   }
-  if (status && ['COMPLETED', 'ERROR', 'PROCESSING'].includes(status)) {
-    update.status = status
+  if (status) {
+    const normalized = ['FAILED_ANALYSIS', 'FAILED', 'FAIL'].includes(status) ? 'ERROR' : status
+    if (['COMPLETED', 'ERROR', 'PROCESSING'].includes(normalized)) {
+      update.status = normalized
+    }
   }
 
   if (Object.keys(update).length === 0) {

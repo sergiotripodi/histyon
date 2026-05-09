@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import { StatCard } from '@/components/dashboard/StatCard'
 import { getDictionary } from '@/lib/dictionary'
 
+export const dynamic = 'force-dynamic'
+
 function getLast7Days(): string[] {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date()

@@ -2,7 +2,7 @@
 
 import { useState, useActionState, useEffect, useCallback } from 'react'
 import { signup, SignupState } from '@/lib/actions/auth'
-import { ValidatedInput } from '@/components/ui/FormElements'
+import { ValidatedInput, Select, SelectTrigger, SelectContent, SelectItem } from '@/components/ui/FormElements'
 import { GlobalLocationSelector } from '@/components/auth/GlobalLocationSelector'
 import { PhoneInput } from '@/components/shared/PhoneInput'
 import { DateOfBirthPicker } from '@/components/ui/DateOfBirthPicker'
@@ -32,19 +32,19 @@ function StepOne({ state, dict, tf, dob, setDob, gender, setGender, isActive }: 
             </div>
             <div className="grid grid-cols-2 gap-4">
                 <ValidatedInput name="fiscalCode" label={tf.labels.fiscalCode} className="uppercase font-mono" maxLength={16} pattern={REGEX_VALIDATORS.FISCAL_CODE} errorMessage={dict.validation.fiscalCodeLen} defaultValue={state.inputs?.fiscalCode} required />
-                <div className="relative">
+                <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">{tf.labels.gender} *</label>
-                    <select
-                        name="gender"
-                        required
-                        value={gender}
-                        onChange={(e) => setGender(e.target.value)}
-                        className="flex h-12 w-full rounded-none border border-gray-300 bg-white px-3 py-2 text-sm appearance-none cursor-pointer focus-visible:outline-none focus-visible:border-gray-900 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200"
-                    >
-                        <option value="" disabled>{tf.placeholders.select}</option>
-                        <option value="M">{tf.options.male}</option>
-                        <option value="F">{tf.options.female}</option>
-                    </select>
+                    <Select value={gender} onValueChange={setGender} name="gender">
+                        <SelectTrigger className="h-12 w-full text-sm">
+                            <span className={gender ? 'text-gray-900' : 'text-gray-400'}>
+                                {gender === 'M' ? tf.options.male : gender === 'F' ? tf.options.female : tf.placeholders.select}
+                            </span>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="M">{tf.options.male}</SelectItem>
+                            <SelectItem value="F">{tf.options.female}</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
             <div className="space-y-1">
@@ -159,14 +159,18 @@ export function RegisterForm({ dict }: RegisterFormProps) {
             <StepThree state={state} dict={dict} tf={tf} isActive={currentStep === 3} />
         </div>
 
+        {/* Pre-load Turnstile from step 1: off-screen (not display:none) so iframe executes */}
+        {siteKey && (
+          <div style={currentStep !== 3 ? { position: 'absolute', left: '-9999px', top: '-9999px' } : { marginTop: '24px' }}>
+            <TurnstileWidget
+              siteKey={siteKey}
+              onSuccess={handleTurnstileSuccess}
+              onError={handleTurnstileError}
+            />
+          </div>
+        )}
+
         <div className="mt-8 pt-6 border-t border-gray-100 space-y-4">
-            {currentStep === 3 && siteKey && (
-              <TurnstileWidget
-                siteKey={siteKey}
-                onSuccess={handleTurnstileSuccess}
-                onError={handleTurnstileError}
-              />
-            )}
             <div className="flex items-center gap-3">
                 {currentStep > 1 && (
                     <button type="button" onClick={prevStep} className="btn-elegant-soft flex-1 py-3.5 rounded-md font-bold">

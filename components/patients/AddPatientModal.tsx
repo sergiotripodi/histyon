@@ -5,7 +5,7 @@ import { Plus, X, User, MapPin, AlertCircle, Phone } from 'lucide-react'
 import { useFormStatus } from 'react-dom'
 import { addPatient } from '@/lib/actions/patient'
 import { DateOfBirthPicker } from '@/components/ui/DateOfBirthPicker'
-import { ValidatedInput } from '../ui/FormElements'
+import { ValidatedInput, Select, SelectTrigger, SelectContent, SelectItem } from '../ui/FormElements'
 import { GlobalLocationSelector } from '../auth/GlobalLocationSelector'
 import { PhoneInput } from '../shared/PhoneInput'
 import { REGEX_VALIDATORS } from '@/lib/constants'
@@ -28,6 +28,7 @@ export function AddPatientModal({ dict }: ModalProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [dob, setDob] = useState<Date | undefined>(undefined)
+  const [gender, setGender] = useState('')
 
   const t = dict.dashboard.patients.modal
   const tf = dict.auth.form
@@ -36,7 +37,7 @@ export function AddPatientModal({ dict }: ModalProps) {
   async function handleSubmit(formData: FormData) {
     setError(null)
     const res = await addPatient(null, formData)
-    if (res?.success) { setIsOpen(false); setError(null); setDob(undefined) }
+    if (res?.success) { setIsOpen(false); setError(null); setDob(undefined); setGender('') }
     if (res?.error) setError(res.error)
   }
 
@@ -81,14 +82,20 @@ export function AddPatientModal({ dict }: ModalProps) {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <ValidatedInput name="fiscalCode" label={tf.labels.fiscalCode} className="uppercase font-mono" maxLength={16} placeholder={tf.placeholders.cf} required />
-              <div className="relative">
+              <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">{tf.labels.gender} *</label>
-                <select name="gender" required defaultValue="" className="flex h-12 w-full rounded-none bg-white border border-gray-300 px-3 py-2 text-sm appearance-none cursor-pointer focus:outline-none focus:border-gray-900 transition-all duration-200">
-                  <option value="" disabled>{tf.placeholders.select}</option>
-                  <option value="M">{tf.options.male}</option>
-                  <option value="F">{tf.options.female}</option>
-                  <option value="OTHER">{tf.options.other}</option>
-                </select>
+                <Select value={gender} onValueChange={setGender} name="gender">
+                  <SelectTrigger className="h-12 w-full text-sm">
+                    <span className={gender ? 'text-gray-900' : 'text-gray-400'}>
+                      {gender === 'M' ? tf.options.male : gender === 'F' ? tf.options.female : gender === 'OTHER' ? tf.options.other : tf.placeholders.select}
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="M">{tf.options.male}</SelectItem>
+                    <SelectItem value="F">{tf.options.female}</SelectItem>
+                    <SelectItem value="OTHER">{tf.options.other}</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="space-y-1">

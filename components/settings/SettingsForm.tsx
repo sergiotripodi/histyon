@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { ChevronDown, User, MapPin, Building2, ShieldCheck, Save, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { ChevronDown, User, MapPin, Building2, ShieldCheck, Save, Loader2, AlertCircle, CheckCircle2, Trash2 } from 'lucide-react'
 import { updateProfile, updateEmail, updatePassword } from '@/lib/actions/settings'
 import { DeleteAccountModal } from './DeleteAccountModal'
 import { DateOfBirthPicker } from '@/components/ui/DateOfBirthPicker'
@@ -176,17 +176,27 @@ export function SettingsForm({ user, profile, dict }: SettingsFormProps) {
           </div>
         </AccordionSection>
 
-      </div>
+        {/* === Danger Zone — same accordion style, red tones === */}
+        <div className="border-t border-red-100">
+          <button
+            type="button"
+            onClick={() => toggleSection('danger')}
+            className="w-full flex items-center justify-between px-6 py-5 text-left hover:bg-red-50/40 transition-colors group"
+          >
+            <div className="flex items-center gap-3">
+              <Trash2 className="w-4 h-4 text-red-400 group-hover:text-red-500 transition-colors" />
+              <span className="text-sm font-semibold text-red-600 tracking-wide">{d.danger.title}</span>
+            </div>
+            <ChevronDown className={`w-4 h-4 text-red-300 transition-transform duration-200 ${openSections.has('danger') ? 'rotate-180' : ''}`} />
+          </button>
+          {openSections.has('danger') && (
+            <div className="px-6 pb-7 animate-in fade-in slide-in-from-top-1 duration-200">
+              <p className="text-xs text-red-400 mb-5">{d.danger.subtitle}</p>
+              <DeleteAccountModal dict={dict} />
+            </div>
+          )}
+        </div>
 
-      {/* Danger Zone */}
-      <div className="mt-8 border border-red-200">
-        <div className="px-6 py-5 border-b border-red-100 bg-red-50/50">
-          <p className="text-xs font-bold text-red-600 uppercase tracking-[0.12em]">{dict.dashboard.settings.danger.title}</p>
-          <p className="text-xs text-red-400 mt-0.5">{dict.dashboard.settings.danger.subtitle}</p>
-        </div>
-        <div className="p-4">
-          <DeleteAccountModal dict={dict} />
-        </div>
       </div>
 
     </div>

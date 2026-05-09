@@ -103,7 +103,7 @@ export function TicketRealtimeView({ initialTicket, dict }: RealTimeProps) {
         filter: `id=eq.${ticket.id}`,
       }, (payload) => {
         setTicket(payload.new)
-        if (payload.new.status === 'COMPLETED') router.refresh()
+        if (['COMPLETED', 'ERROR'].includes(payload.new.status)) router.refresh()
       }).subscribe()
     return () => { supabase.removeChannel(ch) }
   }, [ticket.id, supabase, router])
