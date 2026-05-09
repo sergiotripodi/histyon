@@ -7,16 +7,18 @@ const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
 const csp = [
   "default-src 'self'",
   // Next.js 15 App Router requires unsafe-inline for hydration scripts
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com",
   "style-src 'self' 'unsafe-inline' https://api.fontshare.com",
   "font-src 'self' https://cdn.fontshare.com",
   [
     "connect-src 'self'",
     `https://${supabaseHost}`,
-    `wss://${supabaseHost}`,           // Supabase Realtime
-    'https://*.r2.cloudflarestorage.com', // R2 presigned upload PUT
+    `wss://${supabaseHost}`,
+    'https://*.r2.cloudflarestorage.com',
     'https://*.r2.dev',
+    'https://challenges.cloudflare.com',
   ].join(' '),
+  "frame-src https://challenges.cloudflare.com",
   "img-src 'self' data: blob: https://cdnjs.cloudflare.com",
   "frame-ancestors 'none'",
   "object-src 'none'",
