@@ -4,8 +4,6 @@ import { AlertCircle, CheckCircle2, UserPlus, ArrowRight } from 'lucide-react'
 import { getDictionary } from '@/lib/dictionary'
 import { Metadata } from 'next'
 import { LoginForm } from '@/components/auth/LoginForm'
-import Script from 'next/script'
-
 export async function generateMetadata(): Promise<Metadata> {
   const dict = await getDictionary()
   return {
@@ -41,16 +39,8 @@ export default async function LoginPage(props: {
   const successMessage = successCode ? (SUCCESS_MAP[successCode] ?? null) : null
   const tf = dict.auth.form
 
-  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
-
   return (
     <div className="min-h-screen flex w-full bg-white font-sans text-gray-900">
-      {siteKey && (
-        <Script
-          src="https://challenges.cloudflare.com/turnstile/v0/api.js"
-          strategy="lazyOnload"
-        />
-      )}
       <AuthSidebar dict={dict} />
 
       <div className="flex-1 flex flex-col items-center justify-center p-6 relative">
@@ -75,7 +65,6 @@ export default async function LoginPage(props: {
           )}
 
           <LoginForm
-            turnstileSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || undefined}
             labels={{
               email: tf.labels.emailSimple,
               password: tf.labels.passwordSimple,

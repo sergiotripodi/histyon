@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useActionState, useEffect, useCallback } from 'react'
+import { useState, useActionState, useEffect } from 'react'
 import { signup, SignupState } from '@/lib/actions/auth'
 import { ValidatedInput, Select, SelectTrigger, SelectContent, SelectItem } from '@/components/ui/FormElements'
 import { GlobalLocationSelector } from '@/components/auth/GlobalLocationSelector'
@@ -8,7 +8,6 @@ import { PhoneInput } from '@/components/shared/PhoneInput'
 import { DateOfBirthPicker } from '@/components/ui/DateOfBirthPicker'
 import { AlertTriangle, ArrowRight, ArrowLeft, Check } from 'lucide-react'
 import { REGEX_VALIDATORS } from '@/lib/constants'
-import { TurnstileWidget } from './TurnstileWidget'
 
 const initialState: SignupState = { status: 'idle', inputs: {} }
 
@@ -60,7 +59,7 @@ function StepOne({ state, dict, tf, dob, setDob, gender, setGender, isActive }: 
 function StepTwo({ dict, isActive }: any) {
     return (
         <div className={`${isActive ? 'block space-y-6 animate-in fade-in slide-in-from-right-4 duration-300' : 'hidden'}`}>
-            <GlobalLocationSelector dict={dict} /> 
+            <GlobalLocationSelector dict={dict} />
         </div>
     )
 }
@@ -90,10 +89,6 @@ export function RegisterForm({ dict }: RegisterFormProps) {
 
   const [dob, setDob] = useState<Date | undefined>(() => dobFromInputs(initialState.inputs?.dob))
   const [gender, setGender] = useState<string>('')
-  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
-  const [turnstileReady, setTurnstileReady] = useState(!siteKey)
-  const handleTurnstileSuccess = useCallback(() => setTurnstileReady(true), [])
-  const handleTurnstileError = useCallback(() => setTurnstileReady(false), [])
 
   useEffect(() => {
     const next = dobFromInputs(state.inputs?.dob)
@@ -104,22 +99,30 @@ export function RegisterForm({ dict }: RegisterFormProps) {
     const g = state.inputs?.gender as string | undefined
     if (g) setGender(g)
   }, [state.inputs?.gender])
-  
+
   const t = dict.auth.register;
   const tf = dict.auth.form;
 
-  const nextStep = () => { 
-      setCurrentStep(prev => Math.min(prev + 1, 3)); 
-      window.scrollTo({ top: 0, behavior: 'smooth' }); 
+  const nextStep = () => {
+      setCurrentStep(prev => Math.min(prev + 1, 3));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
   }
-  const prevStep = () => { 
+  const prevStep = () => {
       setCurrentStep(prev => Math.max(prev - 1, 1));
       window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   return (
     <form action={formAction} className="flex flex-col h-full" noValidate>
-        
+      <input
+        type="text"
+        name="website"
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+        style={{ position: 'absolute', left: '-9999px', top: '-9999px', opacity: 0, height: 0, width: 0 }}
+      />
+
         <div className="mb-6">
             <div className="flex items-center gap-2 mb-5">
                 {[1, 2, 3].map((step) => (
@@ -159,17 +162,6 @@ export function RegisterForm({ dict }: RegisterFormProps) {
             <StepThree state={state} dict={dict} tf={tf} isActive={currentStep === 3} />
         </div>
 
-        {/* Pre-load Turnstile from step 1: off-screen (not display:none) so iframe executes */}
-        {siteKey && (
-          <div style={currentStep !== 3 ? { position: 'absolute', left: '-9999px', top: '-9999px' } : { marginTop: '24px' }}>
-            <TurnstileWidget
-              siteKey={siteKey}
-              onSuccess={handleTurnstileSuccess}
-              onError={handleTurnstileError}
-            />
-          </div>
-        )}
-
         <div className="mt-8 pt-6 border-t border-gray-100 space-y-4">
             <div className="flex items-center gap-3">
                 {currentStep > 1 && (
@@ -182,7 +174,7 @@ export function RegisterForm({ dict }: RegisterFormProps) {
                         {t.buttons.next} <ArrowRight className="w-4 h-4" />
                     </button>
                 ) : (
-                    <button type="submit" disabled={!turnstileReady} className="btn-elegant flex-[2] py-3.5 rounded-md font-bold disabled:opacity-40 disabled:cursor-not-allowed">
+                    <button type="submit" className="btn-elegant flex-[2] py-3.5 rounded-md font-bold">
                         {t.buttons.complete} <Check className="w-4 h-4" />
                     </button>
                 )}

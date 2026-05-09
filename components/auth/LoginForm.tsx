@@ -1,13 +1,10 @@
 'use client'
 
-import { useCallback, useState } from 'react'
 import { login } from '@/lib/actions/auth'
 import { ValidatedInput } from '@/components/ui/FormElements'
-import { TurnstileWidget } from './TurnstileWidget'
 import Link from 'next/link'
 
 interface LoginFormProps {
-  turnstileSiteKey?: string
   labels: {
     email: string
     password: string
@@ -16,14 +13,18 @@ interface LoginFormProps {
   }
 }
 
-export function LoginForm({ turnstileSiteKey, labels }: LoginFormProps) {
-  const [turnstileReady, setTurnstileReady] = useState(!turnstileSiteKey)
-
-  const handleSuccess = useCallback(() => setTurnstileReady(true), [])
-  const handleError = useCallback(() => setTurnstileReady(false), [])
-
+export function LoginForm({ labels }: LoginFormProps) {
   return (
     <form action={login} className="space-y-5" noValidate>
+      <input
+        type="text"
+        name="website"
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+        style={{ position: 'absolute', left: '-9999px', top: '-9999px', opacity: 0, height: 0, width: 0 }}
+      />
+
       <ValidatedInput
         name="email"
         type="email"
@@ -48,18 +49,9 @@ export function LoginForm({ turnstileSiteKey, labels }: LoginFormProps) {
         </div>
       </div>
 
-      {turnstileSiteKey && (
-        <TurnstileWidget
-          siteKey={turnstileSiteKey}
-          onSuccess={handleSuccess}
-          onError={handleError}
-        />
-      )}
-
       <button
         type="submit"
-        disabled={!turnstileReady}
-        className="btn-elegant w-full py-3.5 mt-4 disabled:opacity-40 disabled:cursor-not-allowed"
+        className="btn-elegant w-full py-3.5 mt-4"
       >
         {labels.btn}
       </button>

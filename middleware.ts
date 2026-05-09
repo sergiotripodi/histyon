@@ -1,11 +1,8 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-// Simple in-memory rate limiter (resets per Vercel function instance).
-// Primary protection is Supabase Auth's server-side rate limiting.
-// Configure stricter limits in Supabase Dashboard → Auth → Rate Limits.
 const loginAttempts = new Map<string, { count: number; resetAt: number }>()
-const LOGIN_WINDOW_MS = 15 * 60 * 1000 // 15 minutes
+const LOGIN_WINDOW_MS = 15 * 60 * 1000
 const LOGIN_MAX_ATTEMPTS = 10
 
 function isLoginRateLimited(ip: string): boolean {
@@ -17,6 +14,21 @@ function isLoginRateLimited(ip: string): boolean {
   }
   entry.count++
   return entry.count > LOGIN_MAX_ATTEMPTS
+}
+
+const signupAttempts = new Map<string, { count: number; resetAt: number }>()
+const SIGNUP_WINDOW_MS = 60 * 60 * 1000
+const SIGNUP_MAX_ATTEMPTS = 5
+
+function isSignupRateLimited(ip: string): boolean {
+  const now = Date.now()
+  const entry = signupAttempts.get(ip)
+  if (!entry || now > entry.resetAt) {
+    signupAttempts.set(ip, { count: 1, resetAt: now + SIGNUP_WINDOW_MS })
+    return false
+  }
+  entry.count++
+  return entry.count > SIGNUP_MAX_ATTEMPTS
 }
 
 export async function middleware(request: NextRequest) {
@@ -44,13 +56,16 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Rate-limit login POST attempts by IP
-  if (request.method === 'POST' && request.nextUrl.pathname === '/auth/login') {
+  if (request.method === 'POST') {
     const ip =
       request.headers.get('x-real-ip') ||
       request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
       'unknown'
-    if (isLoginRateLimited(ip)) {
+    const path = request.nextUrl.pathname
+    if (path === '/auth/login' && isLoginRateLimited(ip)) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+    }
+    if (path === '/auth/register' && isSignupRateLimited(ip)) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
     }
   }
