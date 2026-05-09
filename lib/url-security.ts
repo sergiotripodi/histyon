@@ -51,3 +51,4 @@ export function isAllowedAssetUrl(urlString: string): boolean {
     return false
   }
 }
+
