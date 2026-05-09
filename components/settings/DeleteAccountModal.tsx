@@ -27,7 +27,7 @@ export function DeleteAccountModal({ dict }: DeleteAccountModalProps) {
     <>
       {/* Trigger button */}
       <div className="flex items-center justify-between">
-        <p className="text-xs text-red-400 max-w-xs">{d.deleteDesc}</p>
+        <p className="text-xs text-gray-400 max-w-xs">{d.deleteDesc}</p>
         <button
           type="button"
           onClick={() => setOpen(true)}

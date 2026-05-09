@@ -55,14 +55,14 @@ export async function signup(prevState: SignupState, formData: FormData): Promis
   const turnstileSecret = process.env.TURNSTILE_SECRET_KEY
   if (turnstileSecret) {
     const token = formData.get('cf-turnstile-response') as string | null
-    if (!token) return { status: 'error', message: dictionary.validation.genericError }
+    if (!token) return { status: 'error', message: 'Verifica di sicurezza non riuscita. Ricarica la pagina e riprova.' }
     const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ secret: turnstileSecret, response: token }),
     })
     const result = await res.json() as { success: boolean }
-    if (!result.success) return { status: 'error', message: dictionary.validation.genericError }
+    if (!result.success) return { status: 'error', message: 'Verifica di sicurezza non riuscita. Ricarica la pagina e riprova.' }
   }
 
   const supabase = await createClient()

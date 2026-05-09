@@ -191,7 +191,7 @@ export function SettingsForm({ user, profile, dict }: SettingsFormProps) {
           </button>
           {openSections.has('danger') && (
             <div className="px-6 pb-7 animate-in fade-in slide-in-from-top-1 duration-200">
-              <p className="text-xs text-red-400 mb-5">{d.danger.subtitle}</p>
+              <p className="text-xs text-gray-400 mb-5">{d.danger.subtitle}</p>
               <DeleteAccountModal dict={dict} />
             </div>
           )}

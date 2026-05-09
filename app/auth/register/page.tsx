@@ -1,9 +1,10 @@
 import Link from 'next/link'
 import { AuthSidebar } from '@/components/auth/AuthSidebar'
-import { RegisterForm } from '@/components/auth/RegisterForm' 
+import { RegisterForm } from '@/components/auth/RegisterForm'
 import { LogIn, ArrowRight } from 'lucide-react'
 import { getDictionary } from '@/lib/dictionary'
 import { Metadata } from 'next'
+import Script from 'next/script'
 
 export async function generateMetadata(): Promise<Metadata> {
   const dict = await getDictionary()
@@ -15,10 +16,16 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function RegisterPage() {
   const dict = await getDictionary();
   const t = dict.auth.register;
-  
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
+
   return (
     <div className="min-h-screen flex w-full bg-white font-sans text-gray-900">
-      
+      {siteKey && (
+        <Script
+          src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+          strategy="lazyOnload"
+        />
+      )}
       <AuthSidebar dict={dict} />
 
       <div 
