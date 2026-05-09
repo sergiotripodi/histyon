@@ -12,21 +12,16 @@ interface TurnstileWidgetProps {
 const TIMEOUT_MS = 12_000
 
 export function TurnstileWidget({ siteKey, onSuccess, onError }: TurnstileWidgetProps) {
-  const [state, setState] = useState<'loading' | 'ready' | 'error' | 'timeout'>('loading')
+  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     timerRef.current = setTimeout(() => {
-      setState(prev => {
-        if (prev === 'loading') {
-          onSuccess?.()
-          return 'timeout'
-        }
-        return prev
-      })
+      setState(prev => prev === 'loading' ? 'error' : prev)
+      onError?.()
     }, TIMEOUT_MS)
     return () => { if (timerRef.current) clearTimeout(timerRef.current) }
-  }, [onSuccess])
+  }, [onError])
 
   return (
     <div>
@@ -36,14 +31,9 @@ export function TurnstileWidget({ siteKey, onSuccess, onError }: TurnstileWidget
           Verifica sicurezza in corso...
         </div>
       )}
-      {state === 'timeout' && (
-        <p className="text-xs text-amber-500 px-0.5 py-1.5">
-          Verifica non completata — puoi procedere comunque.
-        </p>
-      )}
       {state === 'error' && (
         <p className="text-xs text-red-500 px-0.5 py-1.5">
-          Verifica non riuscita. Ricarica la pagina.
+          Verifica non riuscita. Ricarica la pagina e riprova.
         </p>
       )}
       <Turnstile
