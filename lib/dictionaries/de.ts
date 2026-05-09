@@ -108,6 +108,12 @@ export const de = {
       errorUpdateFailed: "Passwort konnte nicht aktualisiert werden. Bitte erneut versuchen.",
       errorDefault: "Ein Fehler ist aufgetreten."
     },
+    deleted: {
+      heading: "Konto gelöscht",
+      subheading: "Wir bedauern, Sie gehen zu sehen.",
+      message: "Ihr Konto wurde erfolgreich gelöscht. Alle persönlichen Daten, Patienten, Analysen und Dateien wurden dauerhaft von unseren Servern entfernt.",
+      homeBtn: "Zurück zur Startseite"
+    },
     verified: {
       title: "E-Mail Bestätigt",
       desc: "Ihr Konto wurde erfolgreich aktiviert.",
@@ -238,6 +244,29 @@ export const de = {
         newPassword: "Neues Passwort",
         confirmPassword: "Bestätigen",
         updating: "Speichern..."
+      },
+      danger: {
+        title: "Gefahrenzone",
+        subtitle: "Diese Aktion ist irreversibel und entfernt alle Daten.",
+        deleteBtn: "Konto löschen",
+        deleteDesc: "Löscht dauerhaft Ihr Konto, alle Patienten, alle Analysen und alle gespeicherten Dateien.",
+        modal: {
+          title: "Ihr Konto löschen",
+          warning: "Sie sind dabei, dauerhaft zu löschen:",
+          items: [
+            "Ihr Konto und Ihr medizinisches Profil",
+            "Alle registrierten Patienten",
+            "Alle Analysen und Tickets",
+            "Alle in der Cloud gespeicherten Dateien"
+          ],
+          irreversible: "Diese Aktion ist irreversibel und kann nicht rückgängig gemacht werden.",
+          passwordLabel: "Bestätigen Sie durch Eingabe Ihres Passworts",
+          confirmBtn: "Dauerhaft löschen",
+          cancelBtn: "Abbrechen",
+          deleting: "Löschen...",
+          errorWrong: "Falsches Passwort. Bitte erneut versuchen.",
+          errorGeneric: "Fehler beim Löschen. Bitte erneut versuchen."
+        }
       }
     }
   },

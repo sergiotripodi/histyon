@@ -108,6 +108,12 @@ export const pt = {
       errorUpdateFailed: "Não foi possível atualizar a senha. Tente novamente.",
       errorDefault: "Ocorreu um erro."
     },
+    deleted: {
+      heading: "Conta excluída",
+      subheading: "Lamentamos ver você partir.",
+      message: "Sua conta foi excluída com sucesso. Todos os dados pessoais, pacientes, análises e arquivos foram removidos permanentemente dos nossos servidores.",
+      homeBtn: "Voltar ao Início"
+    },
     verified: {
       title: "Email Confirmado",
       desc: "Sua conta foi ativada com sucesso.",
@@ -238,6 +244,29 @@ export const pt = {
         newPassword: "Nova Senha",
         confirmPassword: "Confirmar Senha",
         updating: "Salvando..."
+      },
+      danger: {
+        title: "Zona de Perigo",
+        subtitle: "Esta ação é irreversível e remove todos os dados.",
+        deleteBtn: "Excluir Conta",
+        deleteDesc: "Exclui permanentemente sua conta, todos os pacientes, todas as análises e todos os arquivos armazenados.",
+        modal: {
+          title: "Excluir sua conta",
+          warning: "Você está prestes a excluir permanentemente:",
+          items: [
+            "Sua conta e perfil médico",
+            "Todos os pacientes registrados",
+            "Todas as análises e tickets",
+            "Todos os arquivos armazenados na nuvem"
+          ],
+          irreversible: "Esta ação é irreversível e não pode ser desfeita.",
+          passwordLabel: "Confirme inserindo sua senha",
+          confirmBtn: "Excluir permanentemente",
+          cancelBtn: "Cancelar",
+          deleting: "Excluindo...",
+          errorWrong: "Senha incorreta. Tente novamente.",
+          errorGeneric: "Erro durante a exclusão. Tente novamente."
+        }
       }
     }
   },

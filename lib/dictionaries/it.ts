@@ -114,6 +114,12 @@ export const it = {
       errorUpdateFailed: "Impossibile aggiornare la password. Riprova.",
       errorDefault: "Si è verificato un errore."
     },
+    deleted: {
+      heading: "Account eliminato",
+      subheading: "Ci dispiace vederti andare.",
+      message: "Il tuo account è stato eliminato con successo. Tutti i dati personali, i pazienti, le analisi e i file sono stati rimossi permanentemente dai nostri server.",
+      homeBtn: "Torna alla Home"
+    },
     verified: {
       title: "Email Confermata",
       desc: "Il tuo account è stato attivato con successo.",
@@ -246,6 +252,29 @@ export const it = {
         newPassword: "Nuova Password",
         confirmPassword: "Conferma Password",
         updating: "Salvataggio..."
+      },
+      danger: {
+        title: "Zona Pericolosa",
+        subtitle: "Questa azione è irreversibile e rimuove tutti i dati.",
+        deleteBtn: "Elimina Account",
+        deleteDesc: "Elimina definitivamente il tuo account, tutti i pazienti, tutte le analisi e tutti i file archiviati.",
+        modal: {
+          title: "Elimina il tuo account",
+          warning: "Stai per eliminare permanentemente:",
+          items: [
+            "Il tuo account e profilo medico",
+            "Tutti i pazienti registrati",
+            "Tutte le analisi e i ticket",
+            "Tutti i file archiviati su cloud"
+          ],
+          irreversible: "Questa azione è irreversibile e non può essere annullata.",
+          passwordLabel: "Conferma inserendo la tua password",
+          confirmBtn: "Elimina definitivamente",
+          cancelBtn: "Annulla",
+          deleting: "Eliminazione in corso...",
+          errorWrong: "Password non corretta. Riprova.",
+          errorGeneric: "Errore durante l'eliminazione. Riprova."
+        }
       }
     }
   },
@@ -283,7 +312,8 @@ export const it = {
             title: "4. Luogo del Trattamento e Fornitori", 
             body: "I dati sono ospitati su infrastrutture cloud localizzate all'interno dello Spazio Economico Europeo (SEE) o in paesi che garantiscono un livello di protezione adeguato.\n\nFornitori principali:\n- Supabase (Database & Auth): Francoforte, Germania (AWS).\n- Cloudflare R2 (Storage WSI): Crittografia lato server e distribuzione sicura." 
         },
-        sec5: { title: "5. Diritto alla Cancellazione (Art. 17 GDPR)", body: "Hai il diritto alla cancellazione permanente dei dati del paziente e di tutti i file di analisi associati. La cancellazione può essere eseguita in qualsiasi momento dalla dashboard ed è immediata e irreversibile: scansioni, tile DZI, progetti QuPath e maschere di regione vengono rimossi definitivamente dal cloud." }
+        sec5: { title: "5. Diritto alla Cancellazione (Art. 17 GDPR)", body: "Hai il diritto alla cancellazione permanente dei dati del paziente e di tutti i file di analisi associati. La cancellazione può essere eseguita in qualsiasi momento dalla dashboard ed è immediata e irreversibile: scansioni, tile DZI, progetti QuPath e maschere di regione vengono rimossi definitivamente dal cloud.\n\nPuoi inoltre eliminare il tuo intero account medico in qualsiasi momento dalla sezione Impostazioni → Zona Pericolosa. L'eliminazione dell'account comporta la rimozione permanente e irreversibile di: profilo medico, tutti i pazienti registrati, tutte le analisi e i file archiviati su cloud. Riceverai una conferma via email al termine del processo." },
+        sec6: { title: "6. Portabilità e Altri Diritti", body: "Ai sensi del GDPR hai il diritto di: accedere ai tuoi dati personali, rettificarli, limitarne il trattamento e opporti al trattamento stesso. Per esercitare tali diritti puoi contattarci a info@histyon.com. Ci impegniamo a rispondere entro 30 giorni dalla ricezione della richiesta." }
       },
       terms: {
         sec1: { 
@@ -294,9 +324,13 @@ export const it = {
             title: "2. Responsabilità sui Dati Caricati", 
             body: "L'Utente (Medico) dichiara e garantisce di aver ottenuto il consenso informato dal paziente per il caricamento dei dati e delle immagini istologiche sulla piattaforma, in conformità con le leggi vigenti (GDPR, HIPAA, leggi locali).\n\nL'Utente è l'unico responsabile della legittimità, veridicità e accuratezza dei dati caricati. Histyon non effettua controlli di merito sui contenuti clinici caricati, limitandosi a fornire l'infrastruttura tecnologica." 
         },
-        sec3: { 
-            title: "3. Sicurezza dell'Account", 
-            body: "Le credenziali di accesso (Email e Password) sono strettamente personali e non cedibili. L'Utente è responsabile della custodia delle proprie credenziali e deve notificare tempestivamente a Histyon qualsiasi utilizzo non autorizzato o sospetta violazione della sicurezza.\n\nÈ vietata la condivisione dell'account (Account Sharing) tra più professionisti. Ogni medico deve disporre di un proprio account univoco per garantire la tracciabilità delle operazioni (Audit Logging)." 
+        sec3: {
+            title: "3. Sicurezza dell'Account",
+            body: "Le credenziali di accesso (Email e Password) sono strettamente personali e non cedibili. L'Utente è responsabile della custodia delle proprie credenziali e deve notificare tempestivamente a Histyon qualsiasi utilizzo non autorizzato o sospetta violazione della sicurezza.\n\nÈ vietata la condivisione dell'account (Account Sharing) tra più professionisti. Ogni medico deve disporre di un proprio account univoco per garantire la tracciabilità delle operazioni (Audit Logging)."
+        },
+        sec4: {
+            title: "4. Cancellazione dell'Account",
+            body: "L'Utente può richiedere la cancellazione del proprio account in qualsiasi momento dalla sezione Impostazioni → Zona Pericolosa della Console. La cancellazione è subordinata alla verifica dell'identità tramite password ed è immediata e definitiva.\n\nAll'eliminazione dell'account vengono cancellati permanentemente: il profilo medico, tutti i pazienti registrati, tutte le analisi e i file archiviati su Cloudflare R2. Histyon non mantiene copie di backup dei dati dopo la cancellazione. L'Utente riceverà una conferma email al completamento del processo."
         }
       },
       cookie: {
@@ -351,6 +385,8 @@ export const it = {
     fileRetrievalError: "Impossibile recuperare il file",
     credentialsInvalid: "Credenziali non valide",
     linkSent: "Link inviato correttamente",
-    deletePatientError: "Errore durante l'eliminazione del paziente."
+    deletePatientError: "Errore durante l'eliminazione del paziente.",
+    accountDeleted: "Account eliminato con successo.",
+    passwordWrong: "Password non corretta. Riprova."
   }
 }

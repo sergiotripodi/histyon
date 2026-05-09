@@ -108,6 +108,12 @@ export const zh = {
       errorUpdateFailed: "无法更新密码。请重试。",
       errorDefault: "发生了错误。"
     },
+    deleted: {
+      heading: "账户已删除",
+      subheading: "我们很遗憾看到您离开。",
+      message: "您的账户已成功删除。所有个人数据、患者、分析和文件已从我们的服务器中永久移除。",
+      homeBtn: "返回首页"
+    },
     verified: {
       title: "邮箱已确认",
       desc: "您的账户已成功激活。",
@@ -238,6 +244,29 @@ export const zh = {
         newPassword: "新密码",
         confirmPassword: "确认密码",
         updating: "保存中..."
+      },
+      danger: {
+        title: "危险区域",
+        subtitle: "此操作不可逆，将删除所有数据。",
+        deleteBtn: "删除账户",
+        deleteDesc: "永久删除您的账户、所有患者、所有分析和所有存储的文件。",
+        modal: {
+          title: "删除您的账户",
+          warning: "您即将永久删除：",
+          items: [
+            "您的账户和医疗档案",
+            "所有已注册患者",
+            "所有分析和工单",
+            "所有存储在云端的文件"
+          ],
+          irreversible: "此操作不可逆，无法撤销。",
+          passwordLabel: "输入密码以确认",
+          confirmBtn: "永久删除",
+          cancelBtn: "取消",
+          deleting: "删除中...",
+          errorWrong: "密码不正确，请重试。",
+          errorGeneric: "删除时出错，请重试。"
+        }
       }
     }
   },

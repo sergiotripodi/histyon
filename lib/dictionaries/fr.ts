@@ -108,6 +108,12 @@ export const fr = {
       errorUpdateFailed: "Impossible de mettre à jour le mot de passe. Réessayez.",
       errorDefault: "Une erreur est survenue."
     },
+    deleted: {
+      heading: "Compte supprimé",
+      subheading: "Nous sommes désolés de vous voir partir.",
+      message: "Votre compte a été supprimé avec succès. Toutes les données personnelles, patients, analyses et fichiers ont été définitivement supprimés de nos serveurs.",
+      homeBtn: "Retour à l'Accueil"
+    },
     verified: {
       title: "Email Confirmé",
       desc: "Votre compte a été activé avec succès.",
@@ -238,6 +244,29 @@ export const fr = {
         newPassword: "Nouveau Mot de Passe",
         confirmPassword: "Confirmer Mot de Passe",
         updating: "Enregistrement..."
+      },
+      danger: {
+        title: "Zone Dangereuse",
+        subtitle: "Cette action est irréversible et supprime toutes les données.",
+        deleteBtn: "Supprimer le Compte",
+        deleteDesc: "Supprime définitivement votre compte, tous les patients, toutes les analyses et tous les fichiers stockés.",
+        modal: {
+          title: "Supprimer votre compte",
+          warning: "Vous êtes sur le point de supprimer définitivement :",
+          items: [
+            "Votre compte et profil médical",
+            "Tous les patients enregistrés",
+            "Toutes les analyses et tickets",
+            "Tous les fichiers stockés sur le cloud"
+          ],
+          irreversible: "Cette action est irréversible et ne peut pas être annulée.",
+          passwordLabel: "Confirmez en entrant votre mot de passe",
+          confirmBtn: "Supprimer définitivement",
+          cancelBtn: "Annuler",
+          deleting: "Suppression...",
+          errorWrong: "Mot de passe incorrect. Veuillez réessayer.",
+          errorGeneric: "Erreur lors de la suppression. Veuillez réessayer."
+        }
       }
     }
   },

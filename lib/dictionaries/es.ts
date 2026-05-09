@@ -108,6 +108,12 @@ export const es = {
       errorUpdateFailed: "No se pudo actualizar la contraseña. Inténtalo de nuevo.",
       errorDefault: "Se produjo un error."
     },
+    deleted: {
+      heading: "Cuenta eliminada",
+      subheading: "Lamentamos verte partir.",
+      message: "Tu cuenta ha sido eliminada con éxito. Todos los datos personales, pacientes, análisis y archivos han sido eliminados permanentemente de nuestros servidores.",
+      homeBtn: "Volver al Inicio"
+    },
     verified: {
       title: "Email Confirmado",
       desc: "Tu cuenta ha sido activada con éxito.",
@@ -238,6 +244,29 @@ export const es = {
         newPassword: "Nueva Contraseña",
         confirmPassword: "Confirmar Contraseña",
         updating: "Guardando..."
+      },
+      danger: {
+        title: "Zona de Peligro",
+        subtitle: "Esta acción es irreversible y elimina todos los datos.",
+        deleteBtn: "Eliminar Cuenta",
+        deleteDesc: "Elimina permanentemente tu cuenta, todos los pacientes, todos los análisis y todos los archivos almacenados.",
+        modal: {
+          title: "Eliminar tu cuenta",
+          warning: "Estás a punto de eliminar permanentemente:",
+          items: [
+            "Tu cuenta y perfil médico",
+            "Todos los pacientes registrados",
+            "Todos los análisis y tickets",
+            "Todos los archivos almacenados en la nube"
+          ],
+          irreversible: "Esta acción es irreversible y no puede deshacerse.",
+          passwordLabel: "Confirma introduciendo tu contraseña",
+          confirmBtn: "Eliminar permanentemente",
+          cancelBtn: "Cancelar",
+          deleting: "Eliminando...",
+          errorWrong: "Contraseña incorrecta. Inténtalo de nuevo.",
+          errorGeneric: "Error durante la eliminación. Inténtalo de nuevo."
+        }
       }
     }
   },

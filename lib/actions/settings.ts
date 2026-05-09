@@ -1,9 +1,14 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { dictionary } from '@/lib/dictionary'
+import { r2Client } from '@/lib/storage/r2'
+import { ListObjectsV2Command, DeleteObjectsCommand } from '@aws-sdk/client-s3'
+import { sendAccountDeletedEmail } from '@/lib/email'
 
 const optionalString = z.union([z.string(), z.null(), z.undefined(), z.literal('')])
 
@@ -111,4 +116,74 @@ export async function updatePassword(formData: FormData) {
   if (error) return { error: dictionary.validation.genericError }
 
   return { success: true, message: dictionary.auth.updatePassword.success }
+}
+
+async function deleteR2Prefix(bucket: string, prefix: string) {
+  let token: string | undefined
+  do {
+    const list = await r2Client.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix, ContinuationToken: token }))
+    const keys = (list.Contents ?? []).map(o => ({ Key: o.Key! })).filter(o => o.Key)
+    if (keys.length > 0) {
+      await r2Client.send(new DeleteObjectsCommand({ Bucket: bucket, Delete: { Objects: keys, Quiet: true } }))
+    }
+    token = list.IsTruncated ? list.NextContinuationToken : undefined
+  } while (token)
+}
+
+export async function deleteAccount(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: dictionary.validation.unauthorized }
+
+  const password = formData.get('password') as string
+  if (!password) return { error: dictionary.validation.required }
+
+  // Verify password by re-authenticating
+  const { error: authError } = await supabase.auth.signInWithPassword({
+    email: user.email!,
+    password,
+  })
+  if (authError) return { error: dictionary.validation.passwordWrong }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('last_name')
+    .eq('id', user.id)
+    .single()
+
+  // Delete all R2 files under this user's prefix
+  const inputBucket = process.env.R2_INPUT_BUCKET_NAME
+  const outputBucket = process.env.R2_OUTPUT_BUCKET_NAME
+  const prefix = `${user.id}/`
+  try {
+    await Promise.all([
+      inputBucket  ? deleteR2Prefix(inputBucket,  prefix) : Promise.resolve(),
+      outputBucket ? deleteR2Prefix(outputBucket, prefix) : Promise.resolve(),
+    ])
+  } catch (err) {
+    console.error('deleteAccount R2 cleanup:', err)
+  }
+
+  // Delete DB records (cascade order: tickets → patients → profile)
+  await supabase.from('tickets').delete().eq('doctor_id', user.id)
+  await supabase.from('patients').delete().eq('doctor_id', user.id)
+  await supabase.from('profiles').delete().eq('id', user.id)
+
+  // Delete the auth user (requires service role)
+  const admin = createSupabaseAdmin(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+  const { error: deleteError } = await admin.auth.admin.deleteUser(user.id)
+  if (deleteError) {
+    console.error('deleteAccount auth.admin.deleteUser:', deleteError)
+    return { error: dictionary.validation.genericError }
+  }
+
+  // Send goodbye email (fire-and-forget)
+  sendAccountDeletedEmail(user.email!, profile?.last_name ?? '').catch(console.error)
+
+  await supabase.auth.signOut()
+  redirect('/auth/account-deleted')
 }

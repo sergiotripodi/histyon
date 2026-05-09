@@ -114,6 +114,12 @@ export const en = {
       errorUpdateFailed: "Unable to update password. Please try again.",
       errorDefault: "An error occurred."
     },
+    deleted: {
+      heading: "Account deleted",
+      subheading: "We're sorry to see you go.",
+      message: "Your account has been successfully deleted. All personal data, patients, analyses and files have been permanently removed from our servers.",
+      homeBtn: "Back to Home"
+    },
     verified: {
       title: "Email Confirmed",
       desc: "Your account has been successfully activated.",
@@ -244,6 +250,29 @@ export const en = {
         newPassword: "New Password",
         confirmPassword: "Confirm Password",
         updating: "Saving..."
+      },
+      danger: {
+        title: "Danger Zone",
+        subtitle: "This action is irreversible and removes all data.",
+        deleteBtn: "Delete Account",
+        deleteDesc: "Permanently delete your account, all patients, all analyses, and all stored files.",
+        modal: {
+          title: "Delete your account",
+          warning: "You are about to permanently delete:",
+          items: [
+            "Your account and medical profile",
+            "All registered patients",
+            "All analyses and tickets",
+            "All files stored on cloud"
+          ],
+          irreversible: "This action is irreversible and cannot be undone.",
+          passwordLabel: "Confirm by entering your password",
+          confirmBtn: "Delete permanently",
+          cancelBtn: "Cancel",
+          deleting: "Deleting...",
+          errorWrong: "Incorrect password. Please try again.",
+          errorGeneric: "Error during deletion. Please try again."
+        }
       }
     }
   },
@@ -312,6 +341,8 @@ export const en = {
     fileRetrievalError: "Cannot retrieve file",
     credentialsInvalid: "Invalid credentials",
     linkSent: "Link sent successfully",
-    deletePatientError: "Failed to delete patient data."
+    deletePatientError: "Failed to delete patient data.",
+    accountDeleted: "Account successfully deleted.",
+    passwordWrong: "Incorrect password. Please try again."
   }
 }

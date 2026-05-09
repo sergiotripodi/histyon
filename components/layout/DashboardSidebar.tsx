@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Logo } from '@/components/ui/Logo'
-import { Users, Activity, Settings, LogOut, Mail, LayoutDashboard } from 'lucide-react'
+import { Users, Activity, Settings, LogOut, Mail, LayoutDashboard, BookOpen } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface DashboardSidebarProps {
@@ -90,6 +90,7 @@ export function DashboardSidebar({ profile, userEmail, userMetadata, dict }: Das
       <div className="shrink-0 border-t border-gray-200 px-3 py-2 space-y-0.5">
         {([
           { href: '/dashboard/settings', icon: Settings, label: td.tabs.settings },
+          { href: '/documentation', icon: BookOpen, label: 'Documentazione' },
         ] as const).map(({ href, icon: Icon, label }) => {
           const active = activeNav === href
           return (
@@ -134,6 +135,18 @@ export function DashboardSidebar({ profile, userEmail, userMetadata, dict }: Das
           <LogOut className="w-4 h-4 shrink-0" />
           {td.header.logout}
         </button>
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 px-3 pt-2 pb-1">
+          {[
+            { href: '/legal/privacy', label: 'Privacy' },
+            { href: '/legal/terms',   label: 'Termini' },
+            { href: '/legal/cookie',  label: 'Cookie' },
+            { href: '/legal/dpa',     label: 'DPA' },
+          ].map(({ href, label }) => (
+            <Link key={href} href={href} className="text-[10px] text-gray-300 hover:text-gray-500 transition-colors">
+              {label}
+            </Link>
+          ))}
+        </div>
       </div>
 
     </aside>

@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { ChevronDown, User, MapPin, Building2, ShieldCheck, Save, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { updateProfile, updateEmail, updatePassword } from '@/lib/actions/settings'
+import { DeleteAccountModal } from './DeleteAccountModal'
 import { DateOfBirthPicker } from '@/components/ui/DateOfBirthPicker'
 import { ValidatedInput } from '../ui/FormElements'
 import { GlobalLocationSelector } from '../auth/GlobalLocationSelector'
@@ -176,6 +177,18 @@ export function SettingsForm({ user, profile, dict }: SettingsFormProps) {
         </AccordionSection>
 
       </div>
+
+      {/* Danger Zone */}
+      <div className="mt-8 border border-red-200">
+        <div className="px-6 py-5 border-b border-red-100 bg-red-50/50">
+          <p className="text-xs font-bold text-red-600 uppercase tracking-[0.12em]">{dict.dashboard.settings.danger.title}</p>
+          <p className="text-xs text-red-400 mt-0.5">{dict.dashboard.settings.danger.subtitle}</p>
+        </div>
+        <div className="p-4">
+          <DeleteAccountModal dict={dict} />
+        </div>
+      </div>
+
     </div>
   )
 }
