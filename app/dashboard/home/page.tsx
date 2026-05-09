@@ -72,12 +72,15 @@ export default async function DashboardHomePage() {
 
   const tickets = allTickets ?? []
 
+  const isError = (s: string) =>
+    ['ERROR', 'FAILED', 'FAIL', 'FAILED_ANALYSIS', 'ANALYSIS_FAILED'].includes((s ?? '').toUpperCase())
+
   const totalAnalyses = tickets.length
   const completed = tickets.filter((t) => t.status === 'COMPLETED').length
   const inProgress = tickets.filter((t) =>
-    ['QUEUED', 'PROCESSING', 'UPLOADING'].includes(t.status)
+    ['QUEUED', 'PROCESSING', 'UPLOADING'].includes(t.status) && !isError(t.status)
   ).length
-  const failed = tickets.filter((t) => t.status === 'ERROR').length
+  const failed = tickets.filter((t) => isError(t.status)).length
   const storageBytes = tickets.reduce(
     (s, t) => s + (t.file_size ?? 0) + (t.output_file_size ?? 0),
     0
@@ -91,11 +94,11 @@ export default async function DashboardHomePage() {
     last7
   )
   const inProgressSparkline = groupByDay(
-    recentTickets.filter((t) => ['QUEUED', 'PROCESSING', 'UPLOADING'].includes(t.status)),
+    recentTickets.filter((t) => ['QUEUED', 'PROCESSING', 'UPLOADING'].includes(t.status) && !isError(t.status)),
     last7
   )
   const failedSparkline = groupByDay(
-    recentTickets.filter((t) => t.status === 'ERROR'),
+    recentTickets.filter((t) => isError(t.status)),
     last7
   )
   const storageSparkline = groupByDay(recentTickets, last7, (t) => t.file_size ?? 0)
