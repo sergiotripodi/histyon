@@ -45,6 +45,8 @@ export function LegalContent({ dict, tab }: LegalContentProps) {
             <TextBlock title={tc.terms.sec1.title}>{tc.terms.sec1.body}</TextBlock>
             <TextBlock title={tc.terms.sec2.title}>{tc.terms.sec2.body}</TextBlock>
             <TextBlock title={tc.terms.sec3.title}>{tc.terms.sec3.body}</TextBlock>
+            {tc.terms.sec4 && <TextBlock title={tc.terms.sec4.title}>{tc.terms.sec4.body}</TextBlock>}
+            {tc.terms.sec5 && <TextBlock title={tc.terms.sec5.title}>{tc.terms.sec5.body}</TextBlock>}
           </div>
         )}
 

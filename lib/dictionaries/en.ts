@@ -302,7 +302,9 @@ export const en = {
       terms: {
         sec1: { title: "1. Access Requirements", body: "Access is reserved for registered medical professionals." },
         sec2: { title: "2. Responsibility", body: "The User (Doctor) warrants having obtained informed consent from patients." },
-        sec3: { title: "3. Security", body: "Credentials are personal. Account sharing is prohibited." }
+        sec3: { title: "3. Security", body: "Credentials are personal. Account sharing is prohibited." },
+        sec4: { title: "4. Account Deletion", body: "Users may delete their account at any time from Settings → Danger Zone. Deletion is immediate and permanent — all patient data and associated files are removed from all storage systems. Histyon does not retain backups after deletion." },
+        sec5: { title: "5. Free Access and Service Changes", body: "At this time, access to the Histyon Medical Console is provided free of charge to all registered and verified users. Histyon reserves the right to introduce paid plans or modify the economic conditions of the service in the future.\n\nIn the event of significant changes — including the introduction of a fee — registered users will be notified with a minimum of 30 days' notice via email to the address registered on their account. Continued use of the service after such notice constitutes acceptance of the new terms." }
       },
       cookie: {
         sec1: { title: "1. What are cookies", body: "Small text files used to improve user experience." },

@@ -112,6 +112,12 @@ export async function signup(prevState: SignupState, formData: FormData): Promis
   const honeypot = formData.get('website') as string | null
   if (honeypot) return { status: 'error', message: 'Registrazione non valida.' }
 
+  const termsAccepted = formData.get('accept_terms_privacy') === 'on'
+  if (!termsAccepted) return { status: 'error', message: 'Devi accettare i Termini di Servizio e la Privacy Policy per continuare.' }
+
+  const marketingConsent = formData.get('marketing_consent') === 'on'
+  const consentTimestamp = new Date().toISOString()
+
   const supabase = await createClient()
   const rawData = Object.fromEntries(formData)
   const password = formData.get('password') as string
@@ -247,6 +253,10 @@ export async function signup(prevState: SignupState, formData: FormData): Promis
         region: userData.region,
         postal_code: userData.postalCode,
         phone_number: userData.phone ?? null,
+        terms_accepted_at: consentTimestamp,
+        privacy_accepted_at: consentTimestamp,
+        marketing_consent: marketingConsent,
+        marketing_consent_at: marketingConsent ? consentTimestamp : null,
       })
       .eq('id', authData.user.id)
 

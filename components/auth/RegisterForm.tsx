@@ -86,6 +86,7 @@ function StepThree({ state, dict, tf, isActive }: any) {
 export function RegisterForm({ dict }: RegisterFormProps) {
   const [state, formAction] = useActionState(signup, initialState)
   const [currentStep, setCurrentStep] = useState(1)
+  const [termsAccepted, setTermsAccepted] = useState(false)
 
   const [dob, setDob] = useState<Date | undefined>(() => dobFromInputs(initialState.inputs?.dob))
   const [gender, setGender] = useState<string>('')
@@ -163,6 +164,39 @@ export function RegisterForm({ dict }: RegisterFormProps) {
         </div>
 
         <div className="mt-8 pt-6 border-t border-gray-100 space-y-4">
+            {currentStep === 3 && (
+              <div className="space-y-3 pb-1">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="accept_terms_privacy"
+                    value="on"
+                    checked={termsAccepted}
+                    onChange={e => setTermsAccepted(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 shrink-0 accent-gray-900"
+                  />
+                  <span className="text-xs text-gray-500 leading-relaxed">
+                    Ho letto e accetto i{' '}
+                    <a href="/legal/terms" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 text-gray-700 hover:text-gray-900">Termini di Servizio</a>
+                    {' '}e la{' '}
+                    <a href="/legal/privacy" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 text-gray-700 hover:text-gray-900">Privacy Policy</a>
+                    {' '}<span className="text-red-500">*</span>
+                  </span>
+                </label>
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="marketing_consent"
+                    value="on"
+                    className="mt-0.5 w-4 h-4 shrink-0 accent-gray-900"
+                  />
+                  <span className="text-xs text-gray-500 leading-relaxed">
+                    Acconsento a ricevere comunicazioni commerciali e promozionali da Histyon
+                  </span>
+                </label>
+              </div>
+            )}
+
             <div className="flex items-center gap-3">
                 {currentStep > 1 && (
                     <button type="button" onClick={prevStep} className="btn-elegant-soft flex-1 py-3.5 rounded-md font-bold">
@@ -174,7 +208,7 @@ export function RegisterForm({ dict }: RegisterFormProps) {
                         {t.buttons.next} <ArrowRight className="w-4 h-4" />
                     </button>
                 ) : (
-                    <button type="submit" className="btn-elegant flex-[2] py-3.5 rounded-md font-bold">
+                    <button type="submit" disabled={!termsAccepted} className="btn-elegant flex-[2] py-3.5 rounded-md font-bold disabled:opacity-40 disabled:cursor-not-allowed">
                         {t.buttons.complete} <Check className="w-4 h-4" />
                     </button>
                 )}

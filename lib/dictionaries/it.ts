@@ -331,6 +331,10 @@ export const it = {
         sec4: {
             title: "4. Cancellazione dell'Account",
             body: "L'Utente può richiedere la cancellazione del proprio account in qualsiasi momento dalla sezione Impostazioni → Zona Pericolosa della Console. La cancellazione è subordinata alla verifica dell'identità tramite password ed è immediata e definitiva.\n\nAll'eliminazione dell'account vengono cancellati permanentemente: il profilo medico, tutti i pazienti registrati, tutte le analisi e i file archiviati su Cloudflare R2. Histyon non mantiene copie di backup dei dati dopo la cancellazione. L'Utente riceverà una conferma email al completamento del processo."
+        },
+        sec5: {
+            title: "5. Accesso Gratuito e Modifiche al Servizio",
+            body: "Nella fase attuale, l'accesso alla Console Medica Histyon è fornito gratuitamente a tutti gli utenti registrati e verificati. Histyon si riserva il diritto di introdurre piani a pagamento o modificare le condizioni economiche del servizio in futuro.\n\nIn caso di variazioni significative — inclusa l'introduzione di un canone — gli utenti registrati saranno informati con un preavviso minimo di 30 giorni tramite email all'indirizzo registrato sull'account. L'utilizzo continuato del servizio dopo tale preavviso costituisce accettazione delle nuove condizioni."
         }
       },
       cookie: {
