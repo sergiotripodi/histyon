@@ -13,6 +13,7 @@ interface SettingsFormProps {
   user: any
   profile: any
   dict: any
+  mfaFactor: { created_at: string } | null
 }
 
 interface AccordionProps {
@@ -58,7 +59,7 @@ function InlineFeedback({ section, feedback }: { section: string; feedback: any 
   )
 }
 
-export function SettingsForm({ user, profile, dict }: SettingsFormProps) {
+export function SettingsForm({ user, profile, dict, mfaFactor }: SettingsFormProps) {
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(['personal']))
   const [isPending, startTransition] = useTransition()
   const [feedback, setFeedback] = useState<{ section: string; type: 'success' | 'error'; text: string } | null>(null)
@@ -172,6 +173,27 @@ export function SettingsForm({ user, profile, dict }: SettingsFormProps) {
                 </button>
               </form>
             </div>
+
+            {/* 2FA */}
+            {mfaFactor && (
+              <div className="border-t border-gray-100 pt-7">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Verifica in due passaggi (2FA)</p>
+                <div className="flex items-center gap-3">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 border border-green-200 text-green-700 text-xs font-semibold tracking-wide select-none">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    Attivo
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    Attivata il{' '}
+                    {new Date(mfaFactor.created_at).toLocaleDateString('it-IT', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    })}
+                  </span>
+                </div>
+              </div>
+            )}
 
           </div>
         </AccordionSection>

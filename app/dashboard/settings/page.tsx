@@ -8,11 +8,12 @@ export default async function SettingsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single()
+  const [{ data: profile }, { data: factors }] = await Promise.all([
+    supabase.from('profiles').select('*').eq('id', user.id).single(),
+    supabase.auth.mfa.listFactors(),
+  ])
+
+  const mfaFactor = (factors?.totp ?? []).find((f: any) => f.status === 'verified') ?? null
 
   const dict = await getDictionary()
 
@@ -22,7 +23,7 @@ export default async function SettingsPage() {
         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{dict.dashboard.settings.title}</h1>
         <p className="text-sm text-gray-500 mt-1.5">{dict.dashboard.settings.subtitle}</p>
       </div>
-      <SettingsForm user={user} profile={profile} dict={dict} />
+      <SettingsForm user={user} profile={profile} dict={dict} mfaFactor={mfaFactor} />
     </div>
   )
 }

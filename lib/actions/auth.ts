@@ -47,20 +47,34 @@ export async function login(formData: FormData) {
 
 // ── MFA actions ───────────────────────────────────────────────────────────────
 
-export async function mfaEnroll(): Promise<{ factorId?: string; qrCode?: string; secret?: string; error?: string }> {
+export async function mfaEnroll(): Promise<{ factorId?: string; qrCode?: string; secret?: string; alreadyEnrolled?: boolean; error?: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Non autenticato' }
 
-  const { data: existing } = await supabase.auth.mfa.listFactors()
-  for (const f of existing?.totp ?? []) {
-    if ((f as any).status !== 'verified') await supabase.auth.mfa.unenroll({ factorId: f.id })
+  const supabaseAdmin = createSupabaseAdmin(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+
+  // Use admin API to bypass JWT cache and get the real factor list from DB
+  const { data: adminData } = await supabaseAdmin.auth.admin.mfa.listFactors({ userId: user.id })
+  const allFactors = (adminData as any)?.factors ?? []
+
+  const verified = allFactors.find((f: any) => f.factor_type === 'totp' && f.status === 'verified')
+  if (verified) return { alreadyEnrolled: true }
+
+  // Delete all unverified TOTP factors directly via admin (no JWT dependency)
+  for (const f of allFactors) {
+    if (f.factor_type === 'totp') {
+      await supabaseAdmin.auth.admin.mfa.deleteFactor({ userId: user.id, id: f.id })
+    }
   }
 
   const { data, error } = await supabase.auth.mfa.enroll({
     factorType: 'totp',
     issuer: 'Histyon',
-    friendlyName: 'Histyon Console',
   })
   if (error) return { error: error.message }
   return { factorId: data.id, qrCode: data.totp.qr_code, secret: data.totp.secret }

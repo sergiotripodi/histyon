@@ -20,6 +20,7 @@ export function MfaSetupForm() {
 
   useEffect(() => {
     mfaEnroll().then((res) => {
+      if (res.alreadyEnrolled) { router.replace('/auth/mfa-challenge'); return }
       if (res.error) { setError(res.error); setLoading(false); return }
       setFactorId(res.factorId!)
       setQrCode(res.qrCode!)
@@ -27,7 +28,7 @@ export function MfaSetupForm() {
       setLoading(false)
       setTimeout(() => inputRef.current?.focus(), 100)
     })
-  }, [])
+  }, [router])
 
   const handleChange = (val: string) => {
     const digits = val.replace(/\D/g, '').slice(0, 6)
@@ -55,9 +56,10 @@ export function MfaSetupForm() {
             <p className="text-xs text-gray-400">Generazione codice QR...</p>
           </div>
         ) : qrCode ? (
-          <div
-            className="w-40 h-40"
-            dangerouslySetInnerHTML={{ __html: qrCode }}
+          <img
+            src={qrCode}
+            alt="QR Code"
+            className="w-56 h-56 object-contain bg-white p-3"
           />
         ) : null}
       </div>
