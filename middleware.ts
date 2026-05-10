@@ -92,8 +92,19 @@ export async function middleware(request: NextRequest) {
   if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
     return NextResponse.redirect(new URL('/auth/login', request.url))
   }
+
+  if (user && request.nextUrl.pathname.startsWith('/dashboard')) {
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+    if (aal?.nextLevel === 'aal2' && aal?.currentLevel !== 'aal2') {
+      return NextResponse.redirect(new URL('/auth/mfa-challenge', request.url))
+    }
+    if (aal?.nextLevel === 'aal1' && aal?.currentLevel === 'aal1') {
+      return NextResponse.redirect(new URL('/auth/mfa-setup', request.url))
+    }
+  }
+
   if (user && request.nextUrl.pathname.startsWith('/auth')) {
-    const authAllowlist = ['/verified', '/update-password']
+    const authAllowlist = ['/update-password', '/mfa-setup', '/mfa-challenge']
     const isAllowed = authAllowlist.some(p => request.nextUrl.pathname.includes(p))
     if (!isAllowed) {
       return NextResponse.redirect(new URL('/dashboard', request.url))

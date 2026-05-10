@@ -55,7 +55,7 @@ export function DashboardSidebar({ profile, userEmail, userMetadata, dict }: Das
       {/* Logo + Console label */}
       <div className="h-16 flex items-center gap-3 px-5 border-b border-gray-200 shrink-0">
         <Link href="/dashboard" className="hover:opacity-75 transition-opacity flex items-center gap-3">
-          <Logo color="black" />
+          <Logo color="black" className="[&_img]:h-6" />
           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest border-l border-gray-200 pl-3">
             Console
           </span>

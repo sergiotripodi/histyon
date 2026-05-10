@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
   }
 
   const destination = success
-    ? isRecovery ? `${base}/auth/update-password` : `${base}/auth/verified`
+    ? isRecovery ? `${base}/auth/update-password` : `${base}/auth/mfa-setup`
     : `${base}/auth/login?error=oauth_failed`
 
   const response = NextResponse.redirect(destination)

@@ -34,11 +34,64 @@ export async function login(formData: FormData) {
   }
 
   const { error } = await supabase.auth.signInWithPassword(data)
-
   if (error) redirect('/auth/login?error=invalid_credentials')
 
+  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
   revalidatePath('/', 'layout')
-  redirect('/dashboard/home')
+
+  if (aal?.nextLevel === 'aal2') {
+    redirect('/auth/mfa-challenge')
+  }
+  redirect('/auth/mfa-setup')
+}
+
+// ── MFA actions ───────────────────────────────────────────────────────────────
+
+export async function mfaEnroll(): Promise<{ factorId?: string; qrCode?: string; secret?: string; error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Non autenticato' }
+
+  const { data: existing } = await supabase.auth.mfa.listFactors()
+  for (const f of existing?.totp ?? []) {
+    if ((f as any).status !== 'verified') await supabase.auth.mfa.unenroll({ factorId: f.id })
+  }
+
+  const { data, error } = await supabase.auth.mfa.enroll({
+    factorType: 'totp',
+    issuer: 'Histyon',
+    friendlyName: 'Histyon Console',
+  })
+  if (error) return { error: error.message }
+  return { factorId: data.id, qrCode: data.totp.qr_code, secret: data.totp.secret }
+}
+
+export async function mfaVerifyEnrollment(factorId: string, code: string): Promise<{ success?: boolean; error?: string }> {
+  const supabase = await createClient()
+  const { data: challenge, error: ce } = await supabase.auth.mfa.challenge({ factorId })
+  if (ce) return { error: 'Impossibile creare la verifica. Riprova.' }
+  const { error } = await supabase.auth.mfa.verify({ factorId, challengeId: challenge.id, code: code.trim() })
+  if (error) return { error: 'Codice non valido. Riprova.' }
+  revalidatePath('/', 'layout')
+  return { success: true }
+}
+
+export async function mfaGetChallenge(): Promise<{ factorId?: string; challengeId?: string; error?: string }> {
+  const supabase = await createClient()
+  const { data: factors } = await supabase.auth.mfa.listFactors()
+  const totp = factors?.totp?.[0]
+  if (!totp) return { error: 'Nessun fattore MFA trovato' }
+  const { data: challenge, error } = await supabase.auth.mfa.challenge({ factorId: totp.id })
+  if (error) return { error: error.message }
+  return { factorId: totp.id, challengeId: challenge.id }
+}
+
+export async function mfaVerifyLogin(factorId: string, challengeId: string, code: string): Promise<{ success?: boolean; error?: string }> {
+  const supabase = await createClient()
+  const { error } = await supabase.auth.mfa.verify({ factorId, challengeId, code: code.trim() })
+  if (error) return { error: 'Codice non valido. Riprova.' }
+  revalidatePath('/', 'layout')
+  return { success: true }
 }
 
 export async function signup(prevState: SignupState, formData: FormData): Promise<SignupState> {
