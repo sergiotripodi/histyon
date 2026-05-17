@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
-import { ArrowLeft, ExternalLink, CheckCircle2 } from 'lucide-react'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { ArrowLeft, ExternalLink, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
@@ -28,7 +28,6 @@ function formatBytes(b: number): string {
   return `${b} B`
 }
 
-// Supabase Free plan limits (public docs)
 const FREE_LIMITS = {
   storage: { limit: 1 * 1024 * 1024 * 1024, unit: 'GB', label: 'Storage DB (PostgreSQL)' },
   fileStorage: { limit: 1 * 1024 * 1024 * 1024, unit: 'GB', label: 'File storage (bucket Supabase)' },
@@ -38,12 +37,21 @@ const FREE_LIMITS = {
   edgeFunctions: { limit: 500000, unit: 'invocazioni', label: 'Edge functions invocazioni' },
 }
 
+const pricingRows = [
+  { tier: 'Free', price: '$0/mese' },
+  { tier: 'Pro', price: '$25/mese' },
+  { tier: 'Storage DB extra (Pro)', price: '$0.125/GB/mese oltre 8GB' },
+  { tier: 'File storage extra (Pro)', price: '$0.021/GB/mese oltre 100GB' },
+  { tier: 'MAU extra (Pro)', price: '$0.00325/MAU oltre 50k' },
+  { tier: 'Bandwidth extra (Pro)', price: '$0.09/GB oltre 250GB' },
+]
+
 export default async function AdminSupabasePage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/ops-histyon-console/login')
 
-  const supabaseAdmin = createSupabaseAdmin(
+  const supabaseAdmin = createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
@@ -51,7 +59,6 @@ export default async function AdminSupabasePage() {
 
   const { org, project } = await fetchSupabaseManagementData()
 
-  // Get actual data from DB
   const [
     { count: totalUsers },
     { count: totalTickets },
@@ -66,15 +73,25 @@ export default async function AdminSupabasePage() {
 
   const plan = org?.plan ?? 'free'
   const isPro = plan === 'pro'
+  const baseCost = isPro ? 25 : 0
 
   const usageMap = {
     storage: appStorageBytes,
-    fileStorage: 0, // No Supabase buckets used (files on R2)
+    fileStorage: 0,
     mau: totalUsers ?? 0,
     bandwidth: 0,
     apiRequests: 0,
     edgeFunctions: 0,
   }
+
+  const details = [
+    { label: 'Nome progetto', value: project?.name ?? '—' },
+    { label: 'Creato il', value: project?.created_at ? new Date(project.created_at).toLocaleDateString('it-IT') : 'Dato non disponibile' },
+    { label: 'Regione', value: project?.region ?? 'Dato non disponibile' },
+    { label: 'Piano', value: isPro ? 'Pro' : 'Free' },
+    { label: 'Stato', value: project?.status ? `● ${project.status}` : '● Dato non disponibile', green: project?.status?.includes('HEALTHY') || project?.status?.includes('ACTIVE') },
+    { label: 'Versione', value: project?.database?.version ? `PostgreSQL v${project.database.version}` : 'Dato non disponibile' },
+  ]
 
   return (
     <div className="py-10 px-8">
@@ -84,74 +101,57 @@ export default async function AdminSupabasePage() {
       </Link>
 
       <div className="pb-8 mb-8 border-b border-gray-100 flex items-center justify-between">
-        <div>
-          <p className="text-[10px] font-medium text-gray-400 uppercase tracking-[0.14em] mb-2">Servizio</p>
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-[#3ECF8E] flex items-center justify-center">
-              <span className="text-white text-sm font-bold">S</span>
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Supabase</h1>
-          </div>
-        </div>
         <div className="flex items-center gap-3">
-          <span className="text-[10px] font-bold uppercase tracking-widest border border-gray-200 px-3 py-2 text-gray-600">
-            {plan === 'free' ? 'Free' : 'Pro — $25/mese'}
-          </span>
-          <a
-            href="https://supabase.com/dashboard"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-700 transition-colors"
-          >
-            Apri dashboard <ExternalLink className="w-3 h-3" />
-          </a>
-        </div>
-      </div>
-
-      {/* Project info */}
-      <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">Progetto</h2>
-      <div className="grid grid-cols-4 gap-4 mb-8">
-        {[
-          { label: 'Nome progetto', value: project?.name ?? 'histyon-db' },
-          { label: 'Regione', value: project?.region ?? 'eu-west-1' },
-          { label: 'Stato', value: project?.status ?? 'ACTIVE_HEALTHY', green: true },
-          { label: 'PostgreSQL', value: `v${project?.database?.version ?? '17'}` },
-        ].map(({ label, value, green }) => (
-          <div key={label} className="border border-gray-200 bg-white px-5 py-4">
-            <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-1.5">{label}</p>
-            <div className={`flex items-center gap-1.5 ${green ? 'text-green-600' : 'text-gray-900'}`}>
-              {green && <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />}
-              <span className="text-sm font-semibold">{value}</span>
-            </div>
+          <div className="w-8 h-8 bg-[#3ECF8E] flex items-center justify-center shrink-0">
+            <span className="text-white text-sm font-bold">S</span>
           </div>
-        ))}
+          <div>
+            <p className="text-[10px] font-medium text-gray-400 uppercase tracking-[0.14em]">Supabase</p>
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{project?.name ?? 'histyon-db'}</h1>
+          </div>
+        </div>
+        <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-700 transition-colors">
+          Apri dashboard <ExternalLink className="w-3 h-3" />
+        </a>
       </div>
 
-      {/* Billing */}
-      <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">Abbonamento</h2>
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        <div className="border border-gray-200 bg-white px-6 py-5">
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-2">Piano corrente</p>
-          <p className="text-xl font-bold text-gray-900">{plan === 'free' ? 'Free' : 'Pro'}</p>
-          <p className="text-xs text-gray-400 mt-1">{isPro ? '$25/mese, fatturazione mensile' : 'Gratuito — nessun addebito'}</p>
+      <details className="group mb-8">
+        <summary className="list-none cursor-pointer flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 hover:text-gray-600 transition-colors select-none">
+          Dettagli account
+          <ChevronRight className="w-3 h-3 transition-transform group-open:rotate-90" />
+        </summary>
+        <div className="mt-4 grid grid-cols-3 gap-4">
+          {details.map(({ label, value, green }) => (
+            <div key={label} className="border border-gray-200 bg-white px-5 py-4">
+              <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-1.5">{label}</p>
+              <p className={`text-sm font-semibold truncate ${green ? 'text-green-600' : value === 'Dato non disponibile' ? 'text-gray-300' : 'text-gray-900'}`}>{value}</p>
+            </div>
+          ))}
         </div>
-        <div className="border border-gray-200 bg-white px-6 py-5">
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-2">Costo mensile</p>
-          <p className="text-xl font-bold text-gray-900">{isPro ? '$25.00' : '$0.00'}</p>
-          <p className="text-xs text-gray-400 mt-1">{isPro ? '+$0.005/GB storage extra' : 'Aggiorna a Pro: $25/mese'}</p>
+      </details>
+
+      <div className="grid grid-cols-2 gap-4 mb-8">
+        <div className="border border-gray-200 bg-white px-8 py-6">
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-3">Costo mensile</p>
+          <p className="text-4xl font-bold tabular-nums text-gray-900">${baseCost.toFixed(2)}</p>
         </div>
-        <div className="border border-gray-200 bg-white px-6 py-5">
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-2">Organizzazione</p>
-          <p className="text-sm font-semibold text-gray-900 truncate">{org?.name ?? "histyon's projects"}</p>
-          <p className="text-xs text-gray-400 mt-1">ID: {org?.id?.slice(0, 20) ?? '—'}…</p>
+        <div className="border border-gray-200 bg-white px-8 py-6">
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-3">Prossimo pagamento</p>
+          {isPro ? (
+            <p className="text-4xl font-bold tabular-nums text-gray-900">${baseCost.toFixed(2)}</p>
+          ) : (
+            <p className="text-sm text-gray-400 mt-1">Nessun pagamento pianificato</p>
+          )}
         </div>
       </div>
 
-      {/* Usage vs limits */}
-      <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">
-        Utilizzo vs limiti (piano Free)
-      </h2>
-      <div className="space-y-3 mb-8">
+      <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">Composizione costo</h2>
+      <div className="border border-gray-200 bg-white mb-8 divide-y divide-gray-100">
+        <div className="flex items-center justify-between px-6 py-4">
+          <span className="text-sm text-gray-700">Piano {isPro ? 'Pro' : 'Free'}</span>
+          <span className="text-sm font-bold text-gray-900">${baseCost.toFixed(2)}</span>
+        </div>
         {(Object.entries(FREE_LIMITS) as [keyof typeof FREE_LIMITS, typeof FREE_LIMITS[keyof typeof FREE_LIMITS]][]).map(([key, { label, limit, unit }]) => {
           const used = usageMap[key] ?? 0
           const pct = Math.min((used / Math.max(limit, 1)) * 100, 100)
@@ -159,12 +159,10 @@ export default async function AdminSupabasePage() {
 
           const fmt = unit === 'GB'
             ? (v: number) => formatBytes(v)
-            : unit === 'MAU' || unit === 'req/mese' || unit === 'invocazioni'
-            ? (v: number) => v.toLocaleString('it-IT')
-            : (v: number) => `${v}`
+            : (v: number) => v.toLocaleString('it-IT')
 
           return (
-            <div key={key} className="border border-gray-200 bg-white px-6 py-4 flex items-center gap-6">
+            <div key={key} className="flex items-center gap-6 px-6 py-4">
               <div className="w-52 shrink-0">
                 <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400">{label}</p>
               </div>
@@ -178,17 +176,28 @@ export default async function AdminSupabasePage() {
                   {fmt(used)} / {unit === 'GB' ? formatBytes(limit) : limit.toLocaleString()} {unit !== 'GB' ? unit : ''}
                 </span>
               </div>
-              <div className="w-12 text-right shrink-0">
-                <span className={`text-xs font-medium ${pct >= 90 ? 'text-red-500' : pct >= 70 ? 'text-amber-500' : 'text-gray-400'}`}>
-                  {pct.toFixed(0)}%
-                </span>
+              <div className="w-20 text-right shrink-0">
+                <span className="text-xs font-medium text-gray-400">incluso</span>
               </div>
             </div>
           )
         })}
       </div>
 
-      {/* App stats */}
+      <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">Listino prezzi</h2>
+      <div className="border border-gray-200 bg-white mb-8">
+        <table className="w-full text-sm">
+          <tbody>
+            {pricingRows.map(({ tier, price }) => (
+              <tr key={tier} className="border-b border-gray-50 last:border-0">
+                <td className="px-6 py-3 text-gray-600">{tier}</td>
+                <td className="px-6 py-3 text-right font-mono text-gray-900">{price}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
       <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">Dati applicazione</h2>
       <div className="grid grid-cols-3 gap-4">
         {[
@@ -201,12 +210,6 @@ export default async function AdminSupabasePage() {
             <p className="text-2xl font-bold tabular-nums text-gray-900">{value}</p>
           </div>
         ))}
-      </div>
-
-      <div className="mt-4 border border-amber-100 bg-amber-50 px-5 py-3">
-        <p className="text-xs text-amber-700">
-          <strong>Nota:</strong> Le metriche di bandwidth, richieste API e edge functions richiedono l'accesso alle analytics avanzate di Supabase (disponibili con piano Pro o tramite API di management avanzate). I valori mostrati sono stime basate sui dati del database.
-        </p>
       </div>
     </div>
   )

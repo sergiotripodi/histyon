@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { TimeChart } from '@/components/admin/TimeChart'
 import { ArrowLeft } from 'lucide-react'
@@ -39,12 +40,18 @@ export default async function AdminAnalysesPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/ops-histyon-console/login')
 
+  const supabaseAdmin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+
   const days = getLast90Days()
   const since = `${days[0].key}T00:00:00.000Z`
 
   const [{ data: allTickets }, { data: recentTickets }] = await Promise.all([
-    supabase.from('tickets').select('id, status, file_size, created_at').order('created_at', { ascending: false }),
-    supabase.from('tickets').select('created_at, status, file_size').gte('created_at', since).order('created_at', { ascending: true }),
+    supabaseAdmin.from('tickets').select('id, status, file_size, created_at').order('created_at', { ascending: false }),
+    supabaseAdmin.from('tickets').select('created_at, status, file_size').gte('created_at', since).order('created_at', { ascending: true }),
   ])
 
   const tickets = allTickets ?? []
@@ -52,7 +59,6 @@ export default async function AdminAnalysesPage() {
   const failed = tickets.filter(t => ['FAILED', 'ERROR'].includes(t.status ?? ''))
   const totalStorage = tickets.reduce((s, t) => s + (t.file_size ?? 0), 0)
 
-  // Aggregate by day
   const dayMap: Record<string, number> = {}
   const completedDayMap: Record<string, number> = {}
   for (const t of recentTickets ?? []) {
@@ -82,7 +88,6 @@ export default async function AdminAnalysesPage() {
         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Analisi effettuate</h1>
       </div>
 
-      {/* Summary cards */}
       <div className="grid grid-cols-4 gap-4 mb-8">
         {[
           { label: 'Totale analisi', value: tickets.length.toLocaleString('it-IT') },
@@ -97,7 +102,6 @@ export default async function AdminAnalysesPage() {
         ))}
       </div>
 
-      {/* Total analyses chart */}
       <div className="border border-gray-200 bg-white p-6 mb-6">
         <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-6">
           Analisi totali per giorno — ultimi 90 giorni
@@ -105,7 +109,6 @@ export default async function AdminAnalysesPage() {
         <TimeChart data={chartDataTotal} height={160} />
       </div>
 
-      {/* Completed chart */}
       <div className="border border-gray-200 bg-white p-6 mb-8">
         <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-6">
           Analisi completate per giorno — ultimi 90 giorni
@@ -113,7 +116,6 @@ export default async function AdminAnalysesPage() {
         <TimeChart data={chartDataCompleted} height={120} />
       </div>
 
-      {/* Recent tickets table */}
       <div className="border border-gray-200 bg-white">
         <div className="px-6 py-4 border-b border-gray-100">
           <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400">

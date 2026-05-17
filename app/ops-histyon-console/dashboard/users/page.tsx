@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { TimeChart } from '@/components/admin/TimeChart'
 import { ArrowLeft } from 'lucide-react'
@@ -23,6 +24,12 @@ export default async function AdminUsersPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/ops-histyon-console/login')
 
+  const supabaseAdmin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+
   const days = getLast90Days()
   const since = `${days[0].key}T00:00:00.000Z`
 
@@ -31,34 +38,31 @@ export default async function AdminUsersPage() {
     { data: allUsers },
     { data: recentUsers },
   ] = await Promise.all([
-    supabase.from('profiles').select('*', { count: 'exact', head: true }).neq('role', 'admin'),
-    supabase.from('profiles')
+    supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }).neq('role', 'admin'),
+    supabaseAdmin.from('profiles')
       .select('id, email, first_name, last_name, created_at, hospital_name')
       .neq('role', 'admin')
       .order('created_at', { ascending: false })
       .limit(50),
-    supabase.from('profiles')
+    supabaseAdmin.from('profiles')
       .select('created_at')
       .neq('role', 'admin')
       .gte('created_at', since)
       .order('created_at', { ascending: true }),
   ])
 
-  // Aggregate by day
   const dayMap: Record<string, number> = {}
   for (const u of recentUsers ?? []) {
     const day = u.created_at.slice(0, 10)
     dayMap[day] = (dayMap[day] ?? 0) + 1
   }
 
-  // Cumulative chart: total users over time (running total from oldest)
   let running = (totalUsers ?? 0) - (recentUsers?.length ?? 0)
   const chartData = days.map(d => {
     running += dayMap[d.key] ?? 0
     return { label: d.label, value: running }
   })
 
-  // New users per day (last 30)
   const newPerDay = days.slice(-30).map(d => ({
     label: d.label,
     value: dayMap[d.key] ?? 0,
@@ -72,19 +76,16 @@ export default async function AdminUsersPage() {
 
   return (
     <div className="py-10 px-8">
-      {/* Back */}
       <Link href="/ops-histyon-console/dashboard" className="inline-flex items-center gap-2 text-xs text-gray-400 hover:text-gray-700 mb-8 transition-colors">
         <ArrowLeft className="w-3.5 h-3.5" />
         Dashboard
       </Link>
 
-      {/* Header */}
       <div className="pb-8 mb-8 border-b border-gray-100">
         <p className="text-[10px] font-medium text-gray-400 uppercase tracking-[0.14em] mb-2">Statistiche</p>
         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Utenti registrati</h1>
       </div>
 
-      {/* Totals row */}
       <div className="grid grid-cols-3 gap-4 mb-8">
         {[
           { label: 'Totale utenti', value: (totalUsers ?? 0).toLocaleString('it-IT') },
@@ -98,7 +99,6 @@ export default async function AdminUsersPage() {
         ))}
       </div>
 
-      {/* Cumulative chart */}
       <div className="border border-gray-200 bg-white p-6 mb-6">
         <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-6">
           Crescita utenti — ultimi 90 giorni
@@ -106,7 +106,6 @@ export default async function AdminUsersPage() {
         <TimeChart data={chartData} height={160} />
       </div>
 
-      {/* New per day chart */}
       <div className="border border-gray-200 bg-white p-6 mb-8">
         <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-6">
           Nuovi utenti al giorno — ultimi 30 giorni
@@ -114,7 +113,6 @@ export default async function AdminUsersPage() {
         <TimeChart data={newPerDay} height={120} />
       </div>
 
-      {/* User list */}
       <div className="border border-gray-200 bg-white">
         <div className="px-6 py-4 border-b border-gray-100">
           <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400">

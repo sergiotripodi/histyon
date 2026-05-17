@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { AdminStatCard } from '@/components/admin/AdminStatCard'
 import { PaymentBanner } from '@/components/admin/PaymentBanner'
@@ -61,6 +62,12 @@ export default async function AdminDashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/ops-histyon-console/login')
 
+  const supabaseAdmin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+
   const last30 = getLast30Days()
   const thirtyDaysAgo = `${last30[0]}T00:00:00.000Z`
 
@@ -72,10 +79,10 @@ export default async function AdminDashboardPage() {
     vercelPlan,
     cfPlan,
   ] = await Promise.all([
-    supabase.from('profiles').select('*', { count: 'exact', head: true }).neq('role', 'admin'),
-    supabase.from('tickets').select('created_at, file_size, status').order('created_at', { ascending: true }),
-    supabase.from('profiles').select('created_at').gte('created_at', thirtyDaysAgo).neq('role', 'admin'),
-    supabase.from('tickets').select('created_at, status').gte('created_at', thirtyDaysAgo),
+    supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }).neq('role', 'admin'),
+    supabaseAdmin.from('tickets').select('created_at, file_size, status').order('created_at', { ascending: true }),
+    supabaseAdmin.from('profiles').select('created_at').gte('created_at', thirtyDaysAgo).neq('role', 'admin'),
+    supabaseAdmin.from('tickets').select('created_at, status').gte('created_at', thirtyDaysAgo),
     getVercelPlan(),
     getCloudflarePlan(),
   ])
@@ -84,7 +91,6 @@ export default async function AdminDashboardPage() {
   const completedTickets = tickets.filter(t => t.status === 'COMPLETED')
   const totalStorage = tickets.reduce((s, t) => s + (t.file_size ?? 0), 0)
 
-  // Sparklines (last 30 days, show last 7 for the small card)
   const last7 = last30.slice(-7)
   const sevenDaysAgo = `${last7[0]}T00:00:00.000Z`
   const recentUsers7 = (recentUsers ?? []).filter(r => r.created_at >= sevenDaysAgo)
@@ -103,15 +109,13 @@ export default async function AdminDashboardPage() {
   const today = new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })
   const todayCapitalized = today.charAt(0).toUpperCase() + today.slice(1)
 
-  // Cost calculation (free plans = $0, but structure is ready)
   const vercelMonthlyCost = vercelPlan === 'pro' ? 20 : 0
-  const supabaseMonthlyCost = 0 // Free plan
-  const cfMonthlyCost = 0 // Free plan (R2 has usage-based costs but negligible at this scale)
+  const supabaseMonthlyCost = 0
+  const cfMonthlyCost = 0
   const totalMonthlyCost = vercelMonthlyCost + supabaseMonthlyCost + cfMonthlyCost
 
   return (
     <div className="py-10 px-8">
-      {/* Header */}
       <div className="flex items-end justify-between pb-8 mb-8 border-b border-gray-100">
         <div>
           <p className="text-[10px] font-medium text-gray-400 uppercase tracking-[0.14em] mb-2">
@@ -123,7 +127,6 @@ export default async function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* Payment banner */}
       <div className="mb-6">
         <PaymentBanner
           totalAccrued={totalMonthlyCost}
@@ -134,7 +137,6 @@ export default async function AdminDashboardPage() {
         />
       </div>
 
-      {/* Platform stats */}
       <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">
         Statistiche piattaforma
       </h2>
@@ -169,12 +171,10 @@ export default async function AdminDashboardPage() {
         />
       </div>
 
-      {/* Service cards */}
       <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">
         Servizi
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Vercel */}
         <a href="/ops-histyon-console/dashboard/vercel" className="block group border border-gray-200 bg-white p-6 hover:border-gray-400 transition-colors">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2.5">
@@ -194,7 +194,6 @@ export default async function AdminDashboardPage() {
           </div>
         </a>
 
-        {/* Supabase */}
         <a href="/ops-histyon-console/dashboard/supabase" className="block group border border-gray-200 bg-white p-6 hover:border-gray-400 transition-colors">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2.5">
@@ -214,7 +213,6 @@ export default async function AdminDashboardPage() {
           </div>
         </a>
 
-        {/* Cloudflare */}
         <a href="/ops-histyon-console/dashboard/cloudflare" className="block group border border-gray-200 bg-white p-6 hover:border-gray-400 transition-colors">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2.5">
