@@ -1,6 +1,8 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// ── Rate limiting maps ─────────────────────────────────────────────────────────
+
 const loginAttempts = new Map<string, { count: number; resetAt: number }>()
 const LOGIN_WINDOW_MS = 15 * 60 * 1000
 const LOGIN_MAX_ATTEMPTS = 10
@@ -31,6 +33,23 @@ function isSignupRateLimited(ip: string): boolean {
   return entry.count > SIGNUP_MAX_ATTEMPTS
 }
 
+// Stricter limit for the admin console login (5 attempts / 15 min)
+const adminLoginAttempts = new Map<string, { count: number; resetAt: number }>()
+const ADMIN_LOGIN_MAX_ATTEMPTS = 5
+
+function isAdminLoginRateLimited(ip: string): boolean {
+  const now = Date.now()
+  const entry = adminLoginAttempts.get(ip)
+  if (!entry || now > entry.resetAt) {
+    adminLoginAttempts.set(ip, { count: 1, resetAt: now + LOGIN_WINDOW_MS })
+    return false
+  }
+  entry.count++
+  return entry.count > ADMIN_LOGIN_MAX_ATTEMPTS
+}
+
+// ── Middleware ─────────────────────────────────────────────────────────────────
+
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
     request: { headers: request.headers },
@@ -56,22 +75,28 @@ export async function middleware(request: NextRequest) {
     }
   )
 
+  const ip =
+    request.headers.get('x-real-ip') ||
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    'unknown'
+
+  const { pathname } = request.nextUrl
+
+  // ── Rate limiting ──────────────────────────────────────────────────────────
   if (request.method === 'POST') {
-    const ip =
-      request.headers.get('x-real-ip') ||
-      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-      'unknown'
-    const path = request.nextUrl.pathname
-    if (path === '/auth/login' && isLoginRateLimited(ip)) {
+    if (pathname === '/auth/login' && isLoginRateLimited(ip)) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
     }
-    if (path === '/auth/register' && isSignupRateLimited(ip)) {
+    if (pathname === '/auth/register' && isSignupRateLimited(ip)) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+    }
+    if (pathname === '/ops-histyon-console/login' && isAdminLoginRateLimited(ip)) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
     }
   }
 
-  // Forward Supabase auth params that land on the root to the callback route
-  const { searchParams, pathname } = request.nextUrl
+  // ── Forward Supabase auth params from root to callback ─────────────────────
+  const { searchParams } = request.nextUrl
   if (pathname === '/') {
     const code = searchParams.get('code')
     const token_hash = searchParams.get('token_hash')
@@ -89,11 +114,12 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
+  // ── Doctor dashboard protection ────────────────────────────────────────────
+  if (!user && pathname.startsWith('/dashboard')) {
     return NextResponse.redirect(new URL('/auth/login', request.url))
   }
 
-  if (user && request.nextUrl.pathname.startsWith('/dashboard')) {
+  if (user && pathname.startsWith('/dashboard')) {
     const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
     if (aal?.nextLevel === 'aal2' && aal?.currentLevel !== 'aal2') {
       return NextResponse.redirect(new URL('/auth/mfa-challenge', request.url))
@@ -103,13 +129,56 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  if (user && request.nextUrl.pathname.startsWith('/auth')) {
+  // ── Admin console protection ───────────────────────────────────────────────
+  if (pathname.startsWith('/ops-histyon-console/dashboard')) {
+    if (!user) {
+      return NextResponse.redirect(new URL('/ops-histyon-console/login', request.url))
+    }
+
+    // Verify admin role via DB (cannot trust JWT claims alone)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.role !== 'admin') {
+      // Authenticated but not admin — sign them out and send to the public login
+      await supabase.auth.signOut()
+      return NextResponse.redirect(new URL('/auth/login', request.url))
+    }
+
+    // Admin must have AAL2 (2FA completed)
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+    if (aal?.nextLevel === 'aal2' && aal?.currentLevel !== 'aal2') {
+      return NextResponse.redirect(new URL('/ops-histyon-console/mfa-challenge', request.url))
+    }
+    if (aal?.nextLevel === 'aal1' && aal?.currentLevel === 'aal1') {
+      return NextResponse.redirect(new URL('/ops-histyon-console/mfa-setup', request.url))
+    }
+  }
+
+  // Redirect authenticated admin trying to re-login
+  if (user && pathname === '/ops-histyon-console/login') {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+    if (profile?.role === 'admin') {
+      return NextResponse.redirect(new URL('/ops-histyon-console/dashboard', request.url))
+    }
+  }
+
+  // ── Redirect authenticated doctor away from auth pages ─────────────────────
+  if (user && pathname.startsWith('/auth')) {
     const authAllowlist = ['/update-password', '/mfa-setup', '/mfa-challenge']
-    const isAllowed = authAllowlist.some(p => request.nextUrl.pathname.includes(p))
+    const isAllowed = authAllowlist.some(p => pathname.includes(p))
     if (!isAllowed) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
   }
+
   return response
 }
 
