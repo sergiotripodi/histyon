@@ -103,11 +103,7 @@ export default async function AdminUsersPage() {
         <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-6">
           Crescita utenti — ultimi 90 giorni
         </p>
-        <TimeChart
-          data={chartData}
-          height={160}
-          formatValue={v => v.toLocaleString('it-IT')}
-        />
+        <TimeChart data={chartData} height={160} />
       </div>
 
       {/* New per day chart */}
@@ -115,11 +111,7 @@ export default async function AdminUsersPage() {
         <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-6">
           Nuovi utenti al giorno — ultimi 30 giorni
         </p>
-        <TimeChart
-          data={newPerDay}
-          height={120}
-          formatValue={v => v.toLocaleString('it-IT')}
-        />
+        <TimeChart data={newPerDay} height={120} />
       </div>
 
       {/* User list */}

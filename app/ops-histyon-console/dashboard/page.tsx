@@ -121,17 +121,6 @@ export default async function AdminDashboardPage() {
             Panoramica Histyon.
           </h1>
         </div>
-        <div className="flex gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-widest border border-gray-200 px-2.5 py-1.5 text-gray-500">
-            Vercel {vercelPlan.charAt(0).toUpperCase() + vercelPlan.slice(1)}
-          </span>
-          <span className="text-[10px] font-bold uppercase tracking-widest border border-gray-200 px-2.5 py-1.5 text-gray-500">
-            Supabase Free
-          </span>
-          <span className="text-[10px] font-bold uppercase tracking-widest border border-gray-200 px-2.5 py-1.5 text-gray-500">
-            Cloudflare {cfPlan.charAt(0).toUpperCase() + cfPlan.slice(1)}
-          </span>
-        </div>
       </div>
 
       {/* Payment banner */}
@@ -240,8 +229,8 @@ export default async function AdminDashboardPage() {
           </div>
           <p className="text-xs text-gray-400 mb-3">R2 Storage, DNS e protezione</p>
           <div className="flex justify-between text-xs text-gray-500">
-            <span>R2 Paid attivo</span>
-            <span className="text-amber-500 font-medium">● Dominio non su CF</span>
+            <span>R2 Object Storage</span>
+            <span className="text-green-600 font-medium">● Attivo</span>
           </div>
         </a>
       </div>

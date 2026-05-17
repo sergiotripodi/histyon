@@ -172,7 +172,7 @@ export default async function AdminPaymentsPage() {
         <TimeChart
           data={costChartData}
           height={140}
-          formatValue={v => `$${v.toFixed(2)}`}
+          format="currency"
         />
         <p className="mt-3 text-[10px] text-gray-300">
           Il grafico mostra i costi fissi mensili. I costi variabili per usage appariranno quando saranno disponibili le API di billing dettagliate dei provider.

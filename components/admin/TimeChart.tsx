@@ -6,8 +6,13 @@ import { useMemo } from 'react'
 interface TimeChartProps {
   data: { label: string; value: number }[]
   height?: number
-  formatValue?: (v: number) => string
+  format?: 'number' | 'currency'
   className?: string
+}
+
+function fmtValue(v: number, format: 'number' | 'currency'): string {
+  if (format === 'currency') return `$${v.toFixed(2)}`
+  return Math.round(v).toLocaleString('it-IT')
 }
 
 function buildLinePath(points: { x: number; y: number }[]): string {
@@ -25,7 +30,7 @@ function buildAreaPath(points: { x: number; y: number }[], h: number): string {
   return `${line} L ${last.x} ${h} L ${first.x} ${h} Z`
 }
 
-export function TimeChart({ data, height = 120, formatValue = (v) => v.toLocaleString('it-IT'), className }: TimeChartProps) {
+export function TimeChart({ data, height = 120, format = 'number', className }: TimeChartProps) {
   const w = 800
   const h = height
   const pad = { top: 12, bottom: 32, left: 0, right: 0 }
@@ -41,9 +46,13 @@ export function TimeChart({ data, height = 120, formatValue = (v) => v.toLocaleS
 
   const line = buildLinePath(points)
   const area = buildAreaPath(points, h - pad.bottom)
-  const gradId = 'tch-grad'
 
-  // Show every nth label to avoid crowding
+  // Unique gradient ID per chart instance to avoid SVG conflicts with multiple charts on same page
+  const gradId = useMemo(
+    () => `tch-grad-${data.length}-${Math.round(max * 100)}`,
+    [data.length, max]
+  )
+
   const labelStep = data.length > 14 ? Math.ceil(data.length / 7) : 1
 
   return (
@@ -85,7 +94,6 @@ export function TimeChart({ data, height = 120, formatValue = (v) => v.toLocaleS
           />
         )}
 
-        {/* Data point dots */}
         {points.map((p, i) => (
           <motion.circle
             key={i}
@@ -101,30 +109,20 @@ export function TimeChart({ data, height = 120, formatValue = (v) => v.toLocaleS
           />
         ))}
 
-        {/* X-axis labels */}
         {data.map((d, i) => {
           if (i % labelStep !== 0 && i !== data.length - 1) return null
           const x = points[i]?.x ?? 0
           return (
-            <text
-              key={i}
-              x={x}
-              y={h - 4}
-              textAnchor="middle"
-              fontSize="10"
-              fill="#9ca3af"
-              fontFamily="inherit"
-            >
+            <text key={i} x={x} y={h - 4} textAnchor="middle" fontSize="10" fill="#9ca3af" fontFamily="inherit">
               {d.label}
             </text>
           )
         })}
       </svg>
 
-      {/* Y-axis reference */}
       <div className="flex justify-between mt-1 px-0">
         <span className="text-[10px] text-gray-300">0</span>
-        <span className="text-[10px] text-gray-300">{formatValue(max)}</span>
+        <span className="text-[10px] text-gray-300">{fmtValue(max, format)}</span>
       </div>
     </div>
   )

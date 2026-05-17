@@ -197,7 +197,7 @@ export default async function AdminVercelPage() {
         )}
         <div className="px-6 py-3 border-t border-gray-50 bg-gray-50">
           <p className="text-[10px] text-gray-400">
-            Il dominio histyon.com è gestito da <strong>register.it</strong>. La scadenza va verificata direttamente sul pannello register.it. Quando sposti il dominio su Cloudflare, i dati di scadenza appariranno automaticamente nella sezione Cloudflare.
+            Il dominio histyon.com è gestito da <strong>register.it</strong>. La scadenza va verificata direttamente sul pannello register.it.
           </p>
         </div>
       </div>

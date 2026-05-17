@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { ArrowLeft, ExternalLink, AlertTriangle, Globe } from 'lucide-react'
+import { ArrowLeft, ExternalLink, Globe } from 'lucide-react'
 import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
@@ -93,18 +93,6 @@ export default async function AdminCloudflarePage() {
         </div>
       </div>
 
-      {/* Domain warning */}
-      {!hasZones && (
-        <div className="border border-amber-200 bg-amber-50 px-5 py-4 flex items-start gap-3 mb-8">
-          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-semibold text-amber-800 mb-1">Dominio non ancora su Cloudflare</p>
-            <p className="text-xs text-amber-700">
-              histyon.com è attualmente gestito con i nameserver di register.it. Per abilitare le analytics di traffico, CDN, protezione DDoS e visualizzare i dati di zona su questa console, trasferisci il dominio su Cloudflare (cambia i nameserver in register.it). Le sezioni analytics e DNS si popoleranno automaticamente non appena il dominio sarà attivo su Cloudflare.
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Account info */}
       <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">Account</h2>
@@ -211,48 +199,42 @@ export default async function AdminCloudflarePage() {
       )}
 
       {/* Zones */}
-      <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">
-        Zone (domini su Cloudflare) — {zones.length}
-      </h2>
-      {hasZones ? (
-        <div className="border border-gray-200 bg-white">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100">
-                {['Dominio', 'Piano', 'Stato', 'Zone ID'].map(h => (
-                  <th key={h} className="text-left px-6 py-3 text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {zones.map((z: any) => (
-                <tr key={z.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-3">
-                    <div className="flex items-center gap-2">
-                      <Globe className="w-3.5 h-3.5 text-gray-400" />
-                      <span className="font-medium text-gray-900">{z.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-3 text-xs text-gray-500">{z.plan?.name ?? '—'}</td>
-                  <td className="px-6 py-3">
-                    <span className={`text-xs font-medium ${z.status === 'active' ? 'text-green-600' : 'text-amber-500'}`}>
-                      ● {z.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-3 text-xs font-mono text-gray-400">{z.id}</td>
+      {hasZones && (
+        <>
+          <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">
+            Zone ({zones.length})
+          </h2>
+          <div className="border border-gray-200 bg-white mb-8">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  {['Dominio', 'Piano', 'Stato', 'Zone ID'].map(h => (
+                    <th key={h} className="text-left px-6 py-3 text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400">{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <div className="border border-dashed border-gray-200 bg-gray-50 px-6 py-10 text-center">
-          <Globe className="w-8 h-8 text-gray-300 mx-auto mb-3" />
-          <p className="text-sm text-gray-400 font-medium mb-1">Nessun dominio su Cloudflare</p>
-          <p className="text-xs text-gray-300 max-w-sm mx-auto">
-            Quando aggiungerai histyon.com a Cloudflare e cambierai i nameserver, qui appariranno automaticamente le analytics di traffico, DNS, sicurezza e performance.
-          </p>
-        </div>
+              </thead>
+              <tbody>
+                {zones.map((z: any) => (
+                  <tr key={z.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-3">
+                      <div className="flex items-center gap-2">
+                        <Globe className="w-3.5 h-3.5 text-gray-400" />
+                        <span className="font-medium text-gray-900">{z.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-3 text-xs text-gray-500">{z.plan?.name ?? '—'}</td>
+                    <td className="px-6 py-3">
+                      <span className={`text-xs font-medium ${z.status === 'active' ? 'text-green-600' : 'text-amber-500'}`}>
+                        ● {z.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-3 text-xs font-mono text-gray-400">{z.id}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   )
