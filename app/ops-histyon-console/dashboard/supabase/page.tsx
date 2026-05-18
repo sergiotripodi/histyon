@@ -3,23 +3,11 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { ArrowLeft, ExternalLink, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
+import { Suspense } from 'react'
+import { MonthPicker } from '@/components/admin/MonthPicker'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Supabase — Console Histyon' }
-
-async function fetchSupabaseManagementData() {
-  const token = process.env.ADMIN_SUPABASE_MANAGEMENT_TOKEN!
-  const projectId = process.env.ADMIN_SUPABASE_PROJECT_ID!
-  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
-
-  const [orgRes, projectRes] = await Promise.all([
-    fetch(`https://api.supabase.com/v1/organizations`, { headers, next: { revalidate: 300 } }),
-    fetch(`https://api.supabase.com/v1/projects/${projectId}`, { headers, next: { revalidate: 300 } }),
-  ])
-  const [orgs, project] = await Promise.all([orgRes.json(), projectRes.json()])
-  const org = Array.isArray(orgs) ? orgs[0] : null
-  return { org, project }
-}
 
 function formatBytes(b: number): string {
   if (b >= 1e9) return `${(b / 1e9).toFixed(2)} GB`
@@ -28,25 +16,31 @@ function formatBytes(b: number): string {
   return `${b} B`
 }
 
-const FREE_LIMITS = {
-  storage: { limit: 1 * 1024 * 1024 * 1024, unit: 'GB', label: 'Storage DB (PostgreSQL)' },
-  fileStorage: { limit: 1 * 1024 * 1024 * 1024, unit: 'GB', label: 'File storage (bucket Supabase)' },
-  mau: { limit: 50000, unit: 'MAU', label: 'Monthly Active Users (MAU)' },
-  bandwidth: { limit: 5 * 1024 * 1024 * 1024, unit: 'GB', label: 'Egress bandwidth' },
-  apiRequests: { limit: 500000, unit: 'req/mese', label: 'Richieste API' },
-  edgeFunctions: { limit: 500000, unit: 'invocazioni', label: 'Edge functions invocazioni' },
+async function fetchSupabaseData(monthStr: string) {
+  const token = process.env.ADMIN_SUPABASE_MANAGEMENT_TOKEN!
+  const projectId = process.env.ADMIN_SUPABASE_PROJECT_ID!
+  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+
+  const [orgRes, projectRes, usageRes] = await Promise.all([
+    fetch(`https://api.supabase.com/v1/organizations`, { headers, next: { revalidate: 300 } }),
+    fetch(`https://api.supabase.com/v1/projects/${projectId}`, { headers, next: { revalidate: 300 } }),
+    fetch(`https://api.supabase.com/v1/projects/${projectId}/usage`, { headers, next: { revalidate: 300 } }).catch(() => null),
+  ])
+
+  const [orgs, project] = await Promise.all([orgRes.json(), projectRes.json()])
+  const org = Array.isArray(orgs) ? orgs[0] : null
+  const usageJson = usageRes?.ok ? await usageRes.json().catch(() => null) : null
+
+  // Try various field names the management API might return
+  const dbSizeBytes: number =
+    usageJson?.db_size_bytes ??
+    usageJson?.metrics?.find?.((m: any) => m.metric === 'db_size')?.usage ??
+    0
+
+  return { org, project, dbSizeBytes, monthStr }
 }
 
-const pricingRows = [
-  { tier: 'Free', price: '$0/mese' },
-  { tier: 'Pro', price: '$25/mese' },
-  { tier: 'Storage DB extra (Pro)', price: '$0.125/GB/mese oltre 8GB' },
-  { tier: 'File storage extra (Pro)', price: '$0.021/GB/mese oltre 100GB' },
-  { tier: 'MAU extra (Pro)', price: '$0.00325/MAU oltre 50k' },
-  { tier: 'Bandwidth extra (Pro)', price: '$0.09/GB oltre 250GB' },
-]
-
-export default async function AdminSupabasePage() {
+export default async function AdminSupabasePage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/ops-histyon-console/login')
@@ -57,11 +51,16 @@ export default async function AdminSupabasePage() {
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
-  const { org, project } = await fetchSupabaseManagementData()
+  const sp = await searchParams
+  const currentMonth = new Date().toISOString().slice(0, 7)
+  const monthStr = sp.month ?? currentMonth
+  const isCurrentMonth = monthStr === currentMonth
+
+  const { org, project, dbSizeBytes } = await fetchSupabaseData(monthStr)
 
   const [
     { count: totalUsers },
-    { count: totalTickets },
+    { count: totalAnalyses },
     { data: storageData },
   ] = await Promise.all([
     supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }).neq('role', 'admin'),
@@ -73,25 +72,22 @@ export default async function AdminSupabasePage() {
 
   const plan = org?.plan ?? 'free'
   const isPro = plan === 'pro'
-  const baseCost = isPro ? 25 : 0
+  const recurringCost = isPro ? 25 : 0
+  const addonCost = 0 // no overages on free plan
 
-  const usageMap = {
-    storage: appStorageBytes,
-    fileStorage: 0,
-    mau: totalUsers ?? 0,
-    bandwidth: 0,
-    apiRequests: 0,
-    edgeFunctions: 0,
-  }
+  // Free plan limits
+  const DB_SIZE_LIMIT = 500 * 1024 * 1024 // 500 MB free
+  const MAU_LIMIT = 50_000
+  const FILE_STORAGE_LIMIT = 1 * 1024 * 1024 * 1024 // 1 GB
+  const BANDWIDTH_LIMIT = 5 * 1024 * 1024 * 1024 // 5 GB
 
-  const details = [
-    { label: 'Nome progetto', value: project?.name ?? '—' },
-    { label: 'Creato il', value: project?.created_at ? new Date(project.created_at).toLocaleDateString('it-IT') : 'Dato non disponibile' },
-    { label: 'Regione', value: project?.region ?? 'Dato non disponibile' },
-    { label: 'Piano', value: isPro ? 'Pro' : 'Free' },
-    { label: 'Stato', value: project?.status ? `● ${project.status}` : '● Dato non disponibile', green: project?.status?.includes('HEALTHY') || project?.status?.includes('ACTIVE') },
-    { label: 'Versione', value: project?.database?.version ? `PostgreSQL v${project.database.version}` : 'Dato non disponibile' },
-  ]
+  const dbSizeUsed = dbSizeBytes > 0 ? dbSizeBytes : appStorageBytes // fallback stima
+  const mauUsed = totalUsers ?? 0
+
+  const dbSizePct = Math.min((dbSizeUsed / DB_SIZE_LIMIT) * 100, 200)
+  const mauPct = Math.min((mauUsed / MAU_LIMIT) * 100, 200)
+
+  const monthLabel = new Date(monthStr + '-01').toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })
 
   return (
     <div className="py-10 px-8">
@@ -100,6 +96,7 @@ export default async function AdminSupabasePage() {
         Dashboard
       </Link>
 
+      {/* Header */}
       <div className="pb-8 mb-8 border-b border-gray-100 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-[#3ECF8E] flex items-center justify-center shrink-0">
@@ -116,94 +113,176 @@ export default async function AdminSupabasePage() {
         </a>
       </div>
 
-      <details className="group mb-8">
-        <summary className="list-none cursor-pointer flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 hover:text-gray-600 transition-colors select-none">
-          Dettagli account
-          <ChevronRight className="w-3 h-3 transition-transform group-open:rotate-90" />
-        </summary>
-        <div className="mt-4 grid grid-cols-3 gap-4">
-          {details.map(({ label, value, green }) => (
-            <div key={label} className="border border-gray-200 bg-white px-5 py-4">
-              <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-1.5">{label}</p>
-              <p className={`text-sm font-semibold truncate ${green ? 'text-green-600' : value === 'Dato non disponibile' ? 'text-gray-300' : 'text-gray-900'}`}>{value}</p>
-            </div>
-          ))}
-        </div>
-      </details>
+      {/* Month picker */}
+      <Suspense>
+        <MonthPicker />
+      </Suspense>
 
+      {/* Cost summary boxes */}
       <div className="grid grid-cols-2 gap-4 mb-8">
         <div className="border border-gray-200 bg-white px-8 py-6">
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-3">Costo mensile</p>
-          <p className="text-4xl font-bold tabular-nums text-gray-900">${baseCost.toFixed(2)}</p>
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-3">Costo ricorrente</p>
+          <p className="text-4xl font-bold tabular-nums text-gray-900">${recurringCost.toFixed(2)}</p>
+          <p className="text-xs text-gray-400 mt-2">Piano {isPro ? 'Pro' : 'Free'} mensile</p>
         </div>
         <div className="border border-gray-200 bg-white px-8 py-6">
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-3">Prossimo pagamento</p>
-          {isPro ? (
-            <p className="text-4xl font-bold tabular-nums text-gray-900">${baseCost.toFixed(2)}</p>
-          ) : (
-            <p className="text-sm text-gray-400 mt-1">Nessun pagamento pianificato</p>
-          )}
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-3">Costo add-on</p>
+          <p className="text-4xl font-bold tabular-nums text-gray-900">${addonCost.toFixed(2)}</p>
+          <p className="text-xs text-gray-400 mt-2">Utilizzo oltre soglia gratuita</p>
         </div>
       </div>
 
-      <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">Composizione costo</h2>
-      <div className="border border-gray-200 bg-white mb-8 divide-y divide-gray-100">
-        <div className="flex items-center justify-between px-6 py-4">
-          <span className="text-sm text-gray-700">Piano {isPro ? 'Pro' : 'Free'}</span>
-          <span className="text-sm font-bold text-gray-900">${baseCost.toFixed(2)}</span>
-        </div>
-        {(Object.entries(FREE_LIMITS) as [keyof typeof FREE_LIMITS, typeof FREE_LIMITS[keyof typeof FREE_LIMITS]][]).map(([key, { label, limit, unit }]) => {
-          const used = usageMap[key] ?? 0
-          const pct = Math.min((used / Math.max(limit, 1)) * 100, 100)
-          const color = pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-500' : 'bg-gray-900'
-
-          const fmt = unit === 'GB'
-            ? (v: number) => formatBytes(v)
-            : (v: number) => v.toLocaleString('it-IT')
-
-          return (
-            <div key={key} className="flex items-center gap-6 px-6 py-4">
-              <div className="w-52 shrink-0">
-                <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400">{label}</p>
-              </div>
-              <div className="flex-1">
-                <div className="h-1 bg-gray-100 w-full">
-                  <div className={`h-full ${color} transition-all`} style={{ width: `${pct.toFixed(1)}%` }} />
-                </div>
-              </div>
-              <div className="text-right w-48 shrink-0">
-                <span className="text-xs font-mono text-gray-600">
-                  {fmt(used)} / {unit === 'GB' ? formatBytes(limit) : limit.toLocaleString()} {unit !== 'GB' ? unit : ''}
-                </span>
-              </div>
-              <div className="w-20 text-right shrink-0">
-                <span className="text-xs font-medium text-gray-400">incluso</span>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
-      <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">Listino prezzi</h2>
+      {/* Unified cost table */}
+      <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">
+        Dettaglio costi — {monthLabel}
+        {!isCurrentMonth && <span className="ml-2 text-gray-300 font-normal normal-case">(storico)</span>}
+      </h2>
       <div className="border border-gray-200 bg-white mb-8">
-        <table className="w-full text-sm">
-          <tbody>
-            {pricingRows.map(({ tier, price }) => (
-              <tr key={tier} className="border-b border-gray-50 last:border-0">
-                <td className="px-6 py-3 text-gray-600">{tier}</td>
-                <td className="px-6 py-3 text-right font-mono text-gray-900">{price}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {/* Table header */}
+        <div className="grid grid-cols-[1fr_200px_100px] gap-4 px-6 py-3 border-b border-gray-100 bg-gray-50">
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400">Voce</p>
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400">Utilizzo</p>
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 text-right">Costo</p>
+        </div>
+
+        {/* Piano Free / Pro */}
+        <details className="group">
+          <summary className="grid grid-cols-[1fr_200px_100px] gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer list-none transition-colors">
+            <div className="flex items-center gap-2">
+              <ChevronRight className="w-3 h-3 text-gray-300 group-open:rotate-90 transition-transform shrink-0" />
+              <span className="text-sm text-gray-800">Piano {isPro ? 'Pro' : 'Free'}</span>
+              <span className="text-[10px] uppercase tracking-widest border border-gray-200 px-1.5 py-0.5 text-gray-400">ricorrente</span>
+            </div>
+            <div className="flex items-center">
+              <span className="text-xs text-gray-400">Costo fisso mensile</span>
+            </div>
+            <div className="text-right">
+              <span className="text-sm font-bold text-gray-900">${recurringCost.toFixed(2)}</span>
+            </div>
+          </summary>
+          <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
+            <p>Piano Free: <strong>$0/mese</strong> — include 500 MB DB, 50k MAU, 1 GB file storage, 5 GB egress</p>
+            <p>Piano Pro: <strong>$25/mese</strong> — include 8 GB DB, 50k MAU, 100 GB file storage, 250 GB egress</p>
+          </div>
+        </details>
+
+        {/* Storage DB */}
+        <details className="group">
+          <summary className="grid grid-cols-[1fr_200px_100px] gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer list-none transition-colors">
+            <div className="flex items-center gap-2">
+              <ChevronRight className="w-3 h-3 text-gray-300 group-open:rotate-90 transition-transform shrink-0" />
+              <span className="text-sm text-gray-800">Storage DB (PostgreSQL)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {isCurrentMonth ? (
+                <>
+                  <div className="flex-1 h-1.5 bg-gray-100 max-w-[120px]">
+                    <div
+                      className={`h-full transition-all ${dbSizePct >= 100 ? 'bg-red-500' : dbSizePct >= 80 ? 'bg-amber-400' : 'bg-gray-800'}`}
+                      style={{ width: `${Math.min(dbSizePct, 100)}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] font-mono text-gray-500 whitespace-nowrap">
+                    {formatBytes(dbSizeUsed)} / 500 MB
+                  </span>
+                </>
+              ) : <span className="text-xs text-gray-300">Dato non disponibile</span>}
+            </div>
+            <div className="text-right">
+              <span className="text-sm font-bold text-gray-400">incluso</span>
+            </div>
+          </summary>
+          <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
+            <p>Soglia gratuita: <strong>500 MB</strong> (Free), <strong>8 GB</strong> (Pro)</p>
+            <p>Oltre soglia (Pro): <strong>$0.125/GB/mese</strong></p>
+          </div>
+        </details>
+
+        {/* MAU */}
+        <details className="group">
+          <summary className="grid grid-cols-[1fr_200px_100px] gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer list-none transition-colors">
+            <div className="flex items-center gap-2">
+              <ChevronRight className="w-3 h-3 text-gray-300 group-open:rotate-90 transition-transform shrink-0" />
+              <span className="text-sm text-gray-800">Monthly Active Users (MAU)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {isCurrentMonth ? (
+                <>
+                  <div className="flex-1 h-1.5 bg-gray-100 max-w-[120px]">
+                    <div
+                      className={`h-full transition-all ${mauPct >= 100 ? 'bg-red-500' : mauPct >= 80 ? 'bg-amber-400' : 'bg-gray-800'}`}
+                      style={{ width: `${Math.min(mauPct, 100)}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] font-mono text-gray-500 whitespace-nowrap">
+                    {mauUsed.toLocaleString('it-IT')} / 50k
+                  </span>
+                </>
+              ) : <span className="text-xs text-gray-300">Dato non disponibile</span>}
+            </div>
+            <div className="text-right">
+              <span className="text-sm font-bold text-gray-400">incluso</span>
+            </div>
+          </summary>
+          <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
+            <p>Soglia gratuita: <strong>50.000 MAU/mese</strong></p>
+            <p>Oltre soglia (Pro): <strong>$0.00325/MAU</strong></p>
+          </div>
+        </details>
+
+        {/* File storage */}
+        <details className="group">
+          <summary className="grid grid-cols-[1fr_200px_100px] gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer list-none transition-colors">
+            <div className="flex items-center gap-2">
+              <ChevronRight className="w-3 h-3 text-gray-300 group-open:rotate-90 transition-transform shrink-0" />
+              <span className="text-sm text-gray-800">File storage (bucket Supabase)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 h-1.5 bg-gray-100 max-w-[120px]">
+                <div className="h-full bg-gray-800" style={{ width: '0%' }} />
+              </div>
+              <span className="text-[10px] font-mono text-gray-500 whitespace-nowrap">
+                0 B / 1 GB
+              </span>
+            </div>
+            <div className="text-right">
+              <span className="text-sm font-bold text-gray-400">incluso</span>
+            </div>
+          </summary>
+          <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
+            <p>I file analisi sono archiviati su Cloudflare R2, non sui bucket Supabase.</p>
+            <p>Soglia gratuita: <strong>1 GB</strong> (Free), <strong>100 GB</strong> (Pro)</p>
+          </div>
+        </details>
+
+        {/* Bandwidth */}
+        <details className="group">
+          <summary className="grid grid-cols-[1fr_200px_100px] gap-4 px-6 py-4 hover:bg-gray-50 cursor-pointer list-none transition-colors">
+            <div className="flex items-center gap-2">
+              <ChevronRight className="w-3 h-3 text-gray-300 group-open:rotate-90 transition-transform shrink-0" />
+              <span className="text-sm text-gray-800">Egress bandwidth</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-300">Dato non disponibile</span>
+            </div>
+            <div className="text-right">
+              <span className="text-sm font-bold text-gray-400">incluso</span>
+            </div>
+          </summary>
+          <div className="px-6 py-4 bg-gray-50 text-xs text-gray-500 space-y-1">
+            <p>Soglia gratuita: <strong>5 GB/mese</strong> (Free), <strong>250 GB/mese</strong> (Pro)</p>
+            <p>Oltre soglia (Pro): <strong>$0.09/GB</strong></p>
+          </div>
+        </details>
       </div>
 
+      {/* App data */}
       <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">Dati applicazione</h2>
       <div className="grid grid-cols-3 gap-4">
         {[
           { label: 'Medici registrati', value: (totalUsers ?? 0).toLocaleString('it-IT') },
-          { label: 'Ticket totali', value: (totalTickets ?? 0).toLocaleString('it-IT') },
-          { label: 'Storage file analisi (R2)', value: formatBytes(appStorageBytes) },
+          { label: 'Analisi totali', value: (totalAnalyses ?? 0).toLocaleString('it-IT') },
+          { label: 'Organizzazione', value: org?.name ?? '—' },
         ].map(({ label, value }) => (
           <div key={label} className="border border-gray-200 bg-white px-6 py-5">
             <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-2">{label}</p>

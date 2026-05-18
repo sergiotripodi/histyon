@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { useMemo } from 'react'
+import { useMemo, useRef, useState } from 'react'
 
 interface TimeChartProps {
   data: { label: string; value: number }[]
@@ -32,6 +32,8 @@ export function TimeChart({ data, height = 120, format = 'number', className }: 
   const w = 800
   const svgH = height
   const pad = { top: 12, bottom: 12 }
+  const svgRef = useRef<SVGSVGElement>(null)
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null)
 
   const max = Math.max(...data.map(d => d.value), 1)
   const range = max
@@ -51,13 +53,44 @@ export function TimeChart({ data, height = 120, format = 'number', className }: 
 
   const labelStep = data.length > 14 ? Math.ceil(data.length / 7) : 1
 
+  function handleMouseMove(e: React.MouseEvent<SVGSVGElement>) {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const relX = (e.clientX - rect.left) / rect.width
+    const idx = Math.min(data.length - 1, Math.max(0, Math.round(relX * (data.length - 1))))
+    setHoverIdx(idx)
+  }
+
+  const hp = hoverIdx !== null ? points[hoverIdx] : null
+  const hpLeftPct = hp ? (hp.x / w) * 100 : 0
+  const hpTopPct = hp ? (hp.y / svgH) * 100 : 0
+
   return (
-    <div className={className}>
+    <div className={`relative ${className ?? ''}`}>
+      {/* Hover tooltip */}
+      {hoverIdx !== null && hp && (
+        <div
+          className="absolute z-10 pointer-events-none"
+          style={{
+            left: `${hpLeftPct}%`,
+            top: `${hpTopPct}%`,
+            transform: 'translate(-50%, calc(-100% - 8px))',
+          }}
+        >
+          <div className="bg-gray-900 text-white text-[10px] px-2 py-1.5 whitespace-nowrap shadow-lg">
+            <div className="font-bold tabular-nums">{fmtValue(data[hoverIdx].value, format)}</div>
+            <div className="text-gray-400 mt-0.5">{data[hoverIdx].label}</div>
+          </div>
+        </div>
+      )}
+
       <svg
+        ref={svgRef}
         viewBox={`0 0 ${w} ${svgH}`}
         preserveAspectRatio="none"
-        className="w-full block"
+        className="w-full block cursor-crosshair"
         style={{ height: svgH }}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={() => setHoverIdx(null)}
       >
         <defs>
           <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
@@ -65,6 +98,7 @@ export function TimeChart({ data, height = 120, format = 'number', className }: 
             <stop offset="100%" stopColor="#111" stopOpacity="0" />
           </linearGradient>
         </defs>
+
         {area && (
           <motion.path d={area} fill={`url(#${gradId})`}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
@@ -76,14 +110,18 @@ export function TimeChart({ data, height = 120, format = 'number', className }: 
             initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 1 }}
             transition={{ duration: 1.2, ease: 'easeOut' }} />
         )}
-        {points.map((p, i) => (
-          <motion.circle key={i} cx={p.x} cy={p.y} r="3"
-            fill="white" stroke="#111" strokeWidth="1.5"
-            initial={{ scale: 0 }} animate={{ scale: 1 }}
-            transition={{ duration: 0.2, delay: 1.0 + i * 0.03 }} />
-        ))}
+
+        {/* Hover vertical line */}
+        {hoverIdx !== null && hp && (
+          <line
+            x1={hp.x} y1={pad.top}
+            x2={hp.x} y2={svgH - pad.bottom}
+            stroke="#111" strokeWidth="1" strokeDasharray="3,3" opacity="0.35"
+          />
+        )}
       </svg>
 
+      {/* Labels as HTML — no SVG stretching */}
       <div className="relative h-5 mt-1">
         {data.map((d, i) => {
           if (i % labelStep !== 0 && i !== data.length - 1) return null

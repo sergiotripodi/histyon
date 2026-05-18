@@ -51,21 +51,21 @@ export function AdminStatCard({ label, value, sparkline, subtitle, format = 'num
   }, [value, formatter])
 
   const inner = (
-    <div className={`border border-gray-200 bg-white p-6 flex flex-col gap-5 transition-colors duration-200 ${href ? 'group hover:border-gray-400 cursor-pointer' : ''}`}>
+    <div className={`border border-gray-200 bg-white p-6 flex flex-col gap-5 transition-colors duration-200 min-h-0 ${href ? 'group hover:border-gray-400 cursor-pointer' : ''}`}>
       <div className="flex items-start justify-between gap-2">
-        <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400">{label}</p>
+        <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 leading-tight">{label}</p>
         {href && <ArrowRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-600 transition-colors shrink-0 mt-0.5" />}
       </div>
 
-      <div className="flex items-end justify-between gap-3">
-        <span className="text-3xl font-bold tracking-tight tabular-nums leading-none text-gray-900">
+      <div className="flex items-end justify-between gap-3 min-w-0">
+        <span className="text-3xl font-bold tracking-tight tabular-nums leading-none text-gray-900 truncate min-w-0">
           {display}
         </span>
-        <Sparkline data={sparkline} width={88} height={32} className="shrink-0" />
+        <Sparkline data={sparkline} width={72} height={32} className="shrink-0" />
       </div>
 
       {subtitle && (
-        <p className="text-[11px] text-gray-400 leading-none border-t border-gray-100 pt-4">
+        <p className="text-[11px] text-gray-400 leading-none border-t border-gray-100 pt-4 truncate">
           {subtitle}
         </p>
       )}

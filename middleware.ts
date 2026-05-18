@@ -120,6 +120,10 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && pathname.startsWith('/dashboard')) {
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+    if (profile?.role === 'admin') {
+      return NextResponse.redirect(new URL('/ops-histyon-console/dashboard', request.url))
+    }
     const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
     if (aal?.nextLevel === 'aal2' && aal?.currentLevel !== 'aal2') {
       return NextResponse.redirect(new URL('/auth/mfa-challenge', request.url))
