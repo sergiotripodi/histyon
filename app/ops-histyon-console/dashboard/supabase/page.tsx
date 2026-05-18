@@ -81,7 +81,7 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
   const FILE_STORAGE_LIMIT = 1 * 1024 * 1024 * 1024 // 1 GB
   const BANDWIDTH_LIMIT = 5 * 1024 * 1024 * 1024 // 5 GB
 
-  const dbSizeUsed = dbSizeBytes > 0 ? dbSizeBytes : appStorageBytes // fallback stima
+  const dbSizeUsed = dbSizeBytes
   const mauUsed = totalUsers ?? 0
 
   const dbSizePct = Math.min((dbSizeUsed / DB_SIZE_LIMIT) * 100, 200)
@@ -128,7 +128,7 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
         <div className="border border-gray-200 bg-white px-8 py-6">
           <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-3">Costo add-on</p>
           <p className="text-4xl font-bold tabular-nums text-gray-900">${addonCost.toFixed(2)}</p>
-          <p className="text-xs text-gray-400 mt-2">Utilizzo oltre soglia gratuita</p>
+          <p className="text-xs text-gray-400 mt-2">Utilizzo oltre soglie incluse nel piano</p>
         </div>
       </div>
 
@@ -151,7 +151,6 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
             <div className="flex items-center gap-2">
               <ChevronRight className="w-3 h-3 text-gray-300 group-open:rotate-90 transition-transform shrink-0" />
               <span className="text-sm text-gray-800">Piano {isPro ? 'Pro' : 'Free'}</span>
-              <span className="text-[10px] uppercase tracking-widest border border-gray-200 px-1.5 py-0.5 text-gray-400">ricorrente</span>
             </div>
             <div className="flex items-center">
               <span className="text-xs text-gray-400">Costo fisso mensile</span>
@@ -174,7 +173,7 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
               <span className="text-sm text-gray-800">Storage DB (PostgreSQL)</span>
             </div>
             <div className="flex items-center gap-2">
-              {isCurrentMonth ? (
+              {isCurrentMonth && dbSizeUsed > 0 ? (
                 <>
                   <div className="flex-1 h-1.5 bg-gray-100 max-w-[120px]">
                     <div
@@ -186,14 +185,19 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
                     {formatBytes(dbSizeUsed)} / 500 MB
                   </span>
                 </>
-              ) : <span className="text-xs text-gray-300">Dato non disponibile</span>}
+              ) : (
+                <span className="text-xs text-gray-300">Dato non disponibile</span>
+              )}
             </div>
             <div className="text-right">
-              <span className="text-sm font-bold text-gray-400">incluso</span>
+              <span className="text-sm font-bold text-gray-400">$0.00</span>
             </div>
           </summary>
           <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
             <p>Soglia gratuita: <strong>500 MB</strong> (Free), <strong>8 GB</strong> (Pro)</p>
+            {!isPro && dbSizePct >= 100 && (
+              <p className="text-amber-600 font-medium">⚠ Limite raggiunto — Supabase può mettere il progetto in pausa. Nessun costo extra: aggiorna a Pro per evitarlo.</p>
+            )}
             <p>Oltre soglia (Pro): <strong>$0.125/GB/mese</strong></p>
           </div>
         </details>
@@ -221,7 +225,7 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
               ) : <span className="text-xs text-gray-300">Dato non disponibile</span>}
             </div>
             <div className="text-right">
-              <span className="text-sm font-bold text-gray-400">incluso</span>
+              <span className="text-sm font-bold text-gray-400">$0.00</span>
             </div>
           </summary>
           <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
@@ -246,7 +250,7 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
               </span>
             </div>
             <div className="text-right">
-              <span className="text-sm font-bold text-gray-400">incluso</span>
+              <span className="text-sm font-bold text-gray-400">$0.00</span>
             </div>
           </summary>
           <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
@@ -266,7 +270,7 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
               <span className="text-xs text-gray-300">Dato non disponibile</span>
             </div>
             <div className="text-right">
-              <span className="text-sm font-bold text-gray-400">incluso</span>
+              <span className="text-sm font-bold text-gray-400">$0.00</span>
             </div>
           </summary>
           <div className="px-6 py-4 bg-gray-50 text-xs text-gray-500 space-y-1">

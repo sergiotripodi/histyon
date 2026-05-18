@@ -2,36 +2,93 @@
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
+function getRecentMonths(n: number): { key: string; label: string }[] {
+  return Array.from({ length: n }, (_, i) => {
+    const d = new Date()
+    d.setDate(1)
+    d.setMonth(d.getMonth() - i)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    const label = d.toLocaleDateString('it-IT', { month: 'short', year: '2-digit' })
+      .replace('.', '').replace(' ', ' ')
+    return { key, label: label.charAt(0).toUpperCase() + label.slice(1) }
+  }).reverse()
+}
+
 export function MonthPicker() {
   const router = useRouter()
   const pathname = usePathname()
   const sp = useSearchParams()
 
-  const current = sp.get('month') ?? new Date().toISOString().slice(0, 7)
+  const nowKey = new Date().toISOString().slice(0, 7)
+  const current = sp.get('month') ?? nowKey
   const [year, month] = current.split('-').map(Number)
 
-  const label = new Date(year, month - 1).toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })
-  const labelCapitalized = label.charAt(0).toUpperCase() + label.slice(1)
+  const recent = getRecentMonths(4)
+  const isInRecent = recent.some(m => m.key === current)
 
-  function navigate(offset: number) {
-    const d = new Date(year, month - 1 + offset)
-    const next = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-    router.push(`${pathname}?month=${next}`)
+  function go(key: string) {
+    if (key === nowKey) {
+      router.push(pathname)
+    } else {
+      router.push(`${pathname}?month=${key}`)
+    }
   }
 
-  const isCurrentMonth = current === new Date().toISOString().slice(0, 7)
+  function navigateArrow(offset: number) {
+    const d = new Date(year, month - 1 + offset)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    go(key)
+  }
+
+  // Label for a month outside the quick tabs
+  const selectedLabel = !isInRecent
+    ? new Date(year, month - 1).toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })
+    : null
 
   return (
-    <div className="flex items-center gap-3 mb-8">
-      <button onClick={() => navigate(-1)} className="p-1 hover:bg-gray-100 transition-colors">
-        <ChevronLeft className="w-4 h-4 text-gray-400" />
+    <div className="flex items-center gap-2 mb-8">
+      <button
+        onClick={() => navigateArrow(-1)}
+        className="p-1.5 hover:bg-gray-100 transition-colors border border-gray-200"
+        aria-label="Mese precedente"
+      >
+        <ChevronLeft className="w-3.5 h-3.5 text-gray-400" />
       </button>
-      <span className="text-sm font-semibold text-gray-900 min-w-[140px] text-center">{labelCapitalized}</span>
-      <button onClick={() => navigate(1)} disabled={isCurrentMonth} className="p-1 hover:bg-gray-100 transition-colors disabled:opacity-30">
-        <ChevronRight className="w-4 h-4 text-gray-400" />
+
+      {recent.map(m => (
+        <button
+          key={m.key}
+          onClick={() => go(m.key)}
+          className={`px-3 py-1.5 text-xs font-medium transition-colors border ${
+            current === m.key
+              ? 'bg-gray-900 text-white border-gray-900'
+              : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+          }`}
+        >
+          {m.label}
+        </button>
+      ))}
+
+      {!isInRecent && selectedLabel && (
+        <span className="px-3 py-1.5 text-xs font-medium bg-gray-900 text-white border border-gray-900">
+          {selectedLabel.charAt(0).toUpperCase() + selectedLabel.slice(1)}
+        </span>
+      )}
+
+      <button
+        onClick={() => navigateArrow(1)}
+        disabled={current === nowKey}
+        className="p-1.5 hover:bg-gray-100 transition-colors border border-gray-200 disabled:opacity-30"
+        aria-label="Mese successivo"
+      >
+        <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
       </button>
-      {!isCurrentMonth && (
-        <button onClick={() => router.push(pathname)} className="text-[10px] text-gray-400 hover:text-gray-700 uppercase tracking-widest ml-2">
+
+      {current !== nowKey && (
+        <button
+          onClick={() => go(nowKey)}
+          className="ml-1 text-[10px] text-gray-400 hover:text-gray-700 uppercase tracking-widest"
+        >
           oggi
         </button>
       )}

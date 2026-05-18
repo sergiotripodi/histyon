@@ -131,7 +131,6 @@ export default async function AdminVercelPage({ searchParams }: { searchParams: 
             <div className="flex items-center gap-2">
               <ChevronRight className="w-3 h-3 text-gray-300 group-open:rotate-90 transition-transform shrink-0" />
               <span className="text-sm text-gray-800">Piano {isPro ? 'Pro' : 'Hobby'}</span>
-              <span className="text-[10px] uppercase tracking-widest border border-gray-200 px-1.5 py-0.5 text-gray-400">ricorrente</span>
             </div>
             <div className="flex items-center">
               <span className="text-xs text-gray-400">Costo fisso mensile</span>
@@ -162,7 +161,7 @@ export default async function AdminVercelPage({ searchParams }: { searchParams: 
               </span>
             </div>
             <div className="text-right">
-              <span className="text-sm font-bold text-gray-400">incluso</span>
+              <span className="text-sm font-bold text-gray-400">$0.00</span>
             </div>
           </summary>
           <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
@@ -191,7 +190,7 @@ export default async function AdminVercelPage({ searchParams }: { searchParams: 
               </span>
             </div>
             <div className="text-right">
-              <span className="text-sm font-bold text-gray-400">incluso</span>
+              <span className="text-sm font-bold text-gray-400">$0.00</span>
             </div>
           </summary>
           <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">

@@ -33,12 +33,36 @@ async function fetchCloudflareData(monthStr: string) {
     fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/billing/history?page=1&per_page=50`, { headers, next: { revalidate: 300 } }),
   ])
 
+  // Cloudflare R2 analytics via GraphQL
+  // r2StorageAdaptiveGroups: storage per bucket (max fields only, no sum)
+  // r2OperationsAdaptiveGroups: operations per bucket (sum fields)
+  const graphqlQuery = `{
+  viewer {
+    accounts(filter: {accountTag: "${accountId}"}) {
+      storage: r2StorageAdaptiveGroups(
+        limit: 100,
+        orderBy: [date_DESC],
+        filter: {date_geq: "${monthStart}", date_leq: "${monthEnd}"}
+      ) {
+        dimensions { bucketName }
+        max { payloadSize metadataSize objectCount }
+      }
+      ops: r2OperationsAdaptiveGroups(
+        limit: 100,
+        orderBy: [date_DESC],
+        filter: {date_geq: "${monthStart}", date_leq: "${monthEnd}"}
+      ) {
+        dimensions { bucketName actionType }
+        sum { requests }
+      }
+    }
+  }
+}`
+
   const graphqlRes = await fetch('https://api.cloudflare.com/client/v4/graphql', {
     method: 'POST',
     headers,
-    body: JSON.stringify({
-      query: `{ viewer { accounts(filter: {accountTag: "${accountId}"}) { r2StorageAdaptiveGroups(limit: 1, filter: {date_geq: "${monthStart}", date_leq: "${monthEnd}"}) { max { uploadedBytes } sum { classAOperations classBOperations } } } } }`
-    }),
+    body: JSON.stringify({ query: graphqlQuery }),
     next: { revalidate: 300 }
   }).catch(() => null)
 
@@ -47,10 +71,20 @@ async function fetchCloudflareData(monthStr: string) {
   ])
   const graphql = graphqlRes ? await graphqlRes.json().catch(() => null) : null
 
-  const r2Groups = graphql?.data?.viewer?.accounts?.[0]?.r2StorageAdaptiveGroups ?? []
-  const r2StorageBytes: number = r2Groups[0]?.max?.uploadedBytes ?? 0
-  const r2ClassA: number = r2Groups[0]?.sum?.classAOperations ?? 0
-  const r2ClassB: number = r2Groups[0]?.sum?.classBOperations ?? 0
+  const storageGroups: any[] = graphql?.data?.viewer?.accounts?.[0]?.storage ?? []
+  const opsGroups: any[] = graphql?.data?.viewer?.accounts?.[0]?.ops ?? []
+
+  // Aggregate storage across all buckets
+  const r2StorageBytes: number = storageGroups.reduce((s, g) => s + (g.max?.payloadSize ?? 0), 0)
+
+  // Classify operations: actionType starting with 'PutObject','CreateMultipartUpload','UploadPart' = Class A; 'GetObject','HeadObject','ListObjects' = Class B
+  const CLASS_A_ACTIONS = ['PutObject', 'CreateMultipartUpload', 'UploadPart', 'CompleteMultipartUpload']
+  const r2ClassA: number = opsGroups
+    .filter(g => CLASS_A_ACTIONS.some(a => (g.dimensions?.actionType ?? '').startsWith(a)))
+    .reduce((s, g) => s + (g.sum?.requests ?? 0), 0)
+  const r2ClassB: number = opsGroups
+    .filter(g => !CLASS_A_ACTIONS.some(a => (g.dimensions?.actionType ?? '').startsWith(a)))
+    .reduce((s, g) => s + (g.sum?.requests ?? 0), 0)
 
   const monthBilling = (billingHist?.result ?? []).filter((b: any) => {
     return b.occurred_at?.startsWith(monthStr)
@@ -156,12 +190,12 @@ export default async function AdminCloudflarePage({ searchParams }: { searchPara
         <div className="border border-gray-200 bg-white px-8 py-6">
           <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-3">Costo ricorrente</p>
           <p className="text-4xl font-bold tabular-nums text-gray-900">${recurringCost.toFixed(2)}</p>
-          <p className="text-xs text-gray-400 mt-2">Piano fisso mensile</p>
+          <p className="text-xs text-gray-400 mt-2">{(account?.type ?? 'standard').charAt(0).toUpperCase() + (account?.type ?? 'standard').slice(1)} — nessun piano fisso</p>
         </div>
         <div className="border border-gray-200 bg-white px-8 py-6">
           <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-3">Costo add-on</p>
           <p className="text-4xl font-bold tabular-nums text-gray-900">${addonCost.toFixed(2)}</p>
-          <p className="text-xs text-gray-400 mt-2">Utilizzo R2 oltre soglia gratuita</p>
+          <p className="text-xs text-gray-400 mt-2">Utilizzo R2 oltre soglie incluse</p>
         </div>
       </div>
 
@@ -184,7 +218,6 @@ export default async function AdminCloudflarePage({ searchParams }: { searchPara
             <div className="flex items-center gap-2">
               <ChevronRight className="w-3 h-3 text-gray-300 group-open:rotate-90 transition-transform shrink-0" />
               <span className="text-sm text-gray-800">Account</span>
-              <span className="text-[10px] uppercase tracking-widest border border-gray-200 px-1.5 py-0.5 text-gray-400">ricorrente</span>
             </div>
             <div className="flex items-center">
               <span className="text-xs text-gray-400">Nessun piano fisso</span>
@@ -222,7 +255,7 @@ export default async function AdminCloudflarePage({ searchParams }: { searchPara
             </div>
             <div className="text-right">
               <span className={`text-sm font-bold ${storageOverageCost > 0 ? 'text-red-600' : 'text-gray-400'}`}>
-                {storageOverageCost > 0 ? `+$${storageOverageCost.toFixed(4)}` : 'incluso'}
+                {storageOverageCost > 0 ? `+$${storageOverageCost.toFixed(4)}` : '$0.00'}
               </span>
             </div>
           </summary>
@@ -256,7 +289,7 @@ export default async function AdminCloudflarePage({ searchParams }: { searchPara
             </div>
             <div className="text-right">
               <span className={`text-sm font-bold ${classAOverageCost > 0 ? 'text-red-600' : 'text-gray-400'}`}>
-                {classAOverageCost > 0 ? `+$${classAOverageCost.toFixed(4)}` : 'incluso'}
+                {classAOverageCost > 0 ? `+$${classAOverageCost.toFixed(4)}` : '$0.00'}
               </span>
             </div>
           </summary>
@@ -290,7 +323,7 @@ export default async function AdminCloudflarePage({ searchParams }: { searchPara
             </div>
             <div className="text-right">
               <span className={`text-sm font-bold ${classBOverageCost > 0 ? 'text-red-600' : 'text-gray-400'}`}>
-                {classBOverageCost > 0 ? `+$${classBOverageCost.toFixed(4)}` : 'incluso'}
+                {classBOverageCost > 0 ? `+$${classBOverageCost.toFixed(4)}` : '$0.00'}
               </span>
             </div>
           </summary>
@@ -301,35 +334,6 @@ export default async function AdminCloudflarePage({ searchParams }: { searchPara
           </div>
         </details>
       </div>
-
-      {/* Billing history */}
-      {billingHistory.length > 0 && (
-        <>
-          <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">Storico pagamenti</h2>
-          <div className="border border-gray-200 bg-white mb-8">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  {['Data', 'Descrizione', 'Importo'].map(h => (
-                    <th key={h} className="text-left px-6 py-3 text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {billingHistory.slice(0, 20).map((b: any) => (
-                  <tr key={b.id} className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="px-6 py-3 text-xs text-gray-500 font-mono">
-                      {b.occurred_at ? new Date(b.occurred_at).toLocaleDateString('it-IT') : '—'}
-                    </td>
-                    <td className="px-6 py-3 text-sm text-gray-700">{b.description ?? '—'}</td>
-                    <td className="px-6 py-3 text-sm font-bold text-gray-900">${(b.amount ?? 0).toFixed(2)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
 
       {/* App data */}
       <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">Dati R2</h2>
