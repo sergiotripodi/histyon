@@ -49,11 +49,41 @@ export default async function AdminVercelPage({ searchParams }: { searchParams: 
   const plan = billing.plan ?? 'hobby'
   const isPro = plan === 'pro'
   const recurringCost = isPro ? 20 : 0
-  const addonCost = 0 // Vercel non ha billing history API accessibile
 
   const allDomains: any[] = domains?.domains ?? []
   const allDeployments: any[] = deployments?.deployments ?? []
   const lastDeploy = allDeployments[0]
+
+  // Domains: per-domain cost logic
+  // Vercel-registered domains have serviceType='zeit' or a price field + boughtAt
+  // Annual billing: cost appears only in the renewal month (same calendar month as boughtAt)
+  const [selectedYear, selectedMonthNum] = monthStr.split('-').map(Number)
+
+  function domainRenewalCostThisMonth(d: any): number {
+    if (!d.price || !d.boughtAt) return 0
+    const bought = new Date(d.boughtAt)
+    // Renewal happens same month each year
+    if (bought.getMonth() + 1 === selectedMonthNum) return d.price
+    return 0
+  }
+
+  function domainRegistrar(d: any): string {
+    if (d.serviceType === 'zeit') return 'Vercel'
+    const ns = (d.nameservers ?? []).join(' ').toLowerCase()
+    if (ns.includes('vercel-dns')) return 'Vercel'
+    if (ns.includes('cloudflare')) return 'Cloudflare'
+    const match = d.nameservers?.[0]?.match(/([^.]+\.[^.]+)$/)
+    if (match) return match[1]
+    return 'Esterno'
+  }
+
+  function domainNextRenewal(d: any): string | null {
+    if (!d.expiresAt) return null
+    return new Date(d.expiresAt).toLocaleDateString('it-IT')
+  }
+
+  const domainAddonCost = allDomains.reduce((s, d) => s + domainRenewalCostThisMonth(d), 0)
+  const addonCost = domainAddonCost // extend here when other usage-based costs are available
 
   // Stima build minutes: ogni deployment ~2 min
   const BUILD_MINUTES_LIMIT = 6000
@@ -61,7 +91,7 @@ export default async function AdminVercelPage({ searchParams }: { searchParams: 
   const buildMinutesPct = Math.min((buildMinutesUsed / BUILD_MINUTES_LIMIT) * 100, 200)
 
   // Bandwidth: dato non disponibile via API hobby
-  const BANDWIDTH_LIMIT_GB = 100 // hobby
+  const BANDWIDTH_LIMIT_GB = 100
   const bandwidthPct = 0
 
   const monthLabel = new Date(monthStr + '-01').toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })
@@ -200,27 +230,51 @@ export default async function AdminVercelPage({ searchParams }: { searchParams: 
           </div>
         </details>
 
-        {/* Domini */}
-        <details className="group">
-          <summary className="grid grid-cols-[1fr_200px_100px] gap-4 px-6 py-4 hover:bg-gray-50 cursor-pointer list-none transition-colors">
-            <div className="flex items-center gap-2">
-              <ChevronRight className="w-3 h-3 text-gray-300 group-open:rotate-90 transition-transform shrink-0" />
-              <span className="text-sm text-gray-800">Domini ({allDomains.length})</span>
-            </div>
-            <div className="flex items-center">
-              <span className="text-xs text-gray-400">{allDomains.map((d: any) => d.name).slice(0, 2).join(', ')}{allDomains.length > 2 ? ` +${allDomains.length - 2}` : ''}</span>
-            </div>
-            <div className="text-right">
-              <span className="text-sm font-bold text-gray-400">$0.00</span>
-            </div>
-          </summary>
-          <div className="px-6 py-4 bg-gray-50 text-xs text-gray-500 space-y-1">
-            <p>I domini sono gestiti esternamente (Cloudflare). Nessun costo aggiuntivo su Vercel.</p>
-            {allDomains.map((d: any) => (
-              <p key={d.id ?? d.name} className="font-mono text-gray-600">{d.name} — scade: {d.expiresAt ? new Date(d.expiresAt).toLocaleDateString('it-IT') : 'Dato non disponibile'}</p>
-            ))}
-          </div>
-        </details>
+        {/* Domini — one row per domain */}
+        {allDomains.length === 0 ? (
+          <div className="px-6 py-4 text-xs text-gray-300">Nessun dominio configurato su questo account</div>
+        ) : allDomains.map((d: any, idx: number) => {
+          const renewalCost = domainRenewalCostThisMonth(d)
+          const registrar = domainRegistrar(d)
+          const renewal = domainNextRenewal(d)
+          const isVercelManaged = d.serviceType === 'zeit' || !!d.price
+          const isLast = idx === allDomains.length - 1
+          return (
+            <details key={d.id ?? d.name} className="group">
+              <summary className={`grid grid-cols-[1fr_200px_100px] gap-4 px-6 py-4 ${!isLast ? 'border-b border-gray-50' : ''} hover:bg-gray-50 cursor-pointer list-none transition-colors`}>
+                <div className="flex items-center gap-2">
+                  <ChevronRight className="w-3 h-3 text-gray-300 group-open:rotate-90 transition-transform shrink-0" />
+                  <span className="text-sm text-gray-800">{d.name}</span>
+                  {d.verified
+                    ? <CheckCircle2 className="w-3 h-3 text-green-500 shrink-0" />
+                    : <XCircle className="w-3 h-3 text-red-400 shrink-0" />
+                  }
+                </div>
+                <div className="flex items-center">
+                  <span className="text-xs text-gray-400">{registrar}</span>
+                </div>
+                <div className="text-right">
+                  <span className={`text-sm font-bold ${renewalCost > 0 ? 'text-gray-900' : 'text-gray-400'}`}>
+                    {renewalCost > 0 ? `$${renewalCost.toFixed(2)}` : '$0.00'}
+                  </span>
+                </div>
+              </summary>
+              <div className={`px-6 py-4 bg-gray-50 ${!isLast ? 'border-b border-gray-100' : ''} text-xs text-gray-500 space-y-1`}>
+                <p>Registrar: <strong>{registrar}</strong></p>
+                <p>Scadenza: <strong>{renewal ?? 'Dato non disponibile'}</strong></p>
+                {isVercelManaged && d.price && (
+                  <p>Costo annuale: <strong>${d.price}/anno</strong> — addebitato nel mese di rinnovo ({new Date(d.boughtAt).toLocaleDateString('it-IT', { month: 'long' })})</p>
+                )}
+                {!isVercelManaged && (
+                  <p>Dominio gestito esternamente — nessun costo su Vercel</p>
+                )}
+                {d.nameservers?.length > 0 && (
+                  <p className="text-gray-400 font-mono">NS: {d.nameservers.slice(0, 2).join(', ')}</p>
+                )}
+              </div>
+            </details>
+          )
+        })}
       </div>
 
       {/* App data */}
