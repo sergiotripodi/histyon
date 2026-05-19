@@ -1,7 +1,11 @@
 export function isSafeDziSource(urlString: string): boolean {
   const t = urlString.trim()
   if (!t) return false
+
+  // Path relativi interni (proxy /api/tiles/...) — sempre sicuri
+  if (t.startsWith('/api/tiles/')) return true
   if (t.startsWith('/')) return !t.includes('..')
+
   return isAllowedAssetUrl(t)
 }
 
@@ -17,7 +21,7 @@ export function isAllowedAssetUrl(urlString: string): boolean {
       if (host === 'localhost' || host === '127.0.0.1') return true
     }
 
-    // Host espliciti aggiuntivi (es. custom CDN)
+    // Host aggiuntivi configurabili (CDN custom, ecc.)
     const extra = (process.env.NEXT_PUBLIC_ALLOWED_ASSET_HOSTS || '')
       .split(',')
       .map((s) => s.trim().toLowerCase())
@@ -26,14 +30,12 @@ export function isAllowedAssetUrl(urlString: string): boolean {
       if (host === h || host.endsWith('.' + h)) return true
     }
 
-    // Supabase Storage pubblico (bucket histyon-dzi)
+    // Supabase Storage (signed URL redirect da proxy)
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     if (supabaseUrl) {
       try {
         if (host === new URL(supabaseUrl).hostname) return true
-      } catch {
-        /* ignore */
-      }
+      } catch { /* ignore */ }
     }
 
     // Dominio del sito
@@ -41,9 +43,7 @@ export function isAllowedAssetUrl(urlString: string): boolean {
     if (site) {
       try {
         if (host === new URL(site).hostname) return true
-      } catch {
-        /* ignore */
-      }
+      } catch { /* ignore */ }
     }
 
     return false

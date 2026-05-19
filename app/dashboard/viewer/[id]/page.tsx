@@ -1,8 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import ViewerWrapper from '@/components/viewer/ViewerWrapper'
-import { isSafeDziSource } from '@/lib/url-security'
-import { getDziPublicUrl } from '@/lib/storage/supabase'
 import { getDictionary } from '@/lib/dictionary'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
@@ -25,18 +23,12 @@ export default async function ViewerPage(props: { params: Promise<{ id: string }
 
   if (!ticket || !ticket.output_dzi) redirect(`/dashboard/ticket/${id}`)
 
-  // Costruisce l'URL pubblico del DZI dal path in Supabase Storage
-  const rawPath = String(ticket.output_dzi).trim()
-  let dziUrl: string
-
-  if (rawPath.startsWith('http://') || rawPath.startsWith('https://')) {
-    // URL completo già salvato (backward compat)
-    dziUrl = rawPath
-  } else {
-    dziUrl = getDziPublicUrl(rawPath)
-  }
-
-  if (!isSafeDziSource(dziUrl)) redirect(`/dashboard/ticket/${id}`)
+  // Costruisce la URL del proxy autenticato.
+  // Il proxy è /api/tiles/{ticketId}/{filename} e serve sia il .dzi che le tile.
+  // Il bucket scottea-dzi è PRIVATO: zero URL pubbliche esposte al browser.
+  const dziStoragePath = String(ticket.output_dzi).trim()
+  const dziFilename    = dziStoragePath.split('/').pop() ?? 'slide.dzi'
+  const dziUrl         = `/api/tiles/${id}/${dziFilename}`
 
   const patient     = Array.isArray(ticket.patients) ? ticket.patients[0] : ticket.patients
   const annotations = (ticket.annotations ?? null) as Annotations | null

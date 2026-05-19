@@ -2,8 +2,8 @@
 
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 
-export const INPUT_BUCKET  = 'scottea-input'
-export const DZI_BUCKET    = 'scottea-dzi'
+export const INPUT_BUCKET = 'scottea-input'
+export const DZI_BUCKET   = 'scottea-dzi'
 
 /** Admin client con service role — usato solo server-side per operazioni storage privilegiate. */
 function adminClient() {
@@ -17,7 +17,7 @@ function adminClient() {
 /** Elimina tutti i file sotto un prefisso nel bucket specificato. */
 export async function deleteSupabasePrefix(bucket: string, prefix: string): Promise<void> {
   const admin = adminClient()
-  let offset = 0
+  let offset  = 0
   const limit = 100
 
   while (true) {
@@ -45,14 +45,4 @@ export async function deleteSupabaseFiles(bucket: string, paths: string[]): Prom
   if (paths.length === 0) return
   const admin = adminClient()
   await admin.storage.from(bucket).remove(paths)
-}
-
-/**
- * Restituisce l'URL pubblico di un file nel bucket DZI (bucket pubblico).
- * Il bucket histyon-dzi deve essere configurato come public in Supabase Dashboard.
- */
-export function getDziPublicUrl(path: string): string {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const cleanPath   = path.replace(/^\/+/, '')
-  return `${supabaseUrl}/storage/v1/object/public/${DZI_BUCKET}/${cleanPath}`
 }
