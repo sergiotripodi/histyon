@@ -18,7 +18,7 @@ export interface Patient {
   created_at:     string;
 }
 
-export interface TissueAnalysis {
+export interface AiResults {
   summary?: {
     percentuale_tessuto_malato?: number;
     area_totale?:               number;
@@ -55,7 +55,7 @@ export interface Ticket {
   patient_id:   string;
   doctor_id:    string;
   status:       'UPLOADING' | 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'ERROR';
-  tissue?:      TissueAnalysis;
+  results?:     AiResults;
   annotations?: Annotations;
   ai_metadata?: Record<string, unknown>;
   notes?:       string;

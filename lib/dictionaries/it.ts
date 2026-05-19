@@ -209,7 +209,7 @@ export const it = {
       statusLabel: "STATUS", processInterrupted: "Processo Interrotto", errorDetails: "Dettagli Errore:",
       genericError: "Errore generico durante l'elaborazione del file.", retryUpload: "Riprova Caricamento",
       outputFile: "File Output Generato", download: "Scarica", resultsJson: "Risultati AI (JSON)",
-      noJson: "Nessun dato strutturato (ai_results) disponibile.",
+      noJson: "Nessun dato strutturato disponibile.",
       queuedTitle: "In Coda sul Cloud", processingTitle: "Analisi in Corso",
       queuedDesc: "Il file è al sicuro. Aspettiamo che il motore AI lo prenda in carico.",
       processingDesc: "Sto analizzando i tessuti e generando i risultati JSON.",

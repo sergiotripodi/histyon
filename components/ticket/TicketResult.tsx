@@ -7,7 +7,7 @@ export default function TicketResult({ ticket, dict }: { ticket: Ticket, dict: a
   if (!isCompleted) return null;
 
   const t = dict.dashboard.results;
-  const stats = ticket.tissue?.summary;
+  const stats = ticket.results?.summary;
 
   return (
     <div className="space-y-6 mt-10 border-t pt-10">

@@ -104,8 +104,8 @@ export function TicketRealtimeView({ initialTicket, dict }: RealTimeProps) {
     return () => { supabase.removeChannel(ch) }
   }, [ticket.id, supabase, router])
 
-  // Tissue analysis stats (rinominato da ai_results)
-  const stats       = ticket.tissue?.summary ?? ticket.ai_results?.summary
+  // AI results stats
+  const stats       = ticket.results?.summary
   const annotations = ticket.annotations
   const annotCount  = annotations?.features?.length ?? 0
 

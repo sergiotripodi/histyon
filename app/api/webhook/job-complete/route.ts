@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   let body: {
     ticketId?:    string
     status?:      string
-    tissue?:      unknown
+    results?:     unknown
     annotations?: unknown
   }
 
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { ticketId, status, tissue, annotations } = body
+  const { ticketId, status, results, annotations } = body
 
   if (!ticketId || typeof ticketId !== 'string' || !/^[0-9a-f-]{36}$/i.test(ticketId)) {
     return NextResponse.json({ error: 'Invalid ticketId' }, { status: 400 })
@@ -51,8 +51,8 @@ export async function POST(request: Request) {
     }
   }
 
-  if (tissue !== undefined && tissue !== null) {
-    update.tissue = tissue
+  if (results !== undefined && results !== null) {
+    update.results = results
   }
 
   if (annotations !== undefined && annotations !== null) {

@@ -207,7 +207,7 @@ export const en = {
       statusLabel: "STATUS", processInterrupted: "Process Interrupted", errorDetails: "Error Details:",
       genericError: "Generic error during file processing.", retryUpload: "Retry Upload",
       outputFile: "Generated Output File", download: "Download", resultsJson: "AI Results (JSON)",
-      noJson: "No structured data (ai_results) available.",
+      noJson: "No structured data available.",
       queuedTitle: "Queued on Cloud", processingTitle: "Analysis in Progress",
       queuedDesc: "File is secure. Waiting for AI engine pickup.",
       processingDesc: "Analyzing tissues and generating JSON results.",
