@@ -1,24 +1,102 @@
 'use client'
 
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import OpenSeadragon from 'openseadragon'
-import { Plus, Minus, Home, Maximize } from 'lucide-react'
+import { Plus, Minus, Home, Maximize, Layers } from 'lucide-react'
 import { isSafeDziSource } from '@/lib/url-security'
+import type { Annotations, AnnotationFeature } from '@/types'
 
 interface Props {
-  dziUrl: string
+  dziUrl:       string
+  annotations?: Annotations | null
   loadingText?: string
 }
 
-export default function OpenSeadragonViewer({ dziUrl, loadingText = 'Loading...' }: Props) {
-  const viewerRef = useRef<HTMLDivElement>(null)
-  const osdRef    = useRef<OpenSeadragon.Viewer | null>(null)
-  const [isReady, setIsReady] = useState(false)
+// ─── Conversione coordinate GeoJSON → SVG viewBox ────────────────────────────
+// Le coordinate GeoJSON delle annotazioni AI usano il sistema pixel dell'immagine
+// (origine top-left, asse Y verso il basso). L'overlay SVG usa lo stesso sistema.
+
+function polygonPoints(coords: number[][]): string {
+  return coords.map(([x, y]) => `${x},${y}`).join(' ')
+}
+
+function renderFeature(feat: AnnotationFeature, idx: number) {
+  const geom  = feat.geometry
+  const label = feat.properties?.label ?? feat.properties?.class ?? ''
+  const conf  = feat.properties?.confidence
+
+  const title = [label, conf != null ? `${(conf * 100).toFixed(0)}%` : ''].filter(Boolean).join(' · ')
+
+  if (geom.type === 'Polygon') {
+    const outer = geom.coordinates as number[][][]
+    return (
+      <g key={idx} className="annotation-feature">
+        {title && <title>{title}</title>}
+        <polygon
+          points={polygonPoints(outer[0])}
+          fill="rgba(52,211,153,0.12)"
+          stroke="#34d399"
+          strokeWidth={4}
+        />
+      </g>
+    )
+  }
+
+  if (geom.type === 'MultiPolygon') {
+    const polys = geom.coordinates as number[][][][]
+    return (
+      <g key={idx} className="annotation-feature">
+        {title && <title>{title}</title>}
+        {polys.map((poly, pi) => (
+          <polygon
+            key={pi}
+            points={polygonPoints(poly[0])}
+            fill="rgba(52,211,153,0.12)"
+            stroke="#34d399"
+            strokeWidth={4}
+          />
+        ))}
+      </g>
+    )
+  }
+
+  return null
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+export default function OpenSeadragonViewer({ dziUrl, annotations, loadingText = 'Loading...' }: Props) {
+  const viewerRef  = useRef<HTMLDivElement>(null)
+  const overlayRef = useRef<SVGSVGElement>(null)
+  const osdRef     = useRef<OpenSeadragon.Viewer | null>(null)
+
+  const [isReady,        setIsReady]        = useState(false)
+  const [showAnnotations, setShowAnnotations] = useState(true)
+  const [svgViewBox,     setSvgViewBox]     = useState('0 0 1 1')
+
+  const hasAnnotations = !!(annotations?.features?.length)
+
+  // Aggiorna il viewBox SVG al variare del viewport OSD
+  const syncOverlay = useCallback(() => {
+    const viewer = osdRef.current
+    if (!viewer || !viewer.world.getItemCount()) return
+
+    const item   = viewer.world.getItemAt(0)
+    const bounds = viewer.viewport.getBoundsNoRotate()
+    const imgSz  = item.getContentSize()
+
+    // viewBox in coordinate pixel dell'immagine originale
+    const x  = bounds.x * imgSz.x
+    const y  = bounds.y * imgSz.y
+    const w  = bounds.width  * imgSz.x
+    const h  = bounds.height * imgSz.y
+
+    setSvgViewBox(`${x} ${y} ${w} ${h}`)
+  }, [])
 
   useEffect(() => {
     if (!viewerRef.current || !isSafeDziSource(dziUrl)) return
 
-    osdRef.current = OpenSeadragon({
+    const viewer = OpenSeadragon({
       element:               viewerRef.current,
       tileSources:           dziUrl,
       prefixUrl:             'https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.0.0/images/',
@@ -36,12 +114,20 @@ export default function OpenSeadragonViewer({ dziUrl, loadingText = 'Loading...'
       timeout:               90000,
     })
 
-    osdRef.current.addHandler('open', () => setIsReady(true))
+    osdRef.current = viewer
+
+    viewer.addHandler('open',       () => { setIsReady(true); syncOverlay() })
+    viewer.addHandler('animation',  syncOverlay)
+    viewer.addHandler('viewport-change', syncOverlay)
 
     return () => {
-      if (osdRef.current) osdRef.current.destroy()
+      viewer.removeAllHandlers('open')
+      viewer.removeAllHandlers('animation')
+      viewer.removeAllHandlers('viewport-change')
+      viewer.destroy()
+      osdRef.current = null
     }
-  }, [dziUrl])
+  }, [dziUrl, syncOverlay])
 
   const zoomIn     = () => osdRef.current?.viewport.zoomBy(1.5).applyConstraints()
   const zoomOut    = () => osdRef.current?.viewport.zoomBy(1 / 1.5).applyConstraints()
@@ -50,15 +136,44 @@ export default function OpenSeadragonViewer({ dziUrl, loadingText = 'Loading...'
 
   return (
     <div className="relative w-full h-full bg-[#0a0a0a] overflow-hidden">
+      {/* Tile canvas OSD */}
       <div ref={viewerRef} className="w-full h-full" />
 
-      {/* Controls */}
+      {/* Overlay SVG annotazioni — sincronizzato con il viewport OSD */}
+      {isReady && hasAnnotations && showAnnotations && (
+        <svg
+          ref={overlayRef}
+          viewBox={svgViewBox}
+          preserveAspectRatio="none"
+          className="absolute inset-0 w-full h-full pointer-events-none z-10"
+        >
+          {annotations!.features.map((feat, i) => renderFeature(feat, i))}
+        </svg>
+      )}
+
+      {/* Controlli zoom */}
       <div className="absolute top-6 left-6 flex flex-col gap-1 z-20">
         <Ctrl onClick={zoomIn}     Icon={Plus}     label="Zoom in" />
         <Ctrl onClick={zoomOut}    Icon={Minus}    label="Zoom out" />
         <div className="h-px bg-white/10 my-0.5" />
         <Ctrl onClick={goHome}     Icon={Home}     label="Fit" />
         <Ctrl onClick={toggleFull} Icon={Maximize} label="Fullscreen" />
+        {hasAnnotations && (
+          <>
+            <div className="h-px bg-white/10 my-0.5" />
+            <button
+              onClick={() => setShowAnnotations(v => !v)}
+              title={showAnnotations ? 'Nascondi annotazioni' : 'Mostra annotazioni'}
+              className={`w-9 h-9 flex items-center justify-center border transition-all
+                ${showAnnotations
+                  ? 'bg-emerald-500/20 border-emerald-400/40 text-emerald-300'
+                  : 'bg-white/8 border-white/10 text-white/40'
+                }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+            </button>
+          </>
+        )}
       </div>
 
       {/* Loading overlay */}

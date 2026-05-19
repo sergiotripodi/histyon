@@ -1,20 +1,29 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Clock, CheckCircle2, AlertTriangle, Loader2, FileText } from 'lucide-react'
+import { Clock, CheckCircle2, AlertTriangle, Loader2, Microscope } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 interface TicketListProps {
-  tickets: any[]
+  tickets:          any[]
   showPatientName?: boolean
-  doctorId?: string
-  patientId?: string
-  dict: any
+  doctorId?:        string
+  patientId?:       string
+  dict:             any
+}
+
+/** Genera un nome presentabile per l'analisi senza usare file_name. */
+function getDisplayName(tk: any, index: number): string {
+  const patient = Array.isArray(tk.patients) ? tk.patients[0] : tk.patients
+  if (patient?.first_name && patient?.last_name) {
+    return `${patient.first_name} ${patient.last_name} — Histyon #${index + 1}`
+  }
+  return `Histyon — #${tk.id.slice(0, 8).toUpperCase()}`
 }
 
 export function TicketList({ tickets: initialTickets, showPatientName = false, doctorId, patientId, dict }: TicketListProps) {
-  const router = useRouter()
+  const router  = useRouter()
   const [tickets, setTickets] = useState(initialTickets)
   const supabase = createClient()
   const t = dict.dashboard.tickets
@@ -23,8 +32,8 @@ export function TicketList({ tickets: initialTickets, showPatientName = false, d
 
   useEffect(() => {
     let filter = ''
-    if (patientId) filter = `patient_id=eq.${patientId}`
-    else if (doctorId) filter = `doctor_id=eq.${doctorId}`
+    if (patientId)      filter = `patient_id=eq.${patientId}`
+    else if (doctorId)  filter = `doctor_id=eq.${doctorId}`
     else return
 
     const channel = supabase.channel(`realtime-list-${patientId || doctorId}`)
@@ -59,7 +68,7 @@ export function TicketList({ tickets: initialTickets, showPatientName = false, d
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
-          {tickets.map((tk) => (
+          {tickets.map((tk, idx) => (
             <tr
               key={tk.id}
               onClick={() => router.push(`/dashboard/ticket/${tk.id}`)}
@@ -71,12 +80,14 @@ export function TicketList({ tickets: initialTickets, showPatientName = false, d
               {showPatientName && (
                 <td className="px-6 py-4 font-bold text-gray-900">
                   {Array.isArray(tk.patients) ? tk.patients[0]?.first_name : tk.patients?.first_name}{' '}
-                  {Array.isArray(tk.patients) ? tk.patients[0]?.last_name : tk.patients?.last_name}
+                  {Array.isArray(tk.patients) ? tk.patients[0]?.last_name  : tk.patients?.last_name}
                 </td>
               )}
               <td className="px-6 py-4 text-gray-700 flex items-center gap-2">
-                <FileText className="w-4 h-4 text-gray-400 group-hover:text-black transition-colors" />
-                <span className="truncate max-w-[150px] font-medium" title={tk.file_name}>{tk.file_name}</span>
+                <Microscope className="w-4 h-4 text-gray-400 group-hover:text-black transition-colors shrink-0" />
+                <span className="truncate max-w-[200px] font-medium text-xs" title={getDisplayName(tk, idx)}>
+                  {getDisplayName(tk, idx)}
+                </span>
               </td>
               <td className="px-6 py-4 text-gray-500 text-xs">
                 {new Date(tk.created_at).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}

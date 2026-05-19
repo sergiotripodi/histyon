@@ -2,9 +2,11 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import ViewerWrapper from '@/components/viewer/ViewerWrapper'
 import { isSafeDziSource } from '@/lib/url-security'
+import { getDziPublicUrl } from '@/lib/storage/supabase'
 import { getDictionary } from '@/lib/dictionary'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
+import type { Annotations } from '@/types'
 
 export default async function ViewerPage(props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params
@@ -16,32 +18,33 @@ export default async function ViewerPage(props: { params: Promise<{ id: string }
 
   const { data: ticket } = await supabase
     .from('tickets')
-    .select('id, output_dzi, patient_id, patients(first_name, last_name)')
+    .select('id, output_dzi, annotations, patient_id, patients(first_name, last_name)')
     .eq('id', id)
     .eq('doctor_id', user.id)
     .single()
 
-  // Redirect to ticket page if analysis output is not ready
   if (!ticket || !ticket.output_dzi) redirect(`/dashboard/ticket/${id}`)
 
-  let dziUrl = String(ticket.output_dzi).trim()
+  // Costruisce l'URL pubblico del DZI dal path in Supabase Storage
+  const rawPath = String(ticket.output_dzi).trim()
+  let dziUrl: string
 
-  // Normalize bare R2 storage keys (no protocol) → full HTTPS URL
-  if (!dziUrl.startsWith('/') && !dziUrl.startsWith('http://') && !dziUrl.startsWith('https://')) {
-    const endpoint = process.env.R2_ENDPOINT
-    const bucket   = process.env.R2_OUTPUT_BUCKET_NAME
-    dziUrl = endpoint && bucket ? `${endpoint}/${bucket}/${dziUrl}` : `/${dziUrl}`
+  if (rawPath.startsWith('http://') || rawPath.startsWith('https://')) {
+    // URL completo già salvato (backward compat)
+    dziUrl = rawPath
+  } else {
+    dziUrl = getDziPublicUrl(rawPath)
   }
 
   if (!isSafeDziSource(dziUrl)) redirect(`/dashboard/ticket/${id}`)
 
-  const patient = Array.isArray(ticket.patients) ? ticket.patients[0] : ticket.patients
-  const t = dict.dashboard.realtime
+  const patient     = Array.isArray(ticket.patients) ? ticket.patients[0] : ticket.patients
+  const annotations = (ticket.annotations ?? null) as Annotations | null
+  const t           = dict.dashboard.realtime
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-[#0a0a0a]">
 
-      {/* Minimal top bar */}
       <div className="flex items-center gap-4 px-5 h-12 border-b border-white/8 shrink-0">
         <Link
           href={`/dashboard/ticket/${id}`}
@@ -57,7 +60,11 @@ export default async function ViewerPage(props: { params: Promise<{ id: string }
       </div>
 
       <main className="flex-1 relative overflow-hidden">
-        <ViewerWrapper dziUrl={dziUrl} loadingText={t.loadingTissues} />
+        <ViewerWrapper
+          dziUrl={dziUrl}
+          annotations={annotations}
+          loadingText={t.loadingTissues}
+        />
       </main>
     </div>
   )

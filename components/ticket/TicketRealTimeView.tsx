@@ -3,17 +3,16 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
-  HardDrive, FileText, Maximize2, FolderArchive, Download,
-  RefreshCw, BrainCircuit, Server, Activity, Check,
-  UploadCloud, FileCheck, XCircle, X
+  HardDrive, FileText, Maximize2,
+  BrainCircuit, Server, Activity, Check,
+  UploadCloud, FileCheck, XCircle, X, MapPin
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { getTicketProjectDownloadUrl, getRegionDownloadUrl } from '@/lib/actions/storage'
 
 interface RealTimeProps { initialTicket: any; dict: any }
 
-// ─── Status theme palette ───────────────────────────────────────────────────
+// ─── Status theme palette ──────────────────────────────────────────────────
 const THEME = {
   UPLOADING: {
     border:    'border-gray-200',
@@ -72,11 +71,9 @@ const THEME = {
   },
 } as const
 
-// ─── Component ───────────────────────────────────────────────────────────────
+// ─── Component ────────────────────────────────────────────────────────────
 export function TicketRealtimeView({ initialTicket, dict }: RealTimeProps) {
   const [ticket, setTicket] = useState(initialTicket)
-  const [dlProject, setDlProject] = useState(false)
-  const [dlRegion,  setDlRegion]  = useState(false)
   const supabase = createClient()
   const router   = useRouter()
   const t  = dict.dashboard.realtime
@@ -93,7 +90,6 @@ export function TicketRealtimeView({ initialTicket, dict }: RealTimeProps) {
     { id: 'PROCESSING', label: dict.dashboard.tickets.steps.processing, icon: BrainCircuit },
     { id: 'COMPLETED',  label: dict.dashboard.tickets.steps.completed,  icon: FileCheck },
   ]
-  // For error: show full track so all steps appear "reached but cancelled"
   const currentIdx = isError ? STEPS.length : STEPS.findIndex(s => s.id === status)
 
   useEffect(() => {
@@ -108,44 +104,21 @@ export function TicketRealtimeView({ initialTicket, dict }: RealTimeProps) {
     return () => { supabase.removeChannel(ch) }
   }, [ticket.id, supabase, router])
 
-  const triggerDownload = (url: string, name: string) => {
-    const a = document.createElement('a')
-    a.href = url; a.setAttribute('download', name); a.rel = 'noopener noreferrer'
-    document.body.appendChild(a); a.click(); document.body.removeChild(a)
-  }
-
-  const handleProjectDownload = async () => {
-    if (!ticket.qupath_project || dlProject) return
-    setDlProject(true)
-    try {
-      const res = await getTicketProjectDownloadUrl(ticket.id)
-      if (res.success && 'url' in res && res.url) triggerDownload(res.url, 'qupath_project.zip')
-    } finally { setDlProject(false) }
-  }
-
-  const handleRegionDownload = async () => {
-    if (!ticket.output_region || dlRegion) return
-    setDlRegion(true)
-    try {
-      const res = await getRegionDownloadUrl(ticket.id)
-      if (res.success && 'url' in res && res.url) triggerDownload(res.url, 'output_regions.zip')
-    } finally { setDlRegion(false) }
-  }
-
-  const stats = ticket.ai_results?.summary
+  // Tissue analysis stats (rinominato da ai_results)
+  const stats       = ticket.tissue?.summary ?? ticket.ai_results?.summary
+  const annotations = ticket.annotations
+  const annotCount  = annotations?.features?.length ?? 0
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
 
-      {/* ── Main unified status + result box ── */}
+      {/* ── Box principale status + risultati ── */}
       <div className={`border ${cfg.border} overflow-hidden`}>
 
-        {/* Header: always shows the 4 step indicators */}
+        {/* Header: step indicators */}
         <div className={`${cfg.headerBg} px-8 py-5 border-b ${cfg.border}`}>
           <div className="relative flex items-start justify-between">
-            {/* Track base */}
             <div className="absolute top-3.5 inset-x-3 h-px bg-gray-200 z-0" />
-            {/* Track fill — error uses muted red across full width */}
             <div
               className={`absolute top-3.5 left-3 h-px z-0 transition-all duration-700 ${
                 isError ? 'bg-red-200' : cfg.track
@@ -164,7 +137,6 @@ export function TicketRealtimeView({ initialTicket, dict }: RealTimeProps) {
               const active = !isError && i === currentIdx
               return (
                 <div key={step.id} className="relative flex flex-col items-center gap-2.5 flex-1 z-10">
-                  {/* Dot */}
                   <div className={`w-7 h-7 flex items-center justify-center border transition-all duration-500 ${
                     isError  ? 'border-red-200 bg-red-50/80' :
                     done     ? `${cfg.dotDone} text-white` :
@@ -175,7 +147,6 @@ export function TicketRealtimeView({ initialTicket, dict }: RealTimeProps) {
                     {!isError && done   && <Check className="w-3.5 h-3.5 text-white" />}
                     {!isError && active && <div className={`w-2.5 h-2.5 ${cfg.pulse} animate-pulse`} />}
                   </div>
-                  {/* Label — line-through when error */}
                   <span className={`text-[10px] font-bold uppercase tracking-widest text-center transition-colors ${
                     isError  ? 'line-through text-red-200' :
                     active   ? cfg.label :
@@ -205,28 +176,18 @@ export function TicketRealtimeView({ initialTicket, dict }: RealTimeProps) {
                   >
                     <Maximize2 className="w-3.5 h-3.5" /> {t.openViewer}
                   </Link>
-                  <button
-                    onClick={handleProjectDownload}
-                    disabled={dlProject || !ticket.qupath_project}
-                    className="btn-elegant-soft flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-medium disabled:opacity-40"
-                  >
-                    {dlProject ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FolderArchive className="w-3.5 h-3.5" />}
-                    {t.downloadQupath}
-                  </button>
-                  <button
-                    onClick={handleRegionDownload}
-                    disabled={dlRegion || !ticket.output_region}
-                    className="btn-elegant-soft flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-medium disabled:opacity-40"
-                  >
-                    {dlRegion ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                    {t.downloadRegion}
-                  </button>
+                  {annotCount > 0 && (
+                    <div className="btn-elegant-soft flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-medium opacity-70 cursor-default">
+                      <MapPin className="w-3.5 h-3.5" />
+                      {annotCount} {annotCount === 1 ? 'annotazione' : 'annotazioni'}
+                    </div>
+                  )}
                 </div>
               </div>
 
               {stats && (
                 <div className="border-t border-current/10 pt-6">
-                  <h4 className={`text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 mb-4 opacity-60`}>
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 mb-4 opacity-60">
                     <Activity className="w-3.5 h-3.5" /> {t.tissueStats}
                   </h4>
                   <div className="grid grid-cols-3 gap-3">
@@ -276,14 +237,18 @@ export function TicketRealtimeView({ initialTicket, dict }: RealTimeProps) {
         </div>
       </div>
 
-      {/* ── Bottom 2 boxes: source + notes ── */}
+      {/* ── Box inferiori: info analisi + note ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
         <div className="bg-white border border-gray-200 p-6">
           <h3 className="font-bold text-xs text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
             <HardDrive className="w-3.5 h-3.5" /> {t.sourceData}
           </h3>
-          <p className="font-mono break-all bg-gray-50 p-2 border border-gray-200 text-xs mb-3">{ticket.file_name}</p>
+          <div className="bg-gray-50 p-3 border border-gray-200 mb-3">
+            <p className="font-mono text-xs text-gray-500">
+              #{ticket.id.slice(0, 8).toUpperCase()}
+            </p>
+          </div>
           <div className="flex justify-between text-xs text-gray-500 font-medium">
             <span>{(ticket.file_size / (1024 * 1024)).toFixed(2)} MB</span>
             <span suppressHydrationWarning>{new Date(ticket.created_at).toLocaleDateString()}</span>

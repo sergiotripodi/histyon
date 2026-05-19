@@ -7,17 +7,17 @@ import { getPresignedUploadUrl, confirmUpload } from '@/lib/actions/storage'
 
 interface UploaderProps {
   patientId: string
-  dict: any
+  dict:      any
 }
 
 export function InlineFileUploader({ patientId, dict }: UploaderProps) {
-  const router = useRouter()
-  const [file, setFile] = useState<File | null>(null)
-  const [notes, setNotes] = useState('')
-  const [progress, setProgress] = useState(0)
-  const [status, setStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle')
+  const router      = useRouter()
+  const [file, setFile]             = useState<File | null>(null)
+  const [notes, setNotes]           = useState('')
+  const [progress, setProgress]     = useState(0)
+  const [status, setStatus]         = useState<'idle' | 'uploading' | 'success' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState('')
-  const t = dict.dashboard.upload
+  const t           = dict.dashboard.upload
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -31,30 +31,51 @@ export function InlineFileUploader({ patientId, dict }: UploaderProps) {
   const startUpload = async () => {
     if (!file) return
     setStatus('uploading')
+    setProgress(0)
     try {
+      // Ottieni la signed upload URL da Supabase Storage (server action)
       const presignedRes = await getPresignedUploadUrl(file.name, file.type, file.size, patientId, notes)
-      if (presignedRes.error || !presignedRes.url) throw new Error(presignedRes.error || dict.validation.uploadError)
+      if (presignedRes.error || !presignedRes.url) {
+        throw new Error(presignedRes.error || dict.validation.uploadError)
+      }
 
-      const xhr = new XMLHttpRequest()
-      xhr.open('PUT', presignedRes.url, true)
-      xhr.setRequestHeader('Content-Type', file.type)
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100))
-      }
-      xhr.onload = async () => {
-        if (xhr.status === 200) {
-          await confirmUpload(presignedRes.ticketId)
-          setStatus('success')
-          router.refresh()
-          setTimeout(() => { setFile(null); setNotes(''); setStatus('idle'); setProgress(0); if (fileInputRef.current) fileInputRef.current.value = '' }, 2000)
-        } else {
-          setStatus('error'); setErrorMessage(dict.validation.cloudflareError)
+      // Upload diretto a Supabase Storage via XHR (con progress tracking)
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        // Supabase signed upload URL — metodo PUT, Content-Type corretto
+        xhr.open('PUT', presignedRes.url, true)
+        xhr.setRequestHeader('Content-Type', presignedRes.contentType ?? file.type)
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100))
         }
-      }
-      xhr.onerror = () => { setStatus('error'); setErrorMessage(dict.validation.networkError) }
-      xhr.send(file)
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve()
+          } else {
+            reject(new Error(`Upload failed: ${xhr.status}`))
+          }
+        }
+
+        xhr.onerror = () => reject(new Error(dict.validation.networkError))
+        xhr.send(file)
+      })
+
+      // Segna il ticket come QUEUED
+      await confirmUpload(presignedRes.ticketId)
+      setStatus('success')
+      router.refresh()
+      setTimeout(() => {
+        setFile(null)
+        setNotes('')
+        setStatus('idle')
+        setProgress(0)
+        if (fileInputRef.current) fileInputRef.current.value = ''
+      }, 2000)
     } catch (err: any) {
-      setStatus('error'); setErrorMessage(err.message)
+      setStatus('error')
+      setErrorMessage(err.message || dict.validation.genericError)
     }
   }
 
@@ -65,8 +86,8 @@ export function InlineFileUploader({ patientId, dict }: UploaderProps) {
         className={`relative w-full border-2 border-dashed p-6 flex flex-col items-center justify-center transition-all bg-white
           ${status === 'uploading' ? 'border-gray-300 cursor-wait bg-gray-50' : ''}
           ${status === 'idle' && !file ? 'border-gray-300 hover:border-black hover:bg-gray-50 cursor-pointer h-40' : 'border-gray-300'}
-          ${status === 'success' ? 'border-emerald-400 bg-emerald-50/40 h-40' : ''}
-          ${status === 'error' ? 'border-red-300 bg-red-50/40 h-40' : ''}
+          ${status === 'success'  ? 'border-emerald-400 bg-emerald-50/40 h-40' : ''}
+          ${status === 'error'    ? 'border-red-300 bg-red-50/40 h-40' : ''}
         `}
       >
         <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" disabled={status !== 'idle'} />
@@ -91,7 +112,12 @@ export function InlineFileUploader({ patientId, dict }: UploaderProps) {
                 <p className="font-bold text-sm text-gray-900 truncate">{file.name}</p>
                 <p className="text-xs text-gray-500">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
               </div>
-              <button onClick={(e) => { e.stopPropagation(); setFile(null) }} className="text-xs text-red-500 hover:underline px-2">{t.remove}</button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setFile(null) }}
+                className="text-xs text-red-500 hover:underline px-2"
+              >
+                {t.remove}
+              </button>
             </div>
             <div className="relative">
               <div className="absolute top-3 left-3 text-gray-400">
@@ -105,7 +131,10 @@ export function InlineFileUploader({ patientId, dict }: UploaderProps) {
                 onClick={(e) => e.stopPropagation()}
               />
             </div>
-            <button onClick={(e) => { e.stopPropagation(); startUpload() }} className="btn-elegant w-full px-6 py-3 text-sm font-bold">
+            <button
+              onClick={(e) => { e.stopPropagation(); startUpload() }}
+              className="btn-elegant w-full px-6 py-3 text-sm font-bold"
+            >
               <UploadCloud className="w-4 h-4" /> {t.btnStart}
             </button>
           </div>
@@ -137,7 +166,12 @@ export function InlineFileUploader({ patientId, dict }: UploaderProps) {
             <AlertCircle className="w-10 h-10 text-red-600 mb-2" />
             <p className="font-bold text-red-700">{t.errorTitle}</p>
             <p className="text-xs text-red-600 mt-1 max-w-xs text-center">{errorMessage}</p>
-            <button onClick={(e) => { e.stopPropagation(); setStatus('idle') }} className="mt-4 text-xs font-bold underline text-red-700">{t.retry}</button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setStatus('idle') }}
+              className="mt-4 text-xs font-bold underline text-red-700"
+            >
+              {t.retry}
+            </button>
           </div>
         )}
       </div>

@@ -17,6 +17,7 @@ export function isAllowedAssetUrl(urlString: string): boolean {
       if (host === 'localhost' || host === '127.0.0.1') return true
     }
 
+    // Host espliciti aggiuntivi (es. custom CDN)
     const extra = (process.env.NEXT_PUBLIC_ALLOWED_ASSET_HOSTS || '')
       .split(',')
       .map((s) => s.trim().toLowerCase())
@@ -25,6 +26,7 @@ export function isAllowedAssetUrl(urlString: string): boolean {
       if (host === h || host.endsWith('.' + h)) return true
     }
 
+    // Supabase Storage pubblico (bucket histyon-dzi)
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     if (supabaseUrl) {
       try {
@@ -34,6 +36,7 @@ export function isAllowedAssetUrl(urlString: string): boolean {
       }
     }
 
+    // Dominio del sito
     const site = process.env.NEXT_PUBLIC_SITE_URL
     if (site) {
       try {
@@ -43,12 +46,8 @@ export function isAllowedAssetUrl(urlString: string): boolean {
       }
     }
 
-    if (host.endsWith('.r2.cloudflarestorage.com')) return true
-    if (host.endsWith('.r2.dev')) return true
-
     return false
   } catch {
     return false
   }
 }
-

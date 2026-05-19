@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 
-// Called by the processing pipeline when a job finishes.
-// Reports output file sizes so the dashboard can show accurate storage usage.
-// Protected by a shared secret set in WEBHOOK_SECRET env var.
+// Chiamato dallo script Python AI al termine dell'elaborazione.
+// Aggiorna il DB con: status, path DZI in Supabase Storage, annotazioni vettoriali (JSONB).
+// Protetto da WEBHOOK_SECRET in Authorization header.
 
 export async function POST(request: Request) {
   const secret = process.env.WEBHOOK_SECRET
@@ -16,14 +16,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  let body: { ticketId?: string; outputFileSizeBytes?: number; status?: string }
+  let body: {
+    ticketId?:    string
+    status?:      string
+    dzi_path?:    string      // path nel bucket histyon-dzi, es. {userId}/{patientId}/{ticketId}.dzi
+    tissue?:      unknown     // JSONB analisi tessuto
+    annotations?: unknown     // JSONB annotazioni vettoriali (GeoJSON FeatureCollection)
+  }
+
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { ticketId, outputFileSizeBytes, status } = body
+  const { ticketId, status, dzi_path, tissue, annotations } = body
 
   if (!ticketId || typeof ticketId !== 'string' || !/^[0-9a-f-]{36}$/i.test(ticketId)) {
     return NextResponse.json({ error: 'Invalid ticketId' }, { status: 400 })
@@ -36,14 +43,24 @@ export async function POST(request: Request) {
   )
 
   const update: Record<string, unknown> = {}
-  if (typeof outputFileSizeBytes === 'number' && outputFileSizeBytes >= 0) {
-    update.output_file_size = outputFileSizeBytes
-  }
+
   if (status) {
     const normalized = ['FAILED_ANALYSIS', 'FAILED', 'FAIL'].includes(status) ? 'ERROR' : status
     if (['COMPLETED', 'ERROR', 'PROCESSING'].includes(normalized)) {
       update.status = normalized
     }
+  }
+
+  if (typeof dzi_path === 'string' && dzi_path.trim().length > 0) {
+    update.output_dzi = dzi_path.trim()
+  }
+
+  if (tissue !== undefined && tissue !== null) {
+    update.tissue = tissue
+  }
+
+  if (annotations !== undefined && annotations !== null) {
+    update.annotations = annotations
   }
 
   if (Object.keys(update).length === 0) {

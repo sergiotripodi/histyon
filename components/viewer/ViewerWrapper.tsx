@@ -1,12 +1,25 @@
 'use client'
 
 import dynamic from 'next/dynamic'
+import type { Annotations } from '@/types'
 
 const OpenSeadragonViewer = dynamic(
   () => import('./OpenSeadragonViewer'),
   { ssr: false }
 )
 
-export default function ViewerWrapper({ dziUrl, loadingText }: { dziUrl: string; loadingText?: string }) {
-  return <OpenSeadragonViewer dziUrl={dziUrl} loadingText={loadingText} />
+interface Props {
+  dziUrl:       string
+  annotations?: Annotations | null
+  loadingText?: string
+}
+
+export default function ViewerWrapper({ dziUrl, annotations, loadingText }: Props) {
+  return (
+    <OpenSeadragonViewer
+      dziUrl={dziUrl}
+      annotations={annotations}
+      loadingText={loadingText}
+    />
+  )
 }
