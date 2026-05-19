@@ -32,6 +32,10 @@ function sumBytes(files: { size: number }[]): number {
 // Usabile sia nella dashboard del singolo dottore che in quella admin.
 // Cachato 1h — la listing ricorsiva può essere lenta su molte tile.
 
+export function doctorStorageTag(doctorId: string) {
+  return `storage-doctor-${doctorId}`
+}
+
 export function getDoctorStorage(doctorId: string): Promise<StorageStats> {
   return unstable_cache(
     async (): Promise<StorageStats> => {
@@ -44,7 +48,7 @@ export function getDoctorStorage(doctorId: string): Promise<StorageStats> {
       return { inputBytes, dziBytes, totalBytes: inputBytes + dziBytes }
     },
     [`storage-doctor-${doctorId}`],
-    { revalidate: 3600 }
+    { revalidate: 3600, tags: [doctorStorageTag(doctorId), 'storage-all'] }
   )()
 }
 
@@ -72,7 +76,7 @@ export function getAllDoctorsStorage(): Promise<DoctorStorageRow[]> {
       )
     },
     ['storage-all-doctors'],
-    { revalidate: 3600 }
+    { revalidate: 3600, tags: ['storage-all'] }
   )()
 }
 
@@ -92,6 +96,6 @@ export function getTotalStorage(): Promise<StorageStats> {
       )
     },
     ['storage-total'],
-    { revalidate: 3600 }
+    { revalidate: 3600, tags: ['storage-all'] }
   )()
 }

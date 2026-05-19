@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
+import { revalidateTag } from 'next/cache'
+import { doctorStorageTag } from '@/lib/usage/storage'
 
 // Chiamato dallo script Python AI al termine dell'elaborazione.
 // Aggiorna il DB con: status, results (analisi AI), annotations (GeoJSON).
@@ -76,7 +78,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'DB error' }, { status: 500 })
   }
 
-  // Su COMPLETED: logga l'egress del download AI (il file originale è stato scaricato 1 volta)
+  // Su COMPLETED: logga egress del download AI + invalida cache storage
   if (normalizedStatus === 'COMPLETED') {
     void (async () => {
       try {
@@ -86,13 +88,18 @@ export async function POST(request: Request) {
           .eq('id', ticketId)
           .single()
 
-        if (ticket?.doctor_id && ticket?.input_bytes && ticket.input_bytes > 0) {
-          await supabase.from('egress_logs').insert({
-            doctor_id: ticket.doctor_id,
-            ticket_id: ticketId,
-            source:    'input_download',
-            bytes:     ticket.input_bytes,
-          })
+        if (ticket?.doctor_id) {
+          if (ticket.input_bytes && ticket.input_bytes > 0) {
+            await supabase.from('egress_logs').insert({
+              doctor_id: ticket.doctor_id,
+              ticket_id: ticketId,
+              source:    'input_download',
+              bytes:     ticket.input_bytes,
+            })
+          }
+          // Invalida la cache storage: il DZI è appena stato scritto
+          revalidateTag(doctorStorageTag(ticket.doctor_id))
+          revalidateTag('storage-all')
         }
       } catch {
         // non-critical
