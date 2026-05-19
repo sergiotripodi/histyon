@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
-import { revalidateTag } from 'next/cache'
-import { doctorStorageTag } from '@/lib/usage/storage'
+import { revalidatePath } from 'next/cache'
 
-// Chiamato dallo script Python AI al termine dell'elaborazione.
+// Chiamato dal DB trigger (pg_net) quando un ticket diventa COMPLETED.
 // Aggiorna il DB con: status, results (analisi AI), annotations (GeoJSON).
 // Su COMPLETED: logga l'egress del download AI (input_bytes del ticket → egress_logs).
 // Protetto da WEBHOOK_SECRET in Authorization header.
@@ -56,13 +55,8 @@ export async function POST(request: Request) {
     }
   }
 
-  if (results !== undefined && results !== null) {
-    update.results = results
-  }
-
-  if (annotations !== undefined && annotations !== null) {
-    update.annotations = annotations
-  }
+  if (results !== undefined && results !== null) update.results = results
+  if (annotations !== undefined && annotations !== null) update.annotations = annotations
 
   if (Object.keys(update).length === 0) {
     return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
@@ -78,8 +72,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'DB error' }, { status: 500 })
   }
 
-  // Su COMPLETED: logga egress del download AI + invalida cache storage
   if (normalizedStatus === 'COMPLETED') {
+    // Invalida la cache delle dashboard — il DZI è appena stato scritto
+    revalidatePath('/ops-histyon-console', 'layout')
+    revalidatePath('/dashboard', 'layout')
+
+    // Logga egress download AI in fire-and-forget (non-critical)
     void (async () => {
       try {
         const { data: ticket } = await supabase
@@ -88,18 +86,13 @@ export async function POST(request: Request) {
           .eq('id', ticketId)
           .single()
 
-        if (ticket?.doctor_id) {
-          if (ticket.input_bytes && ticket.input_bytes > 0) {
-            await supabase.from('egress_logs').insert({
-              doctor_id: ticket.doctor_id,
-              ticket_id: ticketId,
-              source:    'input_download',
-              bytes:     ticket.input_bytes,
-            })
-          }
-          // Invalida la cache storage: il DZI è appena stato scritto
-          revalidateTag(doctorStorageTag(ticket.doctor_id), 'hours')
-          revalidateTag('storage-all', 'hours')
+        if (ticket?.doctor_id && ticket?.input_bytes && ticket.input_bytes > 0) {
+          await supabase.from('egress_logs').insert({
+            doctor_id: ticket.doctor_id,
+            ticket_id: ticketId,
+            source:    'input_download',
+            bytes:     ticket.input_bytes,
+          })
         }
       } catch {
         // non-critical
