@@ -11,6 +11,8 @@ interface PaymentBannerProps {
   nextPaymentDate: string | null
   nextPaymentAmount: number
   nextPaymentLabel: string | null
+  nextPaymentExtraCount?: number
+  nextPaymentIsEstimated?: boolean
 }
 
 export function PaymentBanner({
@@ -19,11 +21,17 @@ export function PaymentBanner({
   nextPaymentDate,
   nextPaymentAmount,
   nextPaymentLabel,
+  nextPaymentExtraCount = 0,
+  nextPaymentIsEstimated = false,
 }: PaymentBannerProps) {
   const motionAccrued = useMotionValue(0)
   const motionAllTime = useMotionValue(0)
   const [displayAccrued, setDisplayAccrued] = useState('$0.00')
   const [displayAllTime, setDisplayAllTime] = useState('$0.00')
+  const isEstimated = nextPaymentIsEstimated || nextPaymentDate === 'stimato'
+  const paymentMeta = [nextPaymentLabel, nextPaymentDate && nextPaymentDate !== 'stimato' ? nextPaymentDate : null]
+    .filter(Boolean)
+    .join(' · ')
 
   useEffect(() => {
     const u1 = motionAccrued.on('change', v => setDisplayAccrued(`$${v.toFixed(2)}`))
@@ -68,15 +76,26 @@ export function PaymentBanner({
           <div className="h-10 w-px bg-gray-100 shrink-0" />
 
           {/* Next payment */}
-          <div className="flex-1">
+          <div className={`flex-1 ${isEstimated ? 'bg-amber-50/55 border border-amber-100 px-4 py-3' : ''}`}>
             <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-0.5">
               Prossimo pagamento
             </p>
-            {nextPaymentDate ? (
-              <p className="text-sm font-semibold text-gray-900 leading-tight">
-                {nextPaymentLabel ?? 'Scadenza'} — <span className="font-bold">${nextPaymentAmount.toFixed(2)}</span>
-                <span className="text-gray-400 font-normal ml-2 text-xs">{nextPaymentDate}</span>
-              </p>
+            {nextPaymentDate || nextPaymentLabel ? (
+              <div>
+                <p className="text-2xl font-bold tabular-nums text-gray-900 leading-none">
+                  ${nextPaymentAmount.toFixed(2)}
+                  {nextPaymentExtraCount > 0 && (
+                    <span className="ml-2 align-top text-[10px] font-bold text-gray-400">
+                      +{nextPaymentExtraCount}
+                    </span>
+                  )}
+                </p>
+                {paymentMeta && (
+                  <p className="text-[11px] text-gray-400 mt-1 truncate">
+                    {paymentMeta}
+                  </p>
+                )}
+              </div>
             ) : (
               <p className="text-sm text-gray-400">Nessun pagamento pianificato</p>
             )}

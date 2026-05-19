@@ -1,10 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { Logo } from '@/components/ui/Logo'
 import {
-  LayoutDashboard, Users, Activity, Server,
+  LayoutDashboard, Users, Server,
   Database, Shield, CreditCard, LogOut
 } from 'lucide-react'
 import { adminLogout } from '@/lib/actions/admin-auth'
@@ -13,7 +13,6 @@ import { useTransition } from 'react'
 const navItems = [
   { href: '/ops-histyon-console/dashboard',           icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/ops-histyon-console/dashboard/users',     icon: Users,           label: 'Utenti' },
-  { href: '/ops-histyon-console/dashboard/analyses',  icon: Activity,        label: 'Analisi' },
   { href: '/ops-histyon-console/dashboard/vercel',    icon: Server,          label: 'Vercel' },
   { href: '/ops-histyon-console/dashboard/supabase',  icon: Database,        label: 'Supabase' },
   { href: '/ops-histyon-console/dashboard/cloudflare',icon: Shield,          label: 'Cloudflare' },

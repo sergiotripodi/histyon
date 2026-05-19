@@ -51,7 +51,7 @@ export function AdminStatCard({ label, value, sparkline, subtitle, format = 'num
   }, [value, formatter])
 
   const inner = (
-    <div className={`border border-gray-200 bg-white p-6 flex flex-col gap-5 transition-colors duration-200 min-h-0 ${href ? 'group hover:border-gray-400 cursor-pointer' : ''}`}>
+    <div className={`h-full min-h-[154px] border border-gray-200 bg-white p-6 flex flex-col justify-between gap-5 transition-colors duration-200 ${href ? 'group hover:border-gray-400 cursor-pointer' : ''}`}>
       <div className="flex items-start justify-between gap-2">
         <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 leading-tight">{label}</p>
         {href && <ArrowRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-600 transition-colors shrink-0 mt-0.5" />}

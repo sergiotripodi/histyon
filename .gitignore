@@ -40,3 +40,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .env*.local
+
+# Claude Code worktrees & IDE
+.claude/worktrees/
+.claude/launch.json
+.cursor/
