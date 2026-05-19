@@ -29,8 +29,8 @@ ALTER TABLE public.tickets ADD COLUMN IF NOT EXISTS annotations JSONB;
 ALTER TABLE public.tickets ADD COLUMN IF NOT EXISTS tissue JSONB;
 
 -- I path di storage ora puntano a Supabase Storage (non più R2)
--- input_file  → path nel bucket 'histyon-input'  es. {userId}/{patientId}/{ticketId}
--- output_dzi  → path nel bucket 'histyon-dzi'    es. {userId}/{patientId}/{ticketId}.dzi
+-- input_file  → path nel bucket 'scottea-input'  es. {userId}/{patientId}/{ticketId}
+-- output_dzi  → path nel bucket 'scottea-dzi'    es. {userId}/{patientId}/{ticketId}.dzi
 -- (nessuna modifica strutturale al tipo, solo semantica del valore)
 
 -- ─── 2. PATIENTS TABLE ───────────────────────────────────────────────────────
@@ -113,27 +113,27 @@ CREATE POLICY "profiles_delete_own" ON public.profiles
 -- ─── 4. SUPABASE STORAGE BUCKETS ─────────────────────────────────────────────
 -- Eseguire manualmente dalla Supabase Dashboard o via API Management se non esistono:
 --
--- Bucket: histyon-input  (PRIVATO) – file originali temporanei caricati dai medici
+-- Bucket: scottea-input  (PRIVATO) – file originali temporanei caricati dai medici
 --   • public: false
 --   • file_size_limit: 5368709120  (5 GB)
 --   • allowed_mime_types: ['application/octet-stream', 'image/tiff', 'image/jpeg', 'image/png', 'image/webp']
 --
--- Bucket: histyon-dzi    (PUBBLICO) – tiles DZI generate dall'AI, path UUID-based
+-- Bucket: scottea-dzi    (PUBBLICO) – tiles DZI generate dall'AI, path UUID-based
 --   • public: true
 --   • file_size_limit: null (nessun limite lato bucket, controllato dall'AI)
 --
 -- ─── 5. STORAGE RLS POLICIES ─────────────────────────────────────────────────
 -- Da applicare via Supabase Dashboard → Storage → Policies
 
--- histyon-input: solo il medico proprietario può caricare/leggere/cancellare i propri file
+-- scottea-input: solo il medico proprietario può caricare/leggere/cancellare i propri file
 -- Path convention: {userId}/{patientId}/{ticketId}
 
--- histyon-input SELECT (il service role può sempre leggere, usato dall'AI)
--- histyon-input INSERT: auth.uid()::text = (storage.foldername(name))[1]
--- histyon-input DELETE: auth.uid()::text = (storage.foldername(name))[1]
+-- scottea-input SELECT (il service role può sempre leggere, usato dall'AI)
+-- scottea-input INSERT: auth.uid()::text = (storage.foldername(name))[1]
+-- scottea-input DELETE: auth.uid()::text = (storage.foldername(name))[1]
 
--- histyon-dzi è pubblico → nessuna policy SELECT necessaria
--- histyon-dzi INSERT/DELETE: solo service role (l'AI usa service role key)
+-- scottea-dzi è pubblico → nessuna policy SELECT necessaria
+-- scottea-dzi INSERT/DELETE: solo service role (l'AI usa service role key)
 
 -- ─── 6. INDICI UTILI ─────────────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_tickets_doctor_id   ON public.tickets(doctor_id);

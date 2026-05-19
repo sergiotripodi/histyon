@@ -2,8 +2,8 @@
 
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 
-export const INPUT_BUCKET  = 'histyon-input'
-export const DZI_BUCKET    = 'histyon-dzi'
+export const INPUT_BUCKET  = 'scottea-input'
+export const DZI_BUCKET    = 'scottea-dzi'
 
 /** Admin client con service role — usato solo server-side per operazioni storage privilegiate. */
 function adminClient() {
