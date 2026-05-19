@@ -107,21 +107,23 @@ export async function deleteTicket(ticketId: string) {
 
   const { data: ticket } = await supabase
     .from('tickets')
-    .select('id, doctor_id, patient_id, input_file, output_dzi')
+    .select('id, doctor_id, patient_id')
     .eq('id', ticketId)
     .eq('doctor_id', user.id)
     .maybeSingle()
 
   if (!ticket) return { error: dictionary.validation.unauthorized }
 
-  // Elimina file da Supabase Storage
-  try {
-    const inputPaths = [ticket.input_file].filter(Boolean) as string[]
-    const dziPaths   = [ticket.output_dzi].filter(Boolean) as string[]
+  // Path deterministici — derivati da doctor_id/patient_id/ticketId senza leggere colonne storage
+  const inputPath = `${user.id}/${ticket.patient_id}/${ticketId}`
+  const dziPath   = `${user.id}/${ticket.patient_id}/${ticketId}.dzi`
+  const dziPrefix = `${user.id}/${ticket.patient_id}/${ticketId}_files`
 
+  try {
     await Promise.all([
-      deleteSupabaseFiles(INPUT_BUCKET, inputPaths),
-      deleteSupabaseFiles(DZI_BUCKET,   dziPaths),
+      deleteSupabaseFiles(INPUT_BUCKET, [inputPath]),
+      deleteSupabaseFiles(DZI_BUCKET,   [dziPath]),
+      deleteSupabasePrefix(DZI_BUCKET,  dziPrefix),
     ])
   } catch (err) {
     console.error('deleteTicket storage cleanup:', err)

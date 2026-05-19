@@ -40,7 +40,7 @@ export async function getPresignedUploadUrl(
   fileType: string,
   fileSize: number,
   patientId: string,
-  notes: string = ''
+  notes: string = '',
 ) {
   const supabase = await createClient()
 
@@ -88,8 +88,6 @@ export async function getPresignedUploadUrl(
       id:         ticketId,
       doctor_id:  user.id,
       patient_id: patientId,
-      input_file: storagePath,
-      file_size:  fileSize,
       status:     'UPLOADING',
       notes:      normalizeNotes(notes),
     })

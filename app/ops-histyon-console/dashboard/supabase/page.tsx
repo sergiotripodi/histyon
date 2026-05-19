@@ -61,14 +61,12 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
   const [
     { count: totalUsers },
     { count: totalAnalyses },
-    { data: storageData },
   ] = await Promise.all([
     supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }).neq('role', 'admin'),
     supabaseAdmin.from('tickets').select('*', { count: 'exact', head: true }),
-    supabaseAdmin.from('tickets').select('file_size'),
   ])
 
-  const appStorageBytes = (storageData ?? []).reduce((s, t) => s + ((t as any).file_size ?? 0), 0)
+  const appStorageBytes = 0 // file_size removed from tickets table
 
   const plan = org?.plan ?? 'free'
   const isPro = plan === 'pro'

@@ -120,11 +120,10 @@ export default async function AdminCloudflarePage({ searchParams }: { searchPara
 
   const { account, subscriptions, zones, billingHistory, monthBilling, r2StorageBytes, r2ClassA, r2ClassB } = await fetchCloudflareData(monthStr)
 
-  const [{ count: totalFiles }, { data: storageData }] = await Promise.all([
+  const [{ count: totalFiles }] = await Promise.all([
     supabaseAdmin.from('tickets').select('*', { count: 'exact', head: true }),
-    supabaseAdmin.from('tickets').select('file_size'),
   ])
-  const totalStorageBytes = (storageData ?? []).reduce((s, t) => s + ((t as any).file_size ?? 0), 0)
+  const totalStorageBytes = 0 // file_size removed from tickets table
 
   const R2_FREE_STORAGE = 10 * 1024 * 1024 * 1024
   const R2_FREE_CLASS_A = 1_000_000

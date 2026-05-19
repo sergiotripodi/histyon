@@ -80,7 +80,7 @@ export default async function AdminDashboardPage() {
     cfPlan,
   ] = await Promise.all([
     supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }).neq('role', 'admin'),
-    supabaseAdmin.from('tickets').select('created_at, file_size, status').order('created_at', { ascending: true }),
+    supabaseAdmin.from('tickets').select('created_at, status').order('created_at', { ascending: true }),
     supabaseAdmin.from('profiles').select('created_at').gte('created_at', thirtyDaysAgo).neq('role', 'admin'),
     supabaseAdmin.from('tickets').select('created_at, status').gte('created_at', thirtyDaysAgo),
     getVercelPlan(),
@@ -89,7 +89,7 @@ export default async function AdminDashboardPage() {
 
   const tickets = allTickets ?? []
   const completedTickets = tickets.filter(t => t.status === 'COMPLETED')
-  const totalStorage = tickets.reduce((s, t) => s + (t.file_size ?? 0), 0)
+  const totalStorage = 0 // file_size removed from tickets table
 
   const last7 = last30.slice(-7)
   const sevenDaysAgo = `${last7[0]}T00:00:00.000Z`
@@ -102,8 +102,7 @@ export default async function AdminDashboardPage() {
   const completedSparkline = groupByDay(recentCompleted7, last7)
   const storageSparkline = groupByDay(
     (recentTickets ?? []).filter(r => r.created_at >= sevenDaysAgo),
-    last7,
-    t => (t as any).file_size ?? 0
+    last7
   )
 
   const today = new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })

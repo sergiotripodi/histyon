@@ -51,21 +51,15 @@ export interface Annotations {
 }
 
 export interface Ticket {
-  id:          string;
-  patient_id:  string;
-  doctor_id:   string;
-  status:      'UPLOADING' | 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'ERROR';
-  /** Path nel bucket Supabase Storage histyon-input: {userId}/{patientId}/{ticketId} */
-  input_file:  string;
-  file_size:   number;
-  /** Path nel bucket Supabase Storage histyon-dzi: {userId}/{patientId}/{ticketId}.dzi */
-  output_dzi?: string;
-  /** Dati analisi tessuto (statistiche AI) */
-  tissue?:     TissueAnalysis;
-  /** Annotazioni vettoriali AI (GeoJSON FeatureCollection) */
+  id:           string;
+  patient_id:   string;
+  doctor_id:    string;
+  status:       'UPLOADING' | 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'ERROR';
+  tissue?:      TissueAnalysis;
   annotations?: Annotations;
   ai_metadata?: Record<string, unknown>;
-  notes?:      string;
-  created_at:  string;
-  patients?:   Pick<Patient, 'first_name' | 'last_name'> | Pick<Patient, 'first_name' | 'last_name'>[];
+  notes?:       string;
+  created_at:   string;
+  updated_at?:  string;
+  patients?:    Pick<Patient, 'first_name' | 'last_name'> | Pick<Patient, 'first_name' | 'last_name'>[];
 }

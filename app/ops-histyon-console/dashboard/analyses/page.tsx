@@ -50,14 +50,14 @@ export default async function AdminAnalysesPage() {
   const since = `${days[0].key}T00:00:00.000Z`
 
   const [{ data: allTickets }, { data: recentTickets }] = await Promise.all([
-    supabaseAdmin.from('tickets').select('id, status, file_size, created_at').order('created_at', { ascending: false }),
-    supabaseAdmin.from('tickets').select('created_at, status, file_size').gte('created_at', since).order('created_at', { ascending: true }),
+    supabaseAdmin.from('tickets').select('id, status, created_at').order('created_at', { ascending: false }),
+    supabaseAdmin.from('tickets').select('created_at, status').gte('created_at', since).order('created_at', { ascending: true }),
   ])
 
   const tickets = allTickets ?? []
   const completed = tickets.filter(t => t.status === 'COMPLETED')
   const failed = tickets.filter(t => ['FAILED', 'ERROR'].includes(t.status ?? ''))
-  const totalStorage = tickets.reduce((s, t) => s + (t.file_size ?? 0), 0)
+  const totalStorage = 0 // file_size removed from tickets table
 
   const dayMap: Record<string, number> = {}
   const completedDayMap: Record<string, number> = {}
@@ -145,7 +145,7 @@ export default async function AdminAnalysesPage() {
                     {STATUS_LABELS[t.status ?? ''] ?? t.status ?? '—'}
                   </span>
                 </td>
-                <td className="px-6 py-3 text-gray-400 text-xs">{t.file_size ? formatBytes(t.file_size) : '—'}</td>
+                <td className="px-6 py-3 text-gray-400 text-xs">—</td>
                 <td className="px-6 py-3 text-gray-400 font-mono text-xs">
                   {new Date(t.created_at).toLocaleDateString('it-IT')}
                 </td>

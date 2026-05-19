@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 
 // Chiamato dallo script Python AI al termine dell'elaborazione.
-// Aggiorna il DB con: status, path DZI in Supabase Storage, annotazioni vettoriali (JSONB).
+// Aggiorna il DB con: status, tissue (analisi AI), annotazioni vettoriali (JSONB).
 // Protetto da WEBHOOK_SECRET in Authorization header.
+// Il path DZI è deterministico ({doctor_id}/{patient_id}/{ticketId}.dzi) — non serve trasmetterlo.
 
 export async function POST(request: Request) {
   const secret = process.env.WEBHOOK_SECRET
@@ -19,9 +20,8 @@ export async function POST(request: Request) {
   let body: {
     ticketId?:    string
     status?:      string
-    dzi_path?:    string      // path nel bucket histyon-dzi, es. {userId}/{patientId}/{ticketId}.dzi
-    tissue?:      unknown     // JSONB analisi tessuto
-    annotations?: unknown     // JSONB annotazioni vettoriali (GeoJSON FeatureCollection)
+    tissue?:      unknown
+    annotations?: unknown
   }
 
   try {
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { ticketId, status, dzi_path, tissue, annotations } = body
+  const { ticketId, status, tissue, annotations } = body
 
   if (!ticketId || typeof ticketId !== 'string' || !/^[0-9a-f-]{36}$/i.test(ticketId)) {
     return NextResponse.json({ error: 'Invalid ticketId' }, { status: 400 })
@@ -49,10 +49,6 @@ export async function POST(request: Request) {
     if (['COMPLETED', 'ERROR', 'PROCESSING'].includes(normalized)) {
       update.status = normalized
     }
-  }
-
-  if (typeof dzi_path === 'string' && dzi_path.trim().length > 0) {
-    update.output_dzi = dzi_path.trim()
   }
 
   if (tissue !== undefined && tissue !== null) {

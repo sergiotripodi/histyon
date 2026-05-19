@@ -4,12 +4,14 @@ import { createClient as createAdmin } from '@supabase/supabase-js'
 import { unstable_cache } from 'next/cache'
 import { DZI_BUCKET } from '@/lib/storage/supabase'
 
-// Proxy autenticato per le tile DZI — bucket scottea-dzi è PRIVATO.
+// Proxy autenticato per le tile DZI — bucket scottea-dzi PRIVATO.
 //
-// Performance: la verifica proprietà ticket (DB) viene cachata 1 ora
-// con unstable_cache. Tutte le tile successive dello stesso ticket
-// non fanno più query DB: solo auth cookie + signed URL (~10-20ms).
-// Le tile vengono servite da Supabase CDN tramite 302 redirect.
+// I path storage sono deterministici (nessuna colonna nel DB):
+//   dzi   → {doctor_id}/{patient_id}/{ticketId}.dzi
+//   tiles → {doctor_id}/{patient_id}/{ticketId}_files/{level}/{col}_{row}.jpg
+//
+// La query DB verifica solo ownership (doctor_id) e restituisce patient_id
+// per ricostruire il path. Risultato cachato 1h — zero query per tile successive.
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -21,22 +23,22 @@ function adminClient() {
   )
 }
 
-// Cached: 1 query DB per (ticket, medico) ogni ora.
-// Verifica sia l'ownership che recupera il path DZI in un solo round-trip.
-function getCachedDziPath(ticketId: string, userId: string) {
+// Cached: restituisce patient_id solo se il medico è proprietario del ticket.
+// 1 query DB per (ticket, medico) ogni ora.
+function getCachedPatientId(ticketId: string, userId: string) {
   return unstable_cache(
     async () => {
       const admin = adminClient()
       const { data } = await admin
         .from('tickets')
-        .select('output_dzi')
+        .select('patient_id')
         .eq('id', ticketId)
         .eq('doctor_id', userId)
         .maybeSingle()
-      return (data?.output_dzi as string) ?? null
+      return (data?.patient_id as string) ?? null
     },
     [`tile-auth-${ticketId}-${userId}`],
-    { revalidate: 3600 } // cache 1h — il path DZI non cambia dopo il processing
+    { revalidate: 3600 }
   )()
 }
 
@@ -50,33 +52,30 @@ export async function GET(
     return NextResponse.json({ error: 'Invalid ticket' }, { status: 400 })
   }
 
-  // Auth: legge il cookie di sessione Supabase
+  // Auth: sessione Supabase dal cookie
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // Verifica proprietà (dalla cache — nessuna query DB dopo la prima)
-  const dziPath = await getCachedDziPath(ticketId, user.id)
-  if (!dziPath) {
+  // Verifica ownership (dalla cache dopo il primo accesso)
+  const patientId = await getCachedPatientId(ticketId, user.id)
+  if (!patientId) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
-  // Costruisce il path completo nel bucket
-  // dziPath  = "{userId}/{patientId}/{uuid}.dzi"
-  // baseDir  = "{userId}/{patientId}/"
-  // filePath = "uuid.dzi" | "uuid_files/10/0_0.jpeg"
-  const baseDir  = dziPath.slice(0, dziPath.lastIndexOf('/') + 1)
+  // Path deterministico — nessuna colonna storage nel DB
+  // base = {doctor_id}/{patient_id}/
+  // file = {ticketId}.dzi | {ticketId}_files/{level}/{col}_{row}.jpg
   const filePath = path.join('/')
-
   if (filePath.includes('..')) {
     return NextResponse.json({ error: 'Invalid path' }, { status: 400 })
   }
 
-  const bucketPath = baseDir + filePath
+  const bucketPath = `${user.id}/${patientId}/${filePath}`
 
-  // Genera signed URL (60s) e reindirizza — Supabase CDN serve la tile
+  // Signed URL 60s → redirect al CDN Supabase
   const admin = adminClient()
   const { data: signed, error: signErr } = await admin.storage
     .from(DZI_BUCKET)

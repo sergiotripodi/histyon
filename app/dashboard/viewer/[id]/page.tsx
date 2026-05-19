@@ -16,19 +16,16 @@ export default async function ViewerPage(props: { params: Promise<{ id: string }
 
   const { data: ticket } = await supabase
     .from('tickets')
-    .select('id, output_dzi, annotations, patient_id, patients(first_name, last_name)')
+    .select('id, status, annotations, patient_id, patients(first_name, last_name)')
     .eq('id', id)
     .eq('doctor_id', user.id)
     .single()
 
-  if (!ticket || !ticket.output_dzi) redirect(`/dashboard/ticket/${id}`)
+  if (!ticket || ticket.status !== 'COMPLETED') redirect(`/dashboard/ticket/${id}`)
 
-  // Costruisce la URL del proxy autenticato.
-  // Il proxy è /api/tiles/{ticketId}/{filename} e serve sia il .dzi che le tile.
-  // Il bucket scottea-dzi è PRIVATO: zero URL pubbliche esposte al browser.
-  const dziStoragePath = String(ticket.output_dzi).trim()
-  const dziFilename    = dziStoragePath.split('/').pop() ?? 'slide.dzi'
-  const dziUrl         = `/api/tiles/${id}/${dziFilename}`
+  // Path DZI deterministico — il bucket scottea-dzi è PRIVATO: zero URL pubbliche esposte al browser.
+  // Il proxy autentica, verifica ownership e restituisce signed URL 60s.
+  const dziUrl = `/api/tiles/${id}/${id}.dzi`
 
   const patient     = Array.isArray(ticket.patients) ? ticket.patients[0] : ticket.patients
   const annotations = (ticket.annotations ?? null) as Annotations | null

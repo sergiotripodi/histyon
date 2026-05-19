@@ -81,10 +81,7 @@ export default async function DashboardHomePage() {
     ['QUEUED', 'PROCESSING', 'UPLOADING'].includes(t.status) && !isError(t.status)
   ).length
   const failed = tickets.filter((t) => isError(t.status)).length
-  const storageBytes = tickets.reduce(
-    (s, t) => s + (t.file_size ?? 0) + (t.output_file_size ?? 0),
-    0
-  )
+  const storageBytes = 0 // file_size removed — storage tracked via Supabase Storage API
 
   // Sparklines (7 days)
   const recentTickets = tickets.filter((t) => t.created_at >= sevenDaysAgo)
@@ -101,7 +98,7 @@ export default async function DashboardHomePage() {
     recentTickets.filter((t) => isError(t.status)),
     last7
   )
-  const storageSparkline = groupByDay(recentTickets, last7, (t) => t.file_size ?? 0)
+  const storageSparkline = groupByDay(recentTickets, last7)
   const patientSparkline = groupByDay(recentPatients ?? [], last7)
 
   // Weekly change

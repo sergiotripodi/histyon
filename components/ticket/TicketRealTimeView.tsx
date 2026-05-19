@@ -249,8 +249,7 @@ export function TicketRealtimeView({ initialTicket, dict }: RealTimeProps) {
               #{ticket.id.slice(0, 8).toUpperCase()}
             </p>
           </div>
-          <div className="flex justify-between text-xs text-gray-500 font-medium">
-            <span>{(ticket.file_size / (1024 * 1024)).toFixed(2)} MB</span>
+          <div className="flex justify-end text-xs text-gray-500 font-medium">
             <span suppressHydrationWarning>{new Date(ticket.created_at).toLocaleDateString()}</span>
           </div>
         </div>
