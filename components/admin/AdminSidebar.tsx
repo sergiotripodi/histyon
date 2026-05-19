@@ -38,12 +38,9 @@ export function AdminSidebar() {
     <aside className="fixed inset-y-0 left-0 w-[240px] bg-white border-r border-gray-200 flex flex-col z-40">
 
       {/* Logo */}
-      <div className="h-16 flex items-center gap-3 px-5 border-b border-gray-200 shrink-0">
-        <Link href="/ops-histyon-console/dashboard" className="hover:opacity-75 transition-opacity flex items-center gap-3">
-          <Logo color="black" className="[&_img]:h-6" />
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest border-l border-gray-200 pl-3">
-            Console
-          </span>
+      <div className="h-11 flex items-center px-5 border-b border-gray-200 shrink-0">
+        <Link href="/ops-histyon-console/dashboard" className="hover:opacity-75 transition-opacity">
+          <Logo color="black" className="[&_img]:h-5" />
         </Link>
       </div>
 

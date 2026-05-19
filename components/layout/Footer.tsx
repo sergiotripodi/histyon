@@ -13,8 +13,8 @@ export async function Footer() {
       <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-start gap-12">
         
         <div className="flex flex-col gap-8 max-w-sm">
-          <div className="origin-left scale-90 opacity-90">
-             <Logo color="black" />
+          <div className="opacity-90">
+             <Logo color="black" className="[&_img]:h-6" />
           </div>
           
           <div className="space-y-4">

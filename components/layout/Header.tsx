@@ -18,8 +18,8 @@ export async function Header({ variant = 'public' }: HeaderProps) {
         
         <div className="flex items-center gap-3">
           <Link href={user ? "/dashboard" : "/"} className="hover:opacity-80 transition-opacity flex items-center gap-2 md:gap-3">
-            <div className="scale-90 md:scale-100 origin-left">
-              <Logo color="black" />
+            <div>
+              <Logo color="black" className="[&_img]:h-5 md:[&_img]:h-7" />
             </div>
             {variant === 'dashboard' && (
                 <span className="hidden sm:block text-[10px] text-gray-400 font-medium uppercase tracking-widest border-l border-gray-200 pl-3 pt-0.5">
