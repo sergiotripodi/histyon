@@ -1,6 +1,6 @@
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 
-export const TISSUES_BUCKET = 'scottea-tissues'
+export const TISSUES_BUCKET = 'tissues'
 
 // ─── Path helpers ─────────────────────────────────────────────────────────────
 // Tutte le operazioni storage usano un unico bucket (scottea-tissues).
