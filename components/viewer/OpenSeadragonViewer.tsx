@@ -43,7 +43,7 @@ function renderFeature(feat: AnnotationFeature, idx: number) {
   }
 
   if (geom.type === 'MultiPolygon') {
-    const polys = geom.coordinates as number[][][][]
+    const polys = geom.coordinates as unknown as number[][][][]
     return (
       <g key={idx} className="annotation-feature">
         {title && <title>{title}</title>}

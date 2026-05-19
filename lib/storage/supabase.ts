@@ -1,5 +1,3 @@
-'use server'
-
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 
 export const INPUT_BUCKET = 'scottea-input'
