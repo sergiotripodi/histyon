@@ -17,9 +17,9 @@ interface TicketListProps {
 function getDisplayName(tk: any, index: number): string {
   const patient = Array.isArray(tk.patients) ? tk.patients[0] : tk.patients
   if (patient?.first_name && patient?.last_name) {
-    return `${patient.first_name} ${patient.last_name} — Histyon #${index + 1}`
+    return `${patient.first_name} ${patient.last_name} — Analisi ${index + 1}`
   }
-  return `Histyon — #${tk.id.slice(0, 8).toUpperCase()}`
+  return `Analisi ${tk.id.slice(0, 8)}`
 }
 
 export function TicketList({ tickets: initialTickets, showPatientName = false, doctorId, patientId, dict }: TicketListProps) {
