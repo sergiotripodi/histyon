@@ -4,7 +4,7 @@ import ViewerWrapper from '@/components/viewer/ViewerWrapper'
 import { getDictionary } from '@/lib/dictionary'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
-import type { Annotations } from '@/types'
+import type { Annotations, AiResults } from '@/types'
 
 export default async function ViewerPage(props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params
@@ -16,19 +16,18 @@ export default async function ViewerPage(props: { params: Promise<{ id: string }
 
   const { data: ticket } = await supabase
     .from('tickets')
-    .select('id, status, annotations, patient_id, patients(first_name, last_name)')
+    .select('id, status, annotations, results, patient_id, patients(first_name, last_name)')
     .eq('id', id)
     .eq('doctor_id', user.id)
     .single()
 
   if (!ticket || ticket.status !== 'COMPLETED') redirect(`/dashboard/ticket/${id}`)
 
-  // Path DZI deterministico — il bucket scottea-dzi è PRIVATO: zero URL pubbliche esposte al browser.
-  // Il proxy autentica, verifica ownership e restituisce signed URL 60s.
   const dziUrl = `/api/tiles/${id}/${id}.dzi`
 
   const patient     = Array.isArray(ticket.patients) ? ticket.patients[0] : ticket.patients
   const annotations = (ticket.annotations ?? null) as Annotations | null
+  const results     = (ticket.results     ?? null) as AiResults   | null
   const t           = dict.dashboard.realtime
 
   return (
@@ -52,6 +51,8 @@ export default async function ViewerPage(props: { params: Promise<{ id: string }
         <ViewerWrapper
           dziUrl={dziUrl}
           annotations={annotations}
+          results={results}
+          ticketId={id}
           loadingText={t.loadingTissues}
         />
       </main>
