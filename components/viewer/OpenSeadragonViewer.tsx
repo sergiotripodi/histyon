@@ -108,7 +108,8 @@ export default function OpenSeadragonViewer({ dziUrl, annotations, loadingText =
       blendTime:             0,
       animationTime:         0.25,
       springStiffness:       12,
-      imageLoaderLimit:      8,
+      imageLoaderLimit:      12,   // tile parallele (proxy è leggero, più è meglio)
+      maxImageCacheCount:    800,  // OSD non ri-richiede tile già viste
       alwaysBlend:           false,
       smoothTileEdgesMinZoom: Infinity,
       timeout:               90000,
