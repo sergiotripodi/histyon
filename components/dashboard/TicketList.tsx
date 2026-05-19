@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Clock, CheckCircle2, AlertTriangle, Loader2, Microscope } from 'lucide-react'
+import { Clock, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -13,13 +13,16 @@ interface TicketListProps {
   dict:             any
 }
 
-/** Genera un nome presentabile per l'analisi senza usare file_name. */
+function slugify(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+}
+
 function getDisplayName(tk: any, index: number): string {
   const patient = Array.isArray(tk.patients) ? tk.patients[0] : tk.patients
   if (patient?.first_name && patient?.last_name) {
-    return `${patient.first_name} ${patient.last_name} — Analisi ${index + 1}`
+    return `${slugify(patient.first_name)}-${slugify(patient.last_name)}-analysis-${index + 1}`
   }
-  return `Analisi ${tk.id.slice(0, 8)}`
+  return `analysis-${tk.id.slice(0, 8)}`
 }
 
 export function TicketList({ tickets: initialTickets, showPatientName = false, doctorId, patientId, dict }: TicketListProps) {
@@ -83,9 +86,8 @@ export function TicketList({ tickets: initialTickets, showPatientName = false, d
                   {Array.isArray(tk.patients) ? tk.patients[0]?.last_name  : tk.patients?.last_name}
                 </td>
               )}
-              <td className="px-6 py-4 text-gray-700 flex items-center gap-2">
-                <Microscope className="w-4 h-4 text-gray-400 group-hover:text-black transition-colors shrink-0" />
-                <span className="truncate max-w-[200px] font-medium text-xs" title={getDisplayName(tk, idx)}>
+              <td className="px-6 py-4">
+                <span className="truncate max-w-[240px] font-mono text-xs text-gray-700 group-hover:text-black" title={getDisplayName(tk, idx)}>
                   {getDisplayName(tk, idx)}
                 </span>
               </td>
