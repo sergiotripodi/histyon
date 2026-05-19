@@ -2,16 +2,16 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdmin } from '@supabase/supabase-js'
 import { unstable_cache } from 'next/cache'
-import { DZI_BUCKET } from '@/lib/storage/supabase'
+import { TISSUES_BUCKET } from '@/lib/storage/supabase'
 
-// Proxy autenticato per le tile DZI — bucket scottea-dzi PRIVATO.
+// Proxy autenticato per le tile DZI — bucket scottea-tissues PRIVATO.
 //
-// I path storage sono deterministici (nessuna colonna nel DB):
-//   dzi   → {doctor_id}/{patient_id}/{ticketId}.dzi
-//   tiles → {doctor_id}/{patient_id}/{ticketId}_files/{level}/{col}_{row}.jpg
+// Path storage deterministici:
+//   dzi  → dzi/{doctor_id}/{patient_id}/{ticketId}.dzi
+//   tile → dzi/{doctor_id}/{patient_id}/{ticketId}_files/{level}/{col}_{row}.jpg
 //
-// La query DB verifica solo ownership (doctor_id) e restituisce patient_id
-// per ricostruire il path. Risultato cachato 1h — zero query per tile successive.
+// 1 query DB per (ticket, dottore) ogni ora (unstable_cache).
+// Egress loggato in fire-and-forget su egress_logs per attribuzione per-dottore.
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -23,8 +23,6 @@ function adminClient() {
   )
 }
 
-// Cached: restituisce patient_id solo se il medico è proprietario del ticket.
-// 1 query DB per (ticket, medico) ogni ora.
 function getCachedPatientId(ticketId: string, userId: string) {
   return unstable_cache(
     async () => {
@@ -42,6 +40,37 @@ function getCachedPatientId(ticketId: string, userId: string) {
   )()
 }
 
+// Logga l'egress del tile in modo asincrono (fire-and-forget).
+// Recupera la dimensione esatta dal metadata storage, poi scrive su egress_logs.
+async function logTileEgress(
+  doctorId: string,
+  ticketId: string,
+  bucketPath: string
+): Promise<void> {
+  try {
+    const admin = adminClient()
+    const parts    = bucketPath.split('/')
+    const filename = parts.pop()!
+    const dir      = parts.join('/')
+
+    const { data: listed } = await admin.storage
+      .from(TISSUES_BUCKET)
+      .list(dir, { limit: 1, search: filename })
+
+    const bytes = listed?.[0]?.metadata?.size ?? 0
+    if (bytes <= 0) return
+
+    await admin.from('egress_logs').insert({
+      doctor_id: doctorId,
+      ticket_id: ticketId,
+      source:    'tile_view',
+      bytes,
+    })
+  } catch {
+    // non-critical — non bloccare la risposta
+  }
+}
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ ticketId: string; path: string[] }> }
@@ -52,38 +81,36 @@ export async function GET(
     return NextResponse.json({ error: 'Invalid ticket' }, { status: 400 })
   }
 
-  // Auth: sessione Supabase dal cookie
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // Verifica ownership (dalla cache dopo il primo accesso)
   const patientId = await getCachedPatientId(ticketId, user.id)
   if (!patientId) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
-  // Path deterministico — nessuna colonna storage nel DB
-  // base = {doctor_id}/{patient_id}/
-  // file = {ticketId}.dzi | {ticketId}_files/{level}/{col}_{row}.jpg
   const filePath = path.join('/')
   if (filePath.includes('..')) {
     return NextResponse.json({ error: 'Invalid path' }, { status: 400 })
   }
 
-  const bucketPath = `${user.id}/${patientId}/${filePath}`
+  // Tutte le risorse DZI vivono sotto dzi/ nel bucket unificato
+  const bucketPath = `dzi/${user.id}/${patientId}/${filePath}`
 
-  // Signed URL 60s → redirect al CDN Supabase
   const admin = adminClient()
   const { data: signed, error: signErr } = await admin.storage
-    .from(DZI_BUCKET)
+    .from(TISSUES_BUCKET)
     .createSignedUrl(bucketPath, 60)
 
   if (signErr || !signed?.signedUrl) {
     return NextResponse.json({ error: 'File not found' }, { status: 404 })
   }
+
+  // Egress logging asincrono — non aspettiamo, non rallenta la risposta
+  void logTileEgress(user.id, ticketId, bucketPath)
 
   return NextResponse.redirect(signed.signedUrl, { status: 302 })
 }

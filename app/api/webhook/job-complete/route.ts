@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 
 // Chiamato dallo script Python AI al termine dell'elaborazione.
-// Aggiorna il DB con: status, tissue (analisi AI), annotazioni vettoriali (JSONB).
+// Aggiorna il DB con: status, results (analisi AI), annotations (GeoJSON).
+// Su COMPLETED: logga l'egress del download AI (input_bytes del ticket → egress_logs).
 // Protetto da WEBHOOK_SECRET in Authorization header.
-// Il path DZI è deterministico ({doctor_id}/{patient_id}/{ticketId}.dzi) — non serve trasmetterlo.
 
 export async function POST(request: Request) {
   const secret = process.env.WEBHOOK_SECRET
@@ -44,10 +44,13 @@ export async function POST(request: Request) {
 
   const update: Record<string, unknown> = {}
 
+  let normalizedStatus: string | null = null
   if (status) {
-    const normalized = ['FAILED_ANALYSIS', 'FAILED', 'FAIL'].includes(status) ? 'ERROR' : status
-    if (['COMPLETED', 'ERROR', 'PROCESSING'].includes(normalized)) {
-      update.status = normalized
+    normalizedStatus = ['FAILED_ANALYSIS', 'FAILED', 'FAIL'].includes(status) ? 'ERROR' : status
+    if (['COMPLETED', 'ERROR', 'PROCESSING'].includes(normalizedStatus)) {
+      update.status = normalizedStatus
+    } else {
+      normalizedStatus = null
     }
   }
 
@@ -71,6 +74,30 @@ export async function POST(request: Request) {
   if (error) {
     console.error('webhook/job-complete:', error)
     return NextResponse.json({ error: 'DB error' }, { status: 500 })
+  }
+
+  // Su COMPLETED: logga l'egress del download AI (il file originale è stato scaricato 1 volta)
+  if (normalizedStatus === 'COMPLETED') {
+    void (async () => {
+      try {
+        const { data: ticket } = await supabase
+          .from('tickets')
+          .select('doctor_id, input_bytes')
+          .eq('id', ticketId)
+          .single()
+
+        if (ticket?.doctor_id && ticket?.input_bytes && ticket.input_bytes > 0) {
+          await supabase.from('egress_logs').insert({
+            doctor_id: ticket.doctor_id,
+            ticket_id: ticketId,
+            source:    'input_download',
+            bytes:     ticket.input_bytes,
+          })
+        }
+      } catch {
+        // non-critical
+      }
+    })()
   }
 
   return NextResponse.json({ ok: true })

@@ -1,9 +1,22 @@
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 
-export const INPUT_BUCKET = 'scottea-input'
-export const DZI_BUCKET   = 'scottea-dzi'
+export const TISSUES_BUCKET = 'scottea-tissues'
 
-/** Admin client con service role — usato solo server-side per operazioni storage privilegiate. */
+// ─── Path helpers ─────────────────────────────────────────────────────────────
+// Tutte le operazioni storage usano un unico bucket (scottea-tissues).
+// input/ → file originali, temporanei (eliminati dall'AI dopo processing)
+// dzi/   → DZI + tile, permanenti
+
+export const storagePaths = {
+  input:     (d: string, p: string, t: string) => `input/${d}/${p}/${t}`,
+  dzi:       (d: string, p: string, t: string) => `dzi/${d}/${p}/${t}.dzi`,
+  dziFiles:  (d: string, p: string, t: string) => `dzi/${d}/${p}/${t}_files`,
+  inputDir:  (d: string, p?: string) => p ? `input/${d}/${p}` : `input/${d}`,
+  dziDir:    (d: string, p?: string) => p ? `dzi/${d}/${p}` : `dzi/${d}`,
+}
+
+// ─── Admin client ─────────────────────────────────────────────────────────────
+
 function adminClient() {
   return createSupabaseAdmin(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -12,25 +25,38 @@ function adminClient() {
   )
 }
 
-/** Elimina tutti i file sotto un prefisso nel bucket specificato. */
-export async function deleteSupabasePrefix(bucket: string, prefix: string): Promise<void> {
-  const admin = adminClient()
-  let offset  = 0
+// ─── Delete ───────────────────────────────────────────────────────────────────
+
+/** Elimina ricorsivamente tutti i file sotto un prefisso (gestisce cartelle annidate come tile DZI). */
+export async function deleteSupabasePrefix(prefix: string): Promise<void> {
+  await _deletePrefix(adminClient(), prefix)
+}
+
+async function _deletePrefix(
+  admin: ReturnType<typeof adminClient>,
+  prefix: string
+): Promise<void> {
+  let offset = 0
   const limit = 100
 
   while (true) {
-    const { data, error } = await admin.storage
-      .from(bucket)
-      .list(prefix, { limit, offset, search: '' })
+    const { data } = await admin.storage
+      .from(TISSUES_BUCKET)
+      .list(prefix, { limit, offset })
 
-    if (error || !data || data.length === 0) break
+    if (!data || data.length === 0) break
 
-    const paths = data
-      .filter(f => f.name !== '.emptyFolderPlaceholder')
-      .map(f => `${prefix}/${f.name}`)
+    const files   = data.filter(i => i.id != null  && i.name !== '.emptyFolderPlaceholder')
+    const folders = data.filter(i => i.id == null   && i.name !== '.emptyFolderPlaceholder')
 
-    if (paths.length > 0) {
-      await admin.storage.from(bucket).remove(paths)
+    if (files.length > 0) {
+      await admin.storage
+        .from(TISSUES_BUCKET)
+        .remove(files.map(f => `${prefix}/${f.name}`))
+    }
+
+    for (const folder of folders) {
+      await _deletePrefix(admin, `${prefix}/${folder.name}`)
     }
 
     if (data.length < limit) break
@@ -38,9 +64,55 @@ export async function deleteSupabasePrefix(bucket: string, prefix: string): Prom
   }
 }
 
-/** Elimina uno o più file specifici dal bucket. */
-export async function deleteSupabaseFiles(bucket: string, paths: string[]): Promise<void> {
+/** Elimina file specifici dal bucket. */
+export async function deleteSupabaseFiles(paths: string[]): Promise<void> {
   if (paths.length === 0) return
-  const admin = adminClient()
-  await admin.storage.from(bucket).remove(paths)
+  await adminClient().storage.from(TISSUES_BUCKET).remove(paths)
+}
+
+// ─── List with sizes (per usage calculation) ──────────────────────────────────
+
+export interface StorageFile {
+  path: string
+  size: number
+}
+
+/** Lista ricorsiva di tutti i file sotto un prefisso con le loro dimensioni. */
+export async function listFilesWithSizes(prefix: string): Promise<StorageFile[]> {
+  return _listFiles(adminClient(), prefix)
+}
+
+async function _listFiles(
+  admin: ReturnType<typeof adminClient>,
+  prefix: string
+): Promise<StorageFile[]> {
+  const result: StorageFile[] = []
+  let offset = 0
+  const limit = 100
+
+  while (true) {
+    const { data } = await admin.storage
+      .from(TISSUES_BUCKET)
+      .list(prefix, { limit, offset })
+
+    if (!data || data.length === 0) break
+
+    for (const item of data) {
+      if (item.name === '.emptyFolderPlaceholder') continue
+
+      if (item.id != null) {
+        // File — metadata.size è la dimensione in byte
+        result.push({ path: `${prefix}/${item.name}`, size: item.metadata?.size ?? 0 })
+      } else {
+        // Cartella virtuale — ricorsione
+        const nested = await _listFiles(admin, `${prefix}/${item.name}`)
+        result.push(...nested)
+      }
+    }
+
+    if (data.length < limit) break
+    offset += limit
+  }
+
+  return result
 }

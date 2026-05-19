@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { INPUT_BUCKET } from '@/lib/storage/supabase'
+import { TISSUES_BUCKET, storagePaths } from '@/lib/storage/supabase'
 import { v4 as uuidv4 } from 'uuid'
 import { revalidatePath } from 'next/cache'
 import { dictionary } from '@/lib/dictionary'
@@ -78,18 +78,17 @@ export async function getPresignedUploadUrl(
     return { error: dictionary.validation.unauthorized }
   }
 
-  const ticketId = uuidv4()
-  // Path UUID-based: nessun filename originale salvato
-  const storagePath = `${user.id}/${patientId}/${ticketId}`
+  const ticketId    = uuidv4()
+  const storagePath = storagePaths.input(user.id, patientId, ticketId)
 
   try {
-    // Inserisci il ticket nel DB prima di creare la signed URL
     const { error: dbError } = await supabase.from('tickets').insert({
-      id:         ticketId,
-      doctor_id:  user.id,
-      patient_id: patientId,
-      status:     'UPLOADING',
-      notes:      normalizeNotes(notes),
+      id:          ticketId,
+      doctor_id:   user.id,
+      patient_id:  patientId,
+      status:      'UPLOADING',
+      notes:       normalizeNotes(notes),
+      input_bytes: fileSize,
     })
 
     if (dbError) {
@@ -97,9 +96,8 @@ export async function getPresignedUploadUrl(
       return { error: dictionary.validation.genericError }
     }
 
-    // Crea la signed upload URL tramite Supabase Storage
     const { data: signedData, error: signedErr } = await supabase.storage
-      .from(INPUT_BUCKET)
+      .from(TISSUES_BUCKET)
       .createSignedUploadUrl(storagePath, { upsert: false })
 
     if (signedErr || !signedData) {

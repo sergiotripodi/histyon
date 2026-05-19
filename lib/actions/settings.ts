@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { dictionary } from '@/lib/dictionary'
-import { deleteSupabasePrefix, INPUT_BUCKET, DZI_BUCKET } from '@/lib/storage/supabase'
+import { deleteSupabasePrefix, storagePaths } from '@/lib/storage/supabase'
 import { sendAccountDeletedEmail } from '@/lib/email'
 
 const optionalString = z.union([z.string(), z.null(), z.undefined(), z.literal('')])
@@ -137,12 +137,11 @@ export async function deleteAccount(formData: FormData) {
     .eq('id', user.id)
     .single()
 
-  // Elimina tutti i file dell'utente da Supabase Storage
-  const prefix = user.id
+  // Elimina tutti i file dell'utente da Supabase Storage (input/ e dzi/)
   try {
     await Promise.all([
-      deleteSupabasePrefix(INPUT_BUCKET, prefix),
-      deleteSupabasePrefix(DZI_BUCKET,   prefix),
+      deleteSupabasePrefix(storagePaths.inputDir(user.id)),
+      deleteSupabasePrefix(storagePaths.dziDir(user.id)),
     ])
   } catch (err) {
     console.error('deleteAccount storage cleanup:', err)

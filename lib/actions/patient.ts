@@ -6,7 +6,7 @@ import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { dictionary } from '@/lib/dictionary'
 import { REGEX_VALIDATORS } from '@/lib/constants'
-import { deleteSupabasePrefix, deleteSupabaseFiles, INPUT_BUCKET, DZI_BUCKET } from '@/lib/storage/supabase'
+import { deleteSupabasePrefix, deleteSupabaseFiles, storagePaths } from '@/lib/storage/supabase'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -114,16 +114,12 @@ export async function deleteTicket(ticketId: string) {
 
   if (!ticket) return { error: dictionary.validation.unauthorized }
 
-  // Path deterministici — derivati da doctor_id/patient_id/ticketId senza leggere colonne storage
-  const inputPath = `${user.id}/${ticket.patient_id}/${ticketId}`
-  const dziPath   = `${user.id}/${ticket.patient_id}/${ticketId}.dzi`
-  const dziPrefix = `${user.id}/${ticket.patient_id}/${ticketId}_files`
-
+  const p = ticket.patient_id
   try {
     await Promise.all([
-      deleteSupabaseFiles(INPUT_BUCKET, [inputPath]),
-      deleteSupabaseFiles(DZI_BUCKET,   [dziPath]),
-      deleteSupabasePrefix(DZI_BUCKET,  dziPrefix),
+      deleteSupabaseFiles([storagePaths.input(user.id, p, ticketId)]),
+      deleteSupabaseFiles([storagePaths.dzi(user.id, p, ticketId)]),
+      deleteSupabasePrefix(storagePaths.dziFiles(user.id, p, ticketId)),
     ])
   } catch (err) {
     console.error('deleteTicket storage cleanup:', err)
@@ -161,12 +157,10 @@ export async function deletePatient(patientId: string) {
 
   if (!patient) return { error: dictionary.validation.unauthorized }
 
-  // Elimina tutti i file sotto {userId}/{patientId}/ da entrambi i bucket
-  const prefix = `${user.id}/${patientId}`
   try {
     await Promise.all([
-      deleteSupabasePrefix(INPUT_BUCKET, prefix),
-      deleteSupabasePrefix(DZI_BUCKET,   prefix),
+      deleteSupabasePrefix(storagePaths.inputDir(user.id, patientId)),
+      deleteSupabasePrefix(storagePaths.dziDir(user.id, patientId)),
     ])
   } catch (err) {
     console.error('deletePatient storage cleanup:', err)
