@@ -98,8 +98,8 @@ export async function POST(request: Request) {
             })
           }
           // Invalida la cache storage: il DZI è appena stato scritto
-          revalidateTag(doctorStorageTag(ticket.doctor_id))
-          revalidateTag('storage-all')
+          revalidateTag(doctorStorageTag(ticket.doctor_id), 'hours')
+          revalidateTag('storage-all', 'hours')
         }
       } catch {
         // non-critical
