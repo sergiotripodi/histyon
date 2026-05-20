@@ -5,7 +5,6 @@ import { getDictionary } from '@/lib/dictionary'
 import { Metadata } from 'next'
 import { LoginForm } from '@/components/auth/LoginForm'
 
-export const metadata = { title: 'Accedi' }
 export async function generateMetadata(): Promise<Metadata> {
   const dict = await getDictionary()
   return {

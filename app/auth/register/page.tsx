@@ -5,7 +5,6 @@ import { LogIn, ArrowRight } from 'lucide-react'
 import { getDictionary } from '@/lib/dictionary'
 import { Metadata } from 'next'
 
-export const metadata = { title: 'Registrati' }
 export async function generateMetadata(): Promise<Metadata> {
   const dict = await getDictionary()
   return {
