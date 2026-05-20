@@ -325,7 +325,6 @@ export const hi = {
     unauthorized: "अनधिकृत",
     dbError: "DB त्रुटि: ",
     uploadError: "URL त्रुटि",
-    cloudflareError: "Cloudflare अपलोड त्रुटि",
     networkError: "नेटवर्क त्रुटि",
     fileNotFound: "फ़ाइल नहीं मिली।",
     fileRetrievalError: "फ़ाइल पुनर्प्राप्त करने में असमर्थ",

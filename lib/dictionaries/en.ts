@@ -296,7 +296,7 @@ export const en = {
         sec1: { title: "1. Data Controller", body: "The Data Controller for Doctor registration data is Histyon Team." },
         sec2: { title: "2. Collected Data", body: "Professional Data, Usage Data, and Patient Health Data (encrypted)." },
         sec3: { title: "3. Purpose", body: "SaaS Service delivery, Diagnostic Support, Security and Compliance." },
-        sec4: { title: "4. Location", body: "Data is hosted within the EEA (European Economic Area).\n\nPrimary providers:\n- Supabase (Database & Auth): Dublin, Ireland (AWS eu-west-1).\n- Cloudflare R2 (WSI Storage): Server-side encryption and secure delivery." },
+        sec4: { title: "4. Location", body: "Data is hosted within the EEA (European Economic Area).\n\nPrimary providers:\n- Supabase (Database, Auth & WSI Storage): Dublin, Ireland (AWS eu-west-1). Server-side encryption and secure delivery." },
         sec5: { title: "5. Right to Erasure (Art. 17 GDPR)", body: "You have the right to permanent deletion of patient data and all associated analysis files. Deletion can be performed at any time from the patient folder in the dashboard. The operation is immediate and irreversible: all scans, DZI tiles, QuPath projects and region masks are permanently removed from our cloud storage." }
       },
       terms: {
@@ -337,7 +337,6 @@ export const en = {
     unauthorized: "Unauthorized",
     dbError: "DB Error: ",
     uploadError: "URL Error",
-    cloudflareError: "Cloudflare upload error",
     networkError: "Network error",
     fileNotFound: "File not found in storage.",
     fileRetrievalError: "Cannot retrieve file",

@@ -325,7 +325,6 @@ export const de = {
     unauthorized: "Nicht autorisiert",
     dbError: "DB Fehler: ",
     uploadError: "URL Fehler",
-    cloudflareError: "Cloudflare Upload-Fehler",
     networkError: "Netzwerkfehler",
     fileNotFound: "Datei nicht gefunden.",
     fileRetrievalError: "Dateiabruf unmöglich",

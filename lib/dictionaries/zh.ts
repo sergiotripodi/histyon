@@ -325,7 +325,6 @@ export const zh = {
     unauthorized: "未授权",
     dbError: "数据库错误：",
     uploadError: "URL 错误",
-    cloudflareError: "Cloudflare 上传错误",
     networkError: "网络错误",
     fileNotFound: "文件未找到。",
     fileRetrievalError: "无法检索文件",

@@ -325,7 +325,6 @@ export const es = {
     unauthorized: "No autorizado",
     dbError: "Error DB: ",
     uploadError: "Error URL",
-    cloudflareError: "Error carga Cloudflare",
     networkError: "Error de red",
     fileNotFound: "Archivo no encontrado.",
     fileRetrievalError: "Imposible recuperar archivo",

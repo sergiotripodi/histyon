@@ -310,7 +310,7 @@ export const it = {
         },
         sec4: { 
             title: "4. Luogo del Trattamento e Fornitori", 
-            body: "I dati sono ospitati su infrastrutture cloud localizzate all'interno dello Spazio Economico Europeo (SEE).\n\nFornitori principali:\n- Supabase (Database & Auth): Dublino, Irlanda (AWS eu-west-1).\n- Cloudflare R2 (Storage WSI): Crittografia lato server e distribuzione sicura."
+            body: "I dati sono ospitati su infrastrutture cloud localizzate all'interno dello Spazio Economico Europeo (SEE).\n\nFornitori principali:\n- Supabase (Database, Auth & Storage WSI): Dublino, Irlanda (AWS eu-west-1). Crittografia lato server e distribuzione sicura."
         },
         sec5: { title: "5. Diritto alla Cancellazione (Art. 17 GDPR)", body: "Hai il diritto alla cancellazione permanente dei dati del paziente e di tutti i file di analisi associati. La cancellazione può essere eseguita in qualsiasi momento dalla dashboard ed è immediata e irreversibile: scansioni, tile DZI, progetti QuPath e maschere di regione vengono rimossi definitivamente dal cloud.\n\nPuoi inoltre eliminare il tuo intero account medico in qualsiasi momento dalla sezione Impostazioni → Zona Pericolosa. L'eliminazione dell'account comporta la rimozione permanente e irreversibile di: profilo medico, tutti i pazienti registrati, tutte le analisi e i file archiviati su cloud. Riceverai una conferma via email al termine del processo." },
         sec6: { title: "6. Portabilità e Altri Diritti", body: "Ai sensi del GDPR hai il diritto di: accedere ai tuoi dati personali, rettificarli, limitarne il trattamento e opporti al trattamento stesso. Per esercitare tali diritti puoi contattarci a info@histyon.com. Ci impegniamo a rispondere entro 30 giorni dalla ricezione della richiesta." }
@@ -330,7 +330,7 @@ export const it = {
         },
         sec4: {
             title: "4. Cancellazione dell'Account",
-            body: "L'Utente può richiedere la cancellazione del proprio account in qualsiasi momento dalla sezione Impostazioni → Zona Pericolosa della Console. La cancellazione è subordinata alla verifica dell'identità tramite password ed è immediata e definitiva.\n\nAll'eliminazione dell'account vengono cancellati permanentemente: il profilo medico, tutti i pazienti registrati, tutte le analisi e i file archiviati su Cloudflare R2. Histyon non mantiene copie di backup dei dati dopo la cancellazione. L'Utente riceverà una conferma email al completamento del processo."
+            body: "L'Utente può richiedere la cancellazione del proprio account in qualsiasi momento dalla sezione Impostazioni → Zona Pericolosa della Console. La cancellazione è subordinata alla verifica dell'identità tramite password ed è immediata e definitiva.\n\nAll'eliminazione dell'account vengono cancellati permanentemente: il profilo medico, tutti i pazienti registrati, tutte le analisi e i file archiviati su cloud. Histyon non mantiene copie di backup dei dati dopo la cancellazione. L'Utente riceverà una conferma email al completamento del processo."
         },
         sec5: {
             title: "5. Accesso Gratuito e Modifiche al Servizio",
@@ -383,7 +383,6 @@ export const it = {
     unauthorized: "Non autorizzato",
     dbError: "DB Error: ",
     uploadError: "Errore URL",
-    cloudflareError: "Errore caricamento Cloudflare",
     networkError: "Errore di rete",
     fileNotFound: "Impossibile trovare il file nello storage.",
     fileRetrievalError: "Impossibile recuperare il file",

@@ -325,7 +325,6 @@ export const ru = {
     unauthorized: "Не авторизовано",
     dbError: "Ошибка БД: ",
     uploadError: "Ошибка URL",
-    cloudflareError: "Ошибка Cloudflare",
     networkError: "Ошибка сети",
     fileNotFound: "Файл не найден.",
     fileRetrievalError: "Невозможно получить файл",

@@ -252,7 +252,7 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
             </div>
           </summary>
           <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
-            <p>I file analisi sono archiviati su Cloudflare R2, non sui bucket Supabase.</p>
+            <p>File di input e analisi DZI archiviati nei bucket Supabase Storage.</p>
             <p>Soglia gratuita: <strong>1 GB</strong> (Free), <strong>100 GB</strong> (Pro)</p>
           </div>
         </details>

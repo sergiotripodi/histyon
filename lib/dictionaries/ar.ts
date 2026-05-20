@@ -325,7 +325,6 @@ export const ar = {
     unauthorized: "غير مصرح",
     dbError: "خطأ قاعدة بيانات: ",
     uploadError: "خطأ URL",
-    cloudflareError: "خطأ تحميل Cloudflare",
     networkError: "خطأ في الشبكة",
     fileNotFound: "لم يتم العثور على الملف.",
     fileRetrievalError: "تعذر استرداد الملف",

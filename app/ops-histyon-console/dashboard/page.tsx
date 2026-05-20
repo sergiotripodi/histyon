@@ -46,16 +46,6 @@ async function getVercelPlan(): Promise<string> {
   } catch { return 'hobby' }
 }
 
-async function getCloudflarePlan(): Promise<string> {
-  try {
-    const res = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${process.env.ADMIN_CLOUDFLARE_ACCOUNT_ID}`,
-      { headers: { Authorization: `Bearer ${process.env.ADMIN_CLOUDFLARE_TOKEN}` }, next: { revalidate: 3600 } }
-    )
-    const json = await res.json()
-    return json?.result?.type ?? 'standard'
-  } catch { return 'standard' }
-}
 
 export default async function AdminDashboardPage() {
   const supabase = await createClient()
@@ -77,14 +67,12 @@ export default async function AdminDashboardPage() {
     { data: recentUsers },
     { data: recentTickets },
     vercelPlan,
-    cfPlan,
   ] = await Promise.all([
     supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }).neq('role', 'admin'),
     supabaseAdmin.from('tickets').select('created_at, status').order('created_at', { ascending: true }),
     supabaseAdmin.from('profiles').select('created_at').gte('created_at', thirtyDaysAgo).neq('role', 'admin'),
     supabaseAdmin.from('tickets').select('created_at, status').gte('created_at', thirtyDaysAgo),
     getVercelPlan(),
-    getCloudflarePlan(),
   ])
 
   const tickets = allTickets ?? []
@@ -110,8 +98,7 @@ export default async function AdminDashboardPage() {
 
   const vercelMonthlyCost = vercelPlan === 'pro' ? 20 : 0
   const supabaseMonthlyCost = 0
-  const cfMonthlyCost = 0
-  const totalMonthlyCost = vercelMonthlyCost + supabaseMonthlyCost + cfMonthlyCost
+  const totalMonthlyCost = vercelMonthlyCost + supabaseMonthlyCost
 
   return (
     <div className="py-10 px-8">
@@ -173,7 +160,7 @@ export default async function AdminDashboardPage() {
       <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">
         Servizi
       </h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <a href="/ops-histyon-console/dashboard/vercel" className="block group border border-gray-200 bg-white p-6 hover:border-gray-400 transition-colors">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2.5">
@@ -209,25 +196,6 @@ export default async function AdminDashboardPage() {
           <div className="flex justify-between text-xs text-gray-500">
             <span>{totalUsers ?? 0} utenti</span>
             <span className="text-green-600 font-medium">● Active Healthy</span>
-          </div>
-        </a>
-
-        <a href="/ops-histyon-console/dashboard/cloudflare" className="block group border border-gray-200 bg-white p-6 hover:border-gray-400 transition-colors">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 bg-[#F48120] flex items-center justify-center">
-                <span className="text-white text-[10px] font-bold">CF</span>
-              </div>
-              <span className="text-sm font-bold text-gray-900">Cloudflare</span>
-            </div>
-            <span className="text-[10px] font-bold uppercase text-gray-400 border border-gray-100 px-2 py-0.5">
-              {cfPlan}
-            </span>
-          </div>
-          <p className="text-xs text-gray-400 mb-3">R2 Storage, DNS e protezione</p>
-          <div className="flex justify-between text-xs text-gray-500">
-            <span>R2 Object Storage</span>
-            <span className="text-green-600 font-medium">● Attivo</span>
           </div>
         </a>
       </div>
