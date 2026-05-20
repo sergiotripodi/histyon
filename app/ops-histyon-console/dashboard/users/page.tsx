@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { getAllDoctorsStorage } from '@/lib/usage/storage'
 
 export const dynamic = 'force-dynamic'
-export const metadata = { title: 'Utenti — Console Histyon' }
+export const metadata = { title: 'Utenti' }
 
 type TicketRow = {
   doctor_id: string | null

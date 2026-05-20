@@ -4,6 +4,8 @@ import { PatientList } from '@/components/patients/PatientList'
 import { AddPatientModal } from '@/components/patients/AddPatientModal'
 import { getDictionary } from '@/lib/dictionary'
 
+export const metadata = { title: 'Pazienti' }
+
 export const dynamic = 'force-dynamic'
 
 export default async function PatientsPage() {

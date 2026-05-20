@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import { TicketList } from '@/components/dashboard/TicketList'
 import { getDictionary } from '@/lib/dictionary'
 
+export const metadata = { title: 'Analisi' }
+
 export const dynamic = 'force-dynamic'
 
 export default async function AnalysisPage() {

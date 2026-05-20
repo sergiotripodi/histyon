@@ -7,6 +7,8 @@ import { InlineFileUploader } from '@/components/dashboard/InlineFileUploader'
 import { DeletePatientModal } from '@/components/patients/DeletePatientModal'
 import { getDictionary, getLocale } from '@/lib/dictionary'
 
+export const metadata = { title: 'Paziente' }
+
 export default async function PatientDetailPage(props: {
   params: Promise<{ id: string }>
 }) {

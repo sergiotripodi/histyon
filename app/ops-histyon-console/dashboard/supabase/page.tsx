@@ -7,7 +7,7 @@ import { MonthPicker } from '@/components/admin/MonthPicker'
 import { getTotalStorage, getAllDoctorsStorage } from '@/lib/usage/storage'
 
 export const dynamic = 'force-dynamic'
-export const metadata = { title: 'Supabase — Console Histyon' }
+export const metadata = { title: 'Supabase' }
 
 function formatBytes(b: number): string {
   if (b >= 1e9) return `${(b / 1e9).toFixed(2)} GB`
@@ -78,6 +78,7 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
     egressResult,
     totalStorageStats,
     doctorStorageRows,
+    dbSizeFromRpc,
   ] = await Promise.all([
     fetchSupabaseData(monthStr),
     supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }).neq('role', 'admin'),
@@ -91,10 +92,13 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
     }).catch(() => 0),
     getTotalStorage().catch(() => ({ inputBytes: 0, dziBytes: 0, totalBytes: 0 })),
     getAllDoctorsStorage().catch(() => []),
+    // DB size direttamente da PostgreSQL — non richiede Management API token
+    supabaseAdmin.rpc('get_db_size_bytes').then(({ data }) => data as number | null, () => null),
   ])
 
-  // Extract all metrics from usageJson
-  const dbSizeBytes = extractSbMetric(usageJson, ['db_size_bytes', 'db_size'])
+  // DB size: preferisce la query diretta a Postgres (non richiede Management API)
+  // Se la RPC non è ancora deployata, fallback all'API management
+  const dbSizeBytes: number | null = dbSizeFromRpc ?? extractSbMetric(usageJson, ['db_size_bytes', 'db_size'])
   const mauFromApi = extractSbMetric(usageJson, ['monthly_active_users', 'mau'])
   const realtimePeakConnections = extractSbMetric(usageJson, ['realtime_peak_connections'])
   const storageSizeFromApi = extractSbMetric(usageJson, ['storage_size_bytes', 'storage_size'])
@@ -150,10 +154,13 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
     }
   }
 
-  function unavailabilityMsg(value: number | null, proOnly = false): string | null {
+  const mgmtTokenMissing = !process.env.ADMIN_SUPABASE_MANAGEMENT_TOKEN
+
+  function unavailabilityMsg(value: number | null, _proOnly = false): string | null {
     if (value === null) {
-      if (usageJson === null) return 'Errore API — verificare ADMIN_SUPABASE_MANAGEMENT_TOKEN'
-      return 'Dato non restituito dall\'API Supabase'
+      if (mgmtTokenMissing) return 'Token API non configurato — aggiungi ADMIN_SUPABASE_MANAGEMENT_TOKEN in Vercel → Settings → Environment Variables (ottienilo su supabase.com/dashboard/account/tokens)'
+      if (usageJson === null) return 'Errore chiamata API Supabase — token potrebbe essere scaduto o errato'
+      return 'Metrica non inclusa nella risposta API (piano Free)'
     }
     if (value === -1) return 'Non disponibile nel piano Free — attiva da piano Pro'
     return null

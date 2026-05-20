@@ -2,7 +2,7 @@ import { AlertCircle } from 'lucide-react'
 import { Logo } from '@/components/ui/Logo'
 import { AdminLoginForm } from '@/components/admin/AdminLoginForm'
 
-export const metadata = { title: 'Accesso — Histyon Console' }
+export const metadata = { title: 'Accesso Admin' }
 
 export default async function AdminLoginPage(props: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>

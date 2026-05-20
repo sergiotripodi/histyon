@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import { StatCard } from '@/components/dashboard/StatCard'
 import { getDictionary } from '@/lib/dictionary'
 
+export const metadata = { title: 'Dashboard' }
+
 export const dynamic = 'force-dynamic'
 
 function getLast7Days(): string[] {

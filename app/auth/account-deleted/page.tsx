@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { Logo } from '@/components/ui/Logo'
 import { getDictionary } from '@/lib/dictionary'
 
+export const metadata = { title: 'Account eliminato' }
+
 export default async function AccountDeletedPage() {
   const dict = await getDictionary()
   const t = dict.auth.deleted

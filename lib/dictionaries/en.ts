@@ -1,6 +1,6 @@
 export const en = {
   metadata: {
-    titleTemplate: '%s | Histyon',
+    titleTemplate: '%s — Histyon',
     defaultTitle: 'Histyon - Advanced Medical Diagnostics',
     description: "Cloud-native platform for management, storage, and AI analysis of digital slides (WSI). Scalable and secure web infrastructure for histopathology.",
     keywords: "histopathology, WSI, digital pathology, medical diagnostics, AI pathology, healthcare cloud",

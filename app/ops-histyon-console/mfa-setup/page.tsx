@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { AdminMfaSetupLoader } from '@/components/admin/AdminMfaSetupLoader'
 import { Shield } from 'lucide-react'
 
-export const metadata = { title: 'Configura 2FA — Histyon Console' }
+export const metadata = { title: 'Configura 2FA' }
 
 const steps = [
   {

@@ -6,7 +6,7 @@ import { PaymentBanner } from '@/components/admin/PaymentBanner'
 import { getTotalStorage } from '@/lib/usage/storage'
 
 export const dynamic = 'force-dynamic'
-export const metadata = { title: 'Console — Histyon' }
+export const metadata = { title: 'Dashboard' }
 
 function getLast30Days(): string[] {
   return Array.from({ length: 30 }, (_, i) => {

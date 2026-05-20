@@ -3,6 +3,8 @@ import { ValidatedInput } from '@/components/ui/FormElements'
 import { getDictionary } from '@/lib/dictionary'
 import { AlertCircle } from 'lucide-react'
 
+export const metadata = { title: 'Nuova password' }
+
 export default async function UpdatePasswordPage(props: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {

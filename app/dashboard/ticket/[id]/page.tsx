@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { TicketRealtimeView } from '@/components/ticket/TicketRealTimeView'
 import { getDictionary } from '@/lib/dictionary'
 
+export const metadata = { title: 'Ticket' }
+
 export default async function TicketPage(props: {
   params: Promise<{ id: string }>
 }) {

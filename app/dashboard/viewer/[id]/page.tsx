@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import type { Annotations, AiResults } from '@/types'
 
+export const metadata = { title: 'Visualizzatore' }
+
 export default async function ViewerPage(props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params
   const supabase = await createClient()

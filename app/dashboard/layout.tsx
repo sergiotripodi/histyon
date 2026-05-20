@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { DashboardSidebar } from '@/components/layout/DashboardSidebar'
@@ -6,6 +7,13 @@ import { IdleTimeout } from '@/components/auth/IdleTimeout'
 import { getDictionary } from '@/lib/dictionary'
 
 export const dynamic = 'force-dynamic'
+
+export const metadata: Metadata = {
+  title: {
+    default: 'Console — Histyon',
+    template: '%s | Console — Histyon',
+  },
+}
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()

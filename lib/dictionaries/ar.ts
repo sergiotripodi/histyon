@@ -1,6 +1,6 @@
 export const ar = {
   metadata: {
-    titleTemplate: '%s | Histyon',
+    titleTemplate: '%s — Histyon',
     defaultTitle: 'الرئيسية | Histyon',
     description: "تشخيص طبي متقدم",
     loginTitle: "دخول",

@@ -1,6 +1,6 @@
 export const de = {
   metadata: {
-    titleTemplate: '%s | Histyon',
+    titleTemplate: '%s — Histyon',
     defaultTitle: 'Startseite | Histyon',
     description: "Fortschrittliche medizinische Diagnostik",
     loginTitle: "Anmelden",

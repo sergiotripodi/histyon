@@ -1,6 +1,6 @@
 export const zh = {
   metadata: {
-    titleTemplate: '%s | Histyon',
+    titleTemplate: '%s — Histyon',
     defaultTitle: '首页 | Histyon',
     description: "先进医疗诊断",
     loginTitle: "登录",

@@ -1,7 +1,15 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { AdminSidebar } from '@/components/admin/AdminSidebar'
+
+export const metadata: Metadata = {
+  title: {
+    default: 'Admin Console — Histyon',
+    template: '%s | Admin Console — Histyon',
+  },
+}
 
 export default async function AdminDashboardLayout({
   children,

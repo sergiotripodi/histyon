@@ -4,6 +4,8 @@ import { ValidatedInput } from '@/components/ui/FormElements'
 import { getDictionary } from '@/lib/dictionary'
 import { ArrowLeft, MailCheck, AlertCircle } from 'lucide-react'
 
+export const metadata = { title: 'Password dimenticata' }
+
 export default async function ForgotPasswordPage(props: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {

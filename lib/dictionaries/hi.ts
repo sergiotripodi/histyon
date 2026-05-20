@@ -1,6 +1,6 @@
 export const hi = {
   metadata: {
-    titleTemplate: '%s | Histyon',
+    titleTemplate: '%s — Histyon',
     defaultTitle: 'होम | Histyon',
     description: "उन्नत चिकित्सा निदान",
     loginTitle: "लॉगिन",

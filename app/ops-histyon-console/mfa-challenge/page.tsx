@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { AdminMfaChallengeLoader } from '@/components/admin/AdminMfaChallengeLoader'
 import { ShieldCheck } from 'lucide-react'
 
-export const metadata = { title: 'Verifica 2FA — Histyon Console' }
+export const metadata = { title: 'Verifica 2FA' }
 
 const steps = [
   {

@@ -6,7 +6,7 @@ import { Suspense } from 'react'
 import { MonthPicker } from '@/components/admin/MonthPicker'
 
 export const dynamic = 'force-dynamic'
-export const metadata = { title: 'Pagamenti — Console Histyon' }
+export const metadata = { title: 'Pagamenti' }
 
 async function fetchAllCosts(monthStr: string) {
   const vercelToken = process.env.ADMIN_VERCEL_TOKEN!

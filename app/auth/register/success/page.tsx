@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { MailCheck } from 'lucide-react'
 import { getDictionary } from '@/lib/dictionary'
 
+export const metadata = { title: 'Registrazione completata' }
+
 export default async function RegisterSuccessPage() {
   const dict = await getDictionary()
   const t = dict.auth.register.success

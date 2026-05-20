@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { CheckCircle2 } from 'lucide-react'
 import { getDictionary } from '@/lib/dictionary'
 
+export const metadata = { title: 'Email verificata' }
+
 export default async function VerifiedPage() {
   const dict = await getDictionary()
   const t = dict.auth.verified

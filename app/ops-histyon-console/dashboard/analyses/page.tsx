@@ -6,7 +6,7 @@ import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
-export const metadata = { title: 'Analisi — Console Histyon' }
+export const metadata = { title: 'Analisi' }
 
 function getLast90Days(): { key: string; label: string }[] {
   return Array.from({ length: 90 }, (_, i) => {

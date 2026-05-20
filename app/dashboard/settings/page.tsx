@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import { getDictionary } from '@/lib/dictionary'
 import { SettingsForm } from '@/components/settings/SettingsForm'
 
+export const metadata = { title: 'Impostazioni' }
+
 export default async function SettingsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
