@@ -25,7 +25,7 @@ export function AdminLoginForm() {
           required
           autoComplete="email"
           className="w-full border border-gray-200 px-4 py-3 text-sm text-gray-900 bg-white placeholder-gray-300 focus:outline-none focus:border-gray-900 transition-colors"
-          placeholder="admin@histyon.internal"
+          placeholder="Email"
         />
       </div>
 
@@ -39,7 +39,7 @@ export function AdminLoginForm() {
           required
           autoComplete="current-password"
           className="w-full border border-gray-200 px-4 py-3 text-sm text-gray-900 bg-white placeholder-gray-300 focus:outline-none focus:border-gray-900 transition-colors"
-          placeholder="••••••••••••"
+          placeholder="Password"
         />
       </div>
 
