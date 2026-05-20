@@ -79,6 +79,7 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
     totalStorageStats,
     doctorStorageRows,
     dbSizeFromRpc,
+    authStatsRpc,
   ] = await Promise.all([
     fetchSupabaseData(monthStr),
     supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }).neq('role', 'admin'),
@@ -94,28 +95,39 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
     getAllDoctorsStorage().catch(() => []),
     // DB size direttamente da PostgreSQL — non richiede Management API token
     supabaseAdmin.rpc('get_db_size_bytes').then(({ data }) => data as number | null, () => null),
+    // Auth stats (MAU, third-party MAU, connessioni DB) — diretti da auth schema
+    supabaseAdmin.rpc('get_auth_stats').then(({ data }) => data as Record<string, number> | null, () => null),
   ])
 
-  // DB size: preferisce la query diretta a Postgres (non richiede Management API)
-  // Se la RPC non è ancora deployata, fallback all'API management
+  // DB size: query diretta a Postgres (nessun Management API token richiesto)
   const dbSizeBytes: number | null = dbSizeFromRpc ?? extractSbMetric(usageJson, ['db_size_bytes', 'db_size'])
+
+  // Auth stats da RPC (auth schema, nessun Management API token richiesto)
+  const mauFromRpc: number | null = authStatsRpc != null ? (authStatsRpc.mau as number) : null
+  const thirdPartyMauFromRpc: number | null = authStatsRpc != null ? (authStatsRpc.third_party_mau as number) : null
+  const dbConnectionsFromRpc: number | null = authStatsRpc != null ? (authStatsRpc.db_connections as number) : null
+
   const mauFromApi = extractSbMetric(usageJson, ['monthly_active_users', 'mau'])
   const realtimePeakConnections = extractSbMetric(usageJson, ['realtime_peak_connections'])
   const storageSizeFromApi = extractSbMetric(usageJson, ['storage_size_bytes', 'storage_size'])
   const egressFromApi = extractSbMetric(usageJson, ['egress_bytes', 'egress'])
   const cachedEgress = extractSbMetric(usageJson, ['storage_egress', 'cached_egress'])
-  const thirdPartyMau = extractSbMetric(usageJson, ['monthly_active_third_party_users'])
+  const thirdPartyMauFromApi = extractSbMetric(usageJson, ['monthly_active_third_party_users'])
   const realtimeMessages = extractSbMetric(usageJson, ['realtime_message_count'])
   const edgeInvocations = extractSbMetric(usageJson, ['edge_invocations', 'edge_function_invocations'])
   const ssoMau = extractSbMetric(usageJson, ['monthly_active_sso_users'])
   const imageTransformations = extractSbMetric(usageJson, ['storage_image_transformations'])
 
-  // Use real storage from our lib
+  // Storage reale dai bucket
   const storageBytesReal = totalStorageStats.totalBytes
-  // Use egress from egress_logs if available, otherwise from API
+  // Egress da egress_logs (se presente), fallback all'API
   const egressBytes = (egressResult as number) > 0 ? (egressResult as number) : (egressFromApi ?? null)
-  // MAU: use total users from DB as most accurate
-  const mauUsed = totalUsers ?? 0
+  // MAU: usa RPC diretta (più precisa: last_sign_in_at < 30gg), fallback API, fallback totale utenti
+  const mauUsed = mauFromRpc ?? mauFromApi ?? totalUsers ?? 0
+  // Third-party MAU: usa RPC diretta, fallback API
+  const thirdPartyMau = thirdPartyMauFromRpc ?? thirdPartyMauFromApi
+  // Connessioni DB correnti da pg_stat_activity (proxy per Realtime connections)
+  const dbConnections = dbConnectionsFromRpc ?? realtimePeakConnections
 
   const plan = org?.plan ?? 'free'
   const isPro = plan === 'pro'
@@ -311,8 +323,8 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
               <span className="text-sm text-gray-800">Realtime Concurrent Peak Connections</span>
             </div>
             <div className="flex items-center gap-2">
-              {realtimePeakConnections !== null && realtimePeakConnections >= 0
-                ? numBar(realtimePeakConnections, REALTIME_CONN_LIMIT)
+              {dbConnections !== null && dbConnections >= 0
+                ? numBar(dbConnections, REALTIME_CONN_LIMIT)
                 : <span className={`text-xs ${usageJson === null ? 'text-amber-600' : 'text-gray-300'}`}>{unavailabilityMsg(realtimePeakConnections)}</span>
               }
             </div>
@@ -322,6 +334,9 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
           </summary>
           <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
             <p>Soglia: <strong>200 connessioni simultanee</strong> (Free) · <strong>500</strong> (Pro)</p>
+            {dbConnectionsFromRpc !== null && (
+              <p className="text-gray-400">Dato da <code>pg_stat_activity</code>: connessioni PostgreSQL attive (la metrica Supabase traccia le connessioni WebSocket Realtime, richiede API token per il valore esatto).</p>
+            )}
           </div>
         </details>
 
@@ -407,6 +422,9 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
           <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
             <p>Soglia: <strong>50.000 MAU/mese</strong> (Free e Pro incluso)</p>
             <p>Oltre soglia (Pro): <strong>$0.00325/MAU</strong></p>
+            {mauFromRpc !== null && (
+              <p className="text-gray-400">Dato da <code>auth.users</code>: utenti con <code>last_sign_in_at</code> negli ultimi 30 giorni — stessa definizione usata da Supabase.</p>
+            )}
             {mauFromApi !== null && mauFromApi >= 0 && (
               <p>Valore API Supabase: <strong>{mauFromApi.toLocaleString('it-IT')}</strong></p>
             )}
@@ -454,6 +472,9 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
           </summary>
           <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
             <p>Soglia: <strong>50.000</strong> (Free e Pro)</p>
+            {thirdPartyMauFromRpc !== null && (
+              <p className="text-gray-400">Dato da <code>auth.users</code>: utenti OAuth (Google, GitHub, ecc.) con accesso negli ultimi 30 giorni.</p>
+            )}
           </div>
         </details>
 

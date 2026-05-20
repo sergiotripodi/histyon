@@ -167,7 +167,9 @@ export default async function AdminDashboardPage() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 bg-gray-900 flex items-center justify-center">
-                <span className="text-white text-[10px] font-bold">▲</span>
+                <svg viewBox="0 0 116 100" fill="white" className="w-3.5 h-3.5">
+                  <path d="M57.5 15L100 85H15L57.5 15Z"/>
+                </svg>
               </div>
               <span className="text-sm font-bold text-gray-900">Vercel</span>
             </div>
@@ -186,7 +188,10 @@ export default async function AdminDashboardPage() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 bg-[#3ECF8E] flex items-center justify-center">
-                <span className="text-white text-[10px] font-bold">S</span>
+                <svg viewBox="0 0 109 113" fill="none" className="w-3.5 h-3.5">
+                  <path d="M63.7076 110.284C60.8481 113.885 55.0502 111.912 54.9813 107.314L53.9738 40.0627L99.1935 40.0627C107.384 40.0627 111.952 49.5228 106.859 55.9374L63.7076 110.284Z" fill="white"/>
+                  <path d="M45.317 2.07103C48.1765 -1.53037 53.9745 0.442937 54.0434 5.04075L54.4849 72.2922H9.83113C1.64038 72.2922 -2.92775 62.8321 2.1655 56.4175L45.317 2.07103Z" fill="white" fillOpacity="0.7"/>
+                </svg>
               </div>
               <span className="text-sm font-bold text-gray-900">Supabase</span>
             </div>

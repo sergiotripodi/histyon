@@ -25,7 +25,7 @@ export function AdminLoginForm() {
           required
           autoComplete="email"
           className="w-full border border-gray-200 px-4 py-3 text-sm text-gray-900 bg-white placeholder-gray-300 focus:outline-none focus:border-gray-900 transition-colors"
-          placeholder="Email"
+          placeholder="admin@histyon.com"
         />
       </div>
 
