@@ -1,10 +1,10 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
-import { ArrowLeft, ExternalLink, ChevronRight } from 'lucide-react'
-import Link from 'next/link'
+import { ExternalLink, ChevronRight } from 'lucide-react'
 import { Suspense } from 'react'
 import { MonthPicker } from '@/components/admin/MonthPicker'
+import { getTotalStorage, getAllDoctorsStorage } from '@/lib/usage/storage'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Supabase — Console Histyon' }
@@ -14,6 +14,24 @@ function formatBytes(b: number): string {
   if (b >= 1e6) return `${(b / 1e6).toFixed(1)} MB`
   if (b >= 1e3) return `${(b / 1e3).toFixed(1)} KB`
   return `${b} B`
+}
+
+function extractSbMetric(usageJson: any, keys: string[]): number | null {
+  if (!usageJson) return null
+  // flat object
+  for (const k of keys) {
+    if (usageJson[k] != null) return Number(usageJson[k])
+  }
+  // array format: { usages: [{ metric: 'db_size', usage: 123, available_in_plan: true }] }
+  const arr: any[] = usageJson.usages ?? usageJson.metrics ?? []
+  for (const k of keys) {
+    const found = arr.find((m: any) => m.metric === k)
+    if (found != null) {
+      if (found.available_in_plan === false) return -1  // -1 = unavailable in plan
+      if (found.usage != null) return Number(found.usage)
+    }
+  }
+  return null
 }
 
 async function fetchSupabaseData(monthStr: string) {
@@ -31,13 +49,7 @@ async function fetchSupabaseData(monthStr: string) {
   const org = Array.isArray(orgs) ? orgs[0] : null
   const usageJson = usageRes?.ok ? await usageRes.json().catch(() => null) : null
 
-  // Try various field names the management API might return
-  const dbSizeBytes: number =
-    usageJson?.db_size_bytes ??
-    usageJson?.metrics?.find?.((m: any) => m.metric === 'db_size')?.usage ??
-    0
-
-  return { org, project, dbSizeBytes, monthStr }
+  return { org, project, usageJson }
 }
 
 export default async function AdminSupabasePage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
@@ -56,49 +68,144 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
   const monthStr = sp.month ?? currentMonth
   const isCurrentMonth = monthStr === currentMonth
 
-  const { org, project, dbSizeBytes } = await fetchSupabaseData(monthStr)
+  const now = new Date()
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
 
   const [
+    { org, project, usageJson },
     { count: totalUsers },
     { count: totalAnalyses },
+    egressResult,
+    totalStorageStats,
+    doctorStorageRows,
   ] = await Promise.all([
+    fetchSupabaseData(monthStr),
     supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }).neq('role', 'admin'),
     supabaseAdmin.from('tickets').select('*', { count: 'exact', head: true }),
+    Promise.resolve(
+      supabaseAdmin.from('egress_logs')
+        .select('bytes')
+        .gte('created_at', startOfMonth)
+    ).then(({ data }) => {
+      return (data ?? []).reduce((s: number, r: any) => s + (r.bytes ?? 0), 0)
+    }).catch(() => 0),
+    getTotalStorage().catch(() => ({ inputBytes: 0, dziBytes: 0, totalBytes: 0 })),
+    getAllDoctorsStorage().catch(() => []),
   ])
 
-  const appStorageBytes = 0 // file_size removed from tickets table
+  // Extract all metrics from usageJson
+  const dbSizeBytes = extractSbMetric(usageJson, ['db_size_bytes', 'db_size'])
+  const mauFromApi = extractSbMetric(usageJson, ['monthly_active_users', 'mau'])
+  const realtimePeakConnections = extractSbMetric(usageJson, ['realtime_peak_connections'])
+  const storageSizeFromApi = extractSbMetric(usageJson, ['storage_size_bytes', 'storage_size'])
+  const egressFromApi = extractSbMetric(usageJson, ['egress_bytes', 'egress'])
+  const cachedEgress = extractSbMetric(usageJson, ['storage_egress', 'cached_egress'])
+  const thirdPartyMau = extractSbMetric(usageJson, ['monthly_active_third_party_users'])
+  const realtimeMessages = extractSbMetric(usageJson, ['realtime_message_count'])
+  const edgeInvocations = extractSbMetric(usageJson, ['edge_invocations', 'edge_function_invocations'])
+  const ssoMau = extractSbMetric(usageJson, ['monthly_active_sso_users'])
+  const imageTransformations = extractSbMetric(usageJson, ['storage_image_transformations'])
+
+  // Use real storage from our lib
+  const storageBytesReal = totalStorageStats.totalBytes
+  // Use egress from egress_logs if available, otherwise from API
+  const egressBytes = (egressResult as number) > 0 ? (egressResult as number) : (egressFromApi ?? null)
+  // MAU: use total users from DB as most accurate
+  const mauUsed = totalUsers ?? 0
 
   const plan = org?.plan ?? 'free'
   const isPro = plan === 'pro'
   const recurringCost = isPro ? 25 : 0
-  const addonCost = 0 // no overages on free plan
 
-  // Free plan limits
-  const DB_SIZE_LIMIT = 500 * 1024 * 1024 // 500 MB free
+  // Limits
+  const DB_SIZE_LIMIT_FREE = 500 * 1024 * 1024
+  const DB_SIZE_LIMIT_PRO = 8 * 1024 * 1024 * 1024
   const MAU_LIMIT = 50_000
-  const FILE_STORAGE_LIMIT = 1 * 1024 * 1024 * 1024 // 1 GB
-  const BANDWIDTH_LIMIT = 5 * 1024 * 1024 * 1024 // 5 GB
+  const STORAGE_LIMIT_FREE = 1 * 1024 * 1024 * 1024
+  const STORAGE_LIMIT_PRO = 100 * 1024 * 1024 * 1024
+  const EGRESS_LIMIT_FREE = 5 * 1024 * 1024 * 1024
+  const EGRESS_LIMIT_PRO = 250 * 1024 * 1024 * 1024
+  const REALTIME_CONN_LIMIT = isPro ? 500 : 200
+  const REALTIME_MSG_LIMIT = isPro ? 5_000_000 : 2_000_000
+  const EDGE_LIMIT = isPro ? 2_000_000 : 500_000
 
-  const dbSizeUsed = dbSizeBytes
-  const mauUsed = totalUsers ?? 0
+  const dbSizeLimit = isPro ? DB_SIZE_LIMIT_PRO : DB_SIZE_LIMIT_FREE
+  const storageLimit = isPro ? STORAGE_LIMIT_PRO : STORAGE_LIMIT_FREE
+  const egressLimit = isPro ? EGRESS_LIMIT_PRO : EGRESS_LIMIT_FREE
 
-  const dbSizePct = Math.min((dbSizeUsed / DB_SIZE_LIMIT) * 100, 200)
-  const mauPct = Math.min((mauUsed / MAU_LIMIT) * 100, 200)
+  // Compute overage costs (only for Pro)
+  let addonCost = 0
+  if (isPro) {
+    if (dbSizeBytes !== null && dbSizeBytes > 0 && dbSizeBytes > DB_SIZE_LIMIT_PRO) {
+      addonCost += ((dbSizeBytes - DB_SIZE_LIMIT_PRO) / 1e9) * 0.125
+    }
+    if (storageBytesReal > STORAGE_LIMIT_PRO) {
+      addonCost += ((storageBytesReal - STORAGE_LIMIT_PRO) / 1e9) * 0.021
+    }
+    if (egressBytes !== null && egressBytes > EGRESS_LIMIT_PRO) {
+      addonCost += ((egressBytes - EGRESS_LIMIT_PRO) / 1e9) * 0.09
+    }
+    if (mauUsed > MAU_LIMIT) {
+      addonCost += (mauUsed - MAU_LIMIT) * 0.00325
+    }
+  }
+
+  function unavailabilityMsg(value: number | null, proOnly = false): string | null {
+    if (value === null) {
+      if (usageJson === null) return 'Errore API — verificare ADMIN_SUPABASE_MANAGEMENT_TOKEN'
+      return 'Dato non restituito dall\'API Supabase'
+    }
+    if (value === -1) return 'Non disponibile nel piano Free — attiva da piano Pro'
+    return null
+  }
+
+  function pctBar(value: number, limit: number) {
+    const pct = Math.min((value / limit) * 100, 200)
+    return (
+      <div className="flex items-center gap-2">
+        <div className="flex-1 h-1.5 bg-gray-100 max-w-[120px]">
+          <div
+            className={`h-full transition-all ${pct >= 100 ? 'bg-red-500' : pct >= 80 ? 'bg-amber-400' : 'bg-gray-800'}`}
+            style={{ width: `${Math.min(pct, 100)}%` }}
+          />
+        </div>
+        <span className="text-[10px] font-mono text-gray-500 whitespace-nowrap">
+          {formatBytes(value)} / {formatBytes(limit)}
+        </span>
+      </div>
+    )
+  }
+
+  function numBar(value: number, limit: number, fmt: (v: number) => string = (v) => v.toLocaleString('it-IT')) {
+    const pct = Math.min((value / limit) * 100, 200)
+    return (
+      <div className="flex items-center gap-2">
+        <div className="flex-1 h-1.5 bg-gray-100 max-w-[120px]">
+          <div
+            className={`h-full transition-all ${pct >= 100 ? 'bg-red-500' : pct >= 80 ? 'bg-amber-400' : 'bg-gray-800'}`}
+            style={{ width: `${Math.min(pct, 100)}%` }}
+          />
+        </div>
+        <span className="text-[10px] font-mono text-gray-500 whitespace-nowrap">
+          {fmt(value)} / {fmt(limit)}
+        </span>
+      </div>
+    )
+  }
 
   const monthLabel = new Date(monthStr + '-01').toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
 
   return (
     <div className="py-10 px-8">
-      <Link href="/ops-histyon-console/dashboard" className="inline-flex items-center gap-2 text-xs text-gray-400 hover:text-gray-700 mb-8 transition-colors">
-        <ArrowLeft className="w-3.5 h-3.5" />
-        Dashboard
-      </Link>
-
       {/* Header */}
       <div className="pb-8 mb-8 border-b border-gray-100 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-[#3ECF8E] flex items-center justify-center shrink-0">
-            <span className="text-white text-sm font-bold">S</span>
+            <svg viewBox="0 0 109 113" fill="none" className="w-5 h-5">
+              <path d="M63.7076 110.284C60.8481 113.885 55.0502 111.912 54.9813 107.314L53.9738 40.0627L99.1935 40.0627C107.384 40.0627 111.952 49.5228 106.859 55.9374L63.7076 110.284Z" fill="white"/>
+              <path d="M45.317 2.07103C48.1765 -1.53037 53.9745 0.442937 54.0434 5.04075L54.4849 72.2922H9.83113C1.64038 72.2922 -2.92775 62.8321 2.1655 56.4175L45.317 2.07103Z" fill="white" fillOpacity="0.7"/>
+            </svg>
           </div>
           <div>
             <p className="text-[10px] font-medium text-gray-400 uppercase tracking-[0.14em]">Supabase</p>
@@ -137,15 +244,15 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
       </h2>
       <div className="border border-gray-200 bg-white mb-8">
         {/* Table header */}
-        <div className="grid grid-cols-[1fr_200px_100px] gap-4 px-6 py-3 border-b border-gray-100 bg-gray-50">
+        <div className="grid grid-cols-[1fr_260px_100px] gap-4 px-6 py-3 border-b border-gray-100 bg-gray-50">
           <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400">Voce</p>
           <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400">Utilizzo</p>
           <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 text-right">Costo</p>
         </div>
 
-        {/* Piano Free / Pro */}
+        {/* 1. Piano Free / Pro */}
         <details className="group">
-          <summary className="grid grid-cols-[1fr_200px_100px] gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer list-none transition-colors">
+          <summary className="grid grid-cols-[1fr_260px_100px] gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer list-none transition-colors">
             <div className="flex items-center gap-2">
               <ChevronRight className="w-3 h-3 text-gray-300 group-open:rotate-90 transition-transform shrink-0" />
               <span className="text-sm text-gray-800">Piano {isPro ? 'Pro' : 'Free'}</span>
@@ -158,129 +265,289 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
             </div>
           </summary>
           <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
-            <p>Piano Free: <strong>$0/mese</strong> — include 500 MB DB, 50k MAU, 1 GB file storage, 5 GB egress</p>
-            <p>Piano Pro: <strong>$25/mese</strong> — include 8 GB DB, 50k MAU, 100 GB file storage, 250 GB egress</p>
+            <p>Piano Free: <strong>$0/mese</strong> — include 500 MB DB, 50k MAU, 1 GB storage, 5 GB egress</p>
+            <p>Piano Pro: <strong>$25/mese</strong> — include 8 GB DB, 50k MAU, 100 GB storage, 250 GB egress</p>
           </div>
         </details>
 
-        {/* Storage DB */}
+        {/* 2. Database Size */}
         <details className="group">
-          <summary className="grid grid-cols-[1fr_200px_100px] gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer list-none transition-colors">
+          <summary className="grid grid-cols-[1fr_260px_100px] gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer list-none transition-colors">
             <div className="flex items-center gap-2">
               <ChevronRight className="w-3 h-3 text-gray-300 group-open:rotate-90 transition-transform shrink-0" />
-              <span className="text-sm text-gray-800">Storage DB (PostgreSQL)</span>
+              <span className="text-sm text-gray-800">Database Size (PostgreSQL)</span>
             </div>
             <div className="flex items-center gap-2">
-              {isCurrentMonth && dbSizeUsed > 0 ? (
-                <>
-                  <div className="flex-1 h-1.5 bg-gray-100 max-w-[120px]">
-                    <div
-                      className={`h-full transition-all ${dbSizePct >= 100 ? 'bg-red-500' : dbSizePct >= 80 ? 'bg-amber-400' : 'bg-gray-800'}`}
-                      style={{ width: `${Math.min(dbSizePct, 100)}%` }}
-                    />
-                  </div>
-                  <span className="text-[10px] font-mono text-gray-500 whitespace-nowrap">
-                    {formatBytes(dbSizeUsed)} / 500 MB
-                  </span>
-                </>
-              ) : (
-                <span className="text-xs text-gray-300">Dato non disponibile</span>
-              )}
+              {dbSizeBytes !== null && dbSizeBytes >= 0
+                ? pctBar(dbSizeBytes, dbSizeLimit)
+                : <span className={`text-xs ${usageJson === null ? 'text-amber-600' : 'text-gray-300'}`}>{unavailabilityMsg(dbSizeBytes)}</span>
+              }
             </div>
             <div className="text-right">
               <span className="text-sm font-bold text-gray-400">$0.00</span>
             </div>
           </summary>
           <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
-            <p>Soglia gratuita: <strong>500 MB</strong> (Free), <strong>8 GB</strong> (Pro)</p>
-            {!isPro && dbSizePct >= 100 && (
-              <p className="text-amber-600 font-medium">⚠ Limite raggiunto — Supabase può mettere il progetto in pausa. Nessun costo extra: aggiorna a Pro per evitarlo.</p>
-            )}
+            <p>Soglia: <strong>500 MB</strong> (Free) · <strong>8 GB</strong> (Pro)</p>
             <p>Oltre soglia (Pro): <strong>$0.125/GB/mese</strong></p>
+            {!isPro && dbSizeBytes !== null && dbSizeBytes > 0 && dbSizeBytes > DB_SIZE_LIMIT_FREE && (
+              <p className="text-amber-600 font-medium">Limite raggiunto — Supabase può mettere il progetto in pausa. Nessun costo extra: aggiorna a Pro per evitarlo.</p>
+            )}
           </div>
         </details>
 
-        {/* MAU */}
+        {/* 3. Realtime Peak Connections */}
         <details className="group">
-          <summary className="grid grid-cols-[1fr_200px_100px] gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer list-none transition-colors">
+          <summary className="grid grid-cols-[1fr_260px_100px] gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer list-none transition-colors">
+            <div className="flex items-center gap-2">
+              <ChevronRight className="w-3 h-3 text-gray-300 group-open:rotate-90 transition-transform shrink-0" />
+              <span className="text-sm text-gray-800">Realtime Concurrent Peak Connections</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {realtimePeakConnections !== null && realtimePeakConnections >= 0
+                ? numBar(realtimePeakConnections, REALTIME_CONN_LIMIT)
+                : <span className={`text-xs ${usageJson === null ? 'text-amber-600' : 'text-gray-300'}`}>{unavailabilityMsg(realtimePeakConnections)}</span>
+              }
+            </div>
+            <div className="text-right">
+              <span className="text-sm font-bold text-gray-400">$0.00</span>
+            </div>
+          </summary>
+          <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
+            <p>Soglia: <strong>200 connessioni simultanee</strong> (Free) · <strong>500</strong> (Pro)</p>
+          </div>
+        </details>
+
+        {/* 4. Storage Size */}
+        <details className="group">
+          <summary className="grid grid-cols-[1fr_260px_100px] gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer list-none transition-colors">
+            <div className="flex items-center gap-2">
+              <ChevronRight className="w-3 h-3 text-gray-300 group-open:rotate-90 transition-transform shrink-0" />
+              <span className="text-sm text-gray-800">Storage Size (bucket Supabase)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {pctBar(storageBytesReal, storageLimit)}
+            </div>
+            <div className="text-right">
+              <span className={`text-sm font-bold ${isPro && storageBytesReal > STORAGE_LIMIT_PRO ? 'text-red-600' : 'text-gray-400'}`}>
+                {isPro && storageBytesReal > STORAGE_LIMIT_PRO
+                  ? `$${(((storageBytesReal - STORAGE_LIMIT_PRO) / 1e9) * 0.021).toFixed(2)}`
+                  : '$0.00'
+                }
+              </span>
+            </div>
+          </summary>
+          <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
+            <p>File di input e analisi DZI archiviati nei bucket Supabase Storage.</p>
+            <p>Soglia: <strong>1 GB</strong> (Free) · <strong>100 GB</strong> (Pro)</p>
+            <p>Oltre soglia (Pro): <strong>$0.021/GB</strong></p>
+            <p className="text-gray-400">Storage input: <strong>{formatBytes(totalStorageStats.inputBytes)}</strong> · Storage DZI: <strong>{formatBytes(totalStorageStats.dziBytes)}</strong></p>
+            <p className="text-gray-400 italic">Supabase fattura in base alla media giornaliera dello storage nel mese (GB×giorni/giorni_nel_mese). Lo storage attuale è: {formatBytes(storageBytesReal)} su {daysInMonth} giorni nel mese.</p>
+            {storageSizeFromApi !== null && storageSizeFromApi >= 0 && (
+              <p>Valore API Supabase: <strong>{formatBytes(storageSizeFromApi)}</strong></p>
+            )}
+          </div>
+        </details>
+
+        {/* 5. Storage Egress */}
+        <details className="group">
+          <summary className="grid grid-cols-[1fr_260px_100px] gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer list-none transition-colors">
+            <div className="flex items-center gap-2">
+              <ChevronRight className="w-3 h-3 text-gray-300 group-open:rotate-90 transition-transform shrink-0" />
+              <span className="text-sm text-gray-800">Storage Egress</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {egressBytes !== null && egressBytes >= 0
+                ? pctBar(egressBytes, egressLimit)
+                : <span className="text-xs text-gray-300">Nessun egress registrato</span>
+              }
+            </div>
+            <div className="text-right">
+              <span className={`text-sm font-bold ${isPro && egressBytes !== null && egressBytes > EGRESS_LIMIT_PRO ? 'text-red-600' : 'text-gray-400'}`}>
+                {isPro && egressBytes !== null && egressBytes > EGRESS_LIMIT_PRO
+                  ? `$${(((egressBytes - EGRESS_LIMIT_PRO) / 1e9) * 0.09).toFixed(2)}`
+                  : '$0.00'
+                }
+              </span>
+            </div>
+          </summary>
+          <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
+            <p>Soglia: <strong>5 GB/mese</strong> (Free) · <strong>250 GB/mese</strong> (Pro)</p>
+            <p>Oltre soglia (Pro): <strong>$0.09/GB</strong></p>
+            <p>Calcolato dalla tabella <code>egress_logs</code> per il mese corrente.</p>
+          </div>
+        </details>
+
+        {/* 6. MAU */}
+        <details className="group">
+          <summary className="grid grid-cols-[1fr_260px_100px] gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer list-none transition-colors">
             <div className="flex items-center gap-2">
               <ChevronRight className="w-3 h-3 text-gray-300 group-open:rotate-90 transition-transform shrink-0" />
               <span className="text-sm text-gray-800">Monthly Active Users (MAU)</span>
             </div>
             <div className="flex items-center gap-2">
-              {isCurrentMonth ? (
-                <>
-                  <div className="flex-1 h-1.5 bg-gray-100 max-w-[120px]">
-                    <div
-                      className={`h-full transition-all ${mauPct >= 100 ? 'bg-red-500' : mauPct >= 80 ? 'bg-amber-400' : 'bg-gray-800'}`}
-                      style={{ width: `${Math.min(mauPct, 100)}%` }}
-                    />
-                  </div>
-                  <span className="text-[10px] font-mono text-gray-500 whitespace-nowrap">
-                    {mauUsed.toLocaleString('it-IT')} / 50k
-                  </span>
-                </>
-              ) : <span className="text-xs text-gray-300">Dato non disponibile</span>}
+              {numBar(mauUsed, MAU_LIMIT)}
             </div>
             <div className="text-right">
-              <span className="text-sm font-bold text-gray-400">$0.00</span>
-            </div>
-          </summary>
-          <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
-            <p>Soglia gratuita: <strong>50.000 MAU/mese</strong></p>
-            <p>Oltre soglia (Pro): <strong>$0.00325/MAU</strong></p>
-          </div>
-        </details>
-
-        {/* File storage */}
-        <details className="group">
-          <summary className="grid grid-cols-[1fr_200px_100px] gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer list-none transition-colors">
-            <div className="flex items-center gap-2">
-              <ChevronRight className="w-3 h-3 text-gray-300 group-open:rotate-90 transition-transform shrink-0" />
-              <span className="text-sm text-gray-800">File storage (bucket Supabase)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-1.5 bg-gray-100 max-w-[120px]">
-                <div className="h-full bg-gray-800" style={{ width: '0%' }} />
-              </div>
-              <span className="text-[10px] font-mono text-gray-500 whitespace-nowrap">
-                0 B / 1 GB
+              <span className={`text-sm font-bold ${isPro && mauUsed > MAU_LIMIT ? 'text-red-600' : 'text-gray-400'}`}>
+                {isPro && mauUsed > MAU_LIMIT
+                  ? `$${((mauUsed - MAU_LIMIT) * 0.00325).toFixed(2)}`
+                  : '$0.00'
+                }
               </span>
             </div>
+          </summary>
+          <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
+            <p>Soglia: <strong>50.000 MAU/mese</strong> (Free e Pro incluso)</p>
+            <p>Oltre soglia (Pro): <strong>$0.00325/MAU</strong></p>
+            {mauFromApi !== null && mauFromApi >= 0 && (
+              <p>Valore API Supabase: <strong>{mauFromApi.toLocaleString('it-IT')}</strong></p>
+            )}
+          </div>
+        </details>
+
+        {/* 7. Cached Egress */}
+        <details className="group">
+          <summary className="grid grid-cols-[1fr_260px_100px] gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer list-none transition-colors">
+            <div className="flex items-center gap-2">
+              <ChevronRight className="w-3 h-3 text-gray-300 group-open:rotate-90 transition-transform shrink-0" />
+              <span className="text-sm text-gray-800">Cached Egress</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {cachedEgress !== null && cachedEgress >= 0
+                ? <span className="text-[10px] font-mono text-gray-500">{formatBytes(cachedEgress)}</span>
+                : <span className={`text-xs ${usageJson === null ? 'text-amber-600' : 'text-gray-300'}`}>{unavailabilityMsg(cachedEgress)}</span>
+              }
+            </div>
             <div className="text-right">
               <span className="text-sm font-bold text-gray-400">$0.00</span>
             </div>
           </summary>
           <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
-            <p>File di input e analisi DZI archiviati nei bucket Supabase Storage.</p>
-            <p>Soglia gratuita: <strong>1 GB</strong> (Free), <strong>100 GB</strong> (Pro)</p>
+            <p>Soglia: <strong>5 GB</strong> (Free) · <strong>illimitato</strong> (Pro)</p>
           </div>
         </details>
 
-        {/* Bandwidth */}
+        {/* 8. Monthly Active Third-Party Users */}
         <details className="group">
-          <summary className="grid grid-cols-[1fr_200px_100px] gap-4 px-6 py-4 hover:bg-gray-50 cursor-pointer list-none transition-colors">
+          <summary className="grid grid-cols-[1fr_260px_100px] gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer list-none transition-colors">
             <div className="flex items-center gap-2">
               <ChevronRight className="w-3 h-3 text-gray-300 group-open:rotate-90 transition-transform shrink-0" />
-              <span className="text-sm text-gray-800">Egress bandwidth</span>
+              <span className="text-sm text-gray-800">Monthly Active Third-Party Users</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-300">Dato non disponibile</span>
+              {thirdPartyMau !== null && thirdPartyMau >= 0
+                ? numBar(thirdPartyMau, 50_000)
+                : <span className={`text-xs ${usageJson === null ? 'text-amber-600' : 'text-gray-300'}`}>{unavailabilityMsg(thirdPartyMau)}</span>
+              }
+            </div>
+            <div className="text-right">
+              <span className="text-sm font-bold text-gray-400">$0.00</span>
+            </div>
+          </summary>
+          <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
+            <p>Soglia: <strong>50.000</strong> (Free e Pro)</p>
+          </div>
+        </details>
+
+        {/* 9. Realtime Messages */}
+        <details className="group">
+          <summary className="grid grid-cols-[1fr_260px_100px] gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer list-none transition-colors">
+            <div className="flex items-center gap-2">
+              <ChevronRight className="w-3 h-3 text-gray-300 group-open:rotate-90 transition-transform shrink-0" />
+              <span className="text-sm text-gray-800">Realtime Messages</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {realtimeMessages !== null && realtimeMessages >= 0
+                ? numBar(realtimeMessages, REALTIME_MSG_LIMIT)
+                : <span className={`text-xs ${usageJson === null ? 'text-amber-600' : 'text-gray-300'}`}>{unavailabilityMsg(realtimeMessages)}</span>
+              }
+            </div>
+            <div className="text-right">
+              <span className="text-sm font-bold text-gray-400">$0.00</span>
+            </div>
+          </summary>
+          <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
+            <p>Soglia: <strong>2M messaggi/mese</strong> (Free) · <strong>5M</strong> (Pro)</p>
+            <p>Oltre soglia (Pro): <strong>$2.50/M messaggi</strong></p>
+          </div>
+        </details>
+
+        {/* 10. Edge Function Invocations */}
+        <details className="group">
+          <summary className="grid grid-cols-[1fr_260px_100px] gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer list-none transition-colors">
+            <div className="flex items-center gap-2">
+              <ChevronRight className="w-3 h-3 text-gray-300 group-open:rotate-90 transition-transform shrink-0" />
+              <span className="text-sm text-gray-800">Edge Function Invocations</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {edgeInvocations !== null && edgeInvocations >= 0
+                ? numBar(edgeInvocations, EDGE_LIMIT)
+                : <span className={`text-xs ${usageJson === null ? 'text-amber-600' : 'text-gray-300'}`}>{unavailabilityMsg(edgeInvocations)}</span>
+              }
+            </div>
+            <div className="text-right">
+              <span className="text-sm font-bold text-gray-400">$0.00</span>
+            </div>
+          </summary>
+          <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
+            <p>Soglia: <strong>500k/mese</strong> (Free) · <strong>2M</strong> (Pro)</p>
+            <p>Oltre soglia (Pro): <strong>$2/M invocazioni</strong></p>
+          </div>
+        </details>
+
+        {/* 11. Monthly Active SSO Users */}
+        <details className="group">
+          <summary className="grid grid-cols-[1fr_260px_100px] gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer list-none transition-colors">
+            <div className="flex items-center gap-2">
+              <ChevronRight className="w-3 h-3 text-gray-300 group-open:rotate-90 transition-transform shrink-0" />
+              <span className="text-sm text-gray-800">Monthly Active SSO Users</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {ssoMau !== null && ssoMau >= 0
+                ? numBar(ssoMau, 50_000)
+                : ssoMau === -1 || (!isPro && ssoMau === null)
+                  ? <span className="text-xs text-gray-300">Non disponibile nel piano Free — funzionalità disponibile da piano Pro</span>
+                  : <span className={`text-xs ${usageJson === null ? 'text-amber-600' : 'text-gray-300'}`}>{unavailabilityMsg(ssoMau)}</span>
+              }
+            </div>
+            <div className="text-right">
+              <span className="text-sm font-bold text-gray-400">$0.00</span>
+            </div>
+          </summary>
+          <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
+            <p>SSO disponibile dal piano Pro. Soglia: <strong>50k MAU SSO</strong></p>
+          </div>
+        </details>
+
+        {/* 12. Storage Image Transformations */}
+        <details className="group">
+          <summary className="grid grid-cols-[1fr_260px_100px] gap-4 px-6 py-4 hover:bg-gray-50 cursor-pointer list-none transition-colors">
+            <div className="flex items-center gap-2">
+              <ChevronRight className="w-3 h-3 text-gray-300 group-open:rotate-90 transition-transform shrink-0" />
+              <span className="text-sm text-gray-800">Storage Image Transformations</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {imageTransformations !== null && imageTransformations >= 0
+                ? numBar(imageTransformations, 100)
+                : imageTransformations === -1 || (!isPro && imageTransformations === null)
+                  ? <span className="text-xs text-gray-300">Non disponibile nel piano Free — attiva da piano Pro</span>
+                  : <span className={`text-xs ${usageJson === null ? 'text-amber-600' : 'text-gray-300'}`}>{unavailabilityMsg(imageTransformations)}</span>
+              }
             </div>
             <div className="text-right">
               <span className="text-sm font-bold text-gray-400">$0.00</span>
             </div>
           </summary>
           <div className="px-6 py-4 bg-gray-50 text-xs text-gray-500 space-y-1">
-            <p>Soglia gratuita: <strong>5 GB/mese</strong> (Free), <strong>250 GB/mese</strong> (Pro)</p>
-            <p>Oltre soglia (Pro): <strong>$0.09/GB</strong></p>
+            <p>Image Transformation disponibile dal piano Pro.</p>
           </div>
         </details>
       </div>
 
       {/* App data */}
       <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">Dati applicazione</h2>
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-4 mb-4">
         {[
           { label: 'Medici registrati', value: (totalUsers ?? 0).toLocaleString('it-IT') },
           { label: 'Analisi totali', value: (totalAnalyses ?? 0).toLocaleString('it-IT') },
@@ -291,6 +558,16 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
             <p className="text-2xl font-bold tabular-nums text-gray-900">{value}</p>
           </div>
         ))}
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="border border-gray-200 bg-white px-6 py-5">
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-2">Storage Input</p>
+          <p className="text-2xl font-bold tabular-nums text-gray-900">{formatBytes(totalStorageStats.inputBytes)}</p>
+        </div>
+        <div className="border border-gray-200 bg-white px-6 py-5">
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-2">Storage DZI (Analisi)</p>
+          <p className="text-2xl font-bold tabular-nums text-gray-900">{formatBytes(totalStorageStats.dziBytes)}</p>
+        </div>
       </div>
     </div>
   )

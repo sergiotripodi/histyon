@@ -24,8 +24,6 @@ async function fetchVercelData(monthStr: string) {
     fetch(`https://api.vercel.com/v6/deployments?projectId=${projectId}&teamId=${teamId}&limit=50`, { headers, next: { revalidate: 300 } }),
     fetch(`https://api.vercel.com/v5/domains?teamId=${teamId}`, { headers, next: { revalidate: 300 } }),
     fetch(`https://api.vercel.com/v2/teams/${teamId}/members`, { headers, next: { revalidate: 300 } }).catch(() => null),
-    // Usage endpoint — works fully on Pro/Enterprise, returns limited or empty data on Hobby.
-    // We try it anyway and only display rows for metrics that return real values.
     fetch(`https://api.vercel.com/v2/teams/${teamId}/usage?from=${monthStartMs}&to=${monthEndMs}`, { headers, next: { revalidate: 300 } }).catch(() => null),
   ])
 
@@ -43,6 +41,15 @@ function deployStateIcon(state: string) {
   if (state === 'ERROR' || state === 'CANCELED') return <XCircle className="w-3.5 h-3.5 text-red-500" />
   return <Clock className="w-3.5 h-3.5 text-amber-500" />
 }
+
+function bytes(v: number): string {
+  if (v >= 1024**3) return `${(v / 1024**3).toFixed(2)} GB`
+  if (v >= 1024**2) return `${(v / 1024**2).toFixed(1)} MB`
+  if (v >= 1024)    return `${(v / 1024).toFixed(1)} KB`
+  return `${v} B`
+}
+function nFmt(v: number): string { return v.toLocaleString('it-IT') }
+function minFmt(v: number): string { return `${v.toLocaleString('it-IT')} min` }
 
 export default async function AdminVercelPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
   const supabase = await createClient()
@@ -64,15 +71,11 @@ export default async function AdminVercelPage({ searchParams }: { searchParams: 
   const allDeployments: any[] = deployments?.deployments ?? []
   const lastDeploy = allDeployments[0]
 
-  // Domains: per-domain cost logic
-  // Vercel-registered domains have serviceType='zeit' or a price field + boughtAt
-  // Annual billing: cost appears only in the renewal month (same calendar month as boughtAt)
   const selectedMonthNum = Number(monthStr.split('-')[1])
 
   function domainRenewalCostThisMonth(d: any): number {
     if (!d.price || !d.boughtAt) return 0
     const bought = new Date(d.boughtAt)
-    // Renewal happens same month each year
     if (bought.getMonth() + 1 === selectedMonthNum) return d.price
     return 0
   }
@@ -94,48 +97,11 @@ export default async function AdminVercelPage({ searchParams }: { searchParams: 
 
   const domainAddonCost = allDomains.reduce((s, d) => s + domainRenewalCostThisMonth(d), 0)
 
-  // Member count influences price on Pro ($20/member). Recurring cost auto-adapts.
   const memberCount: number = Array.isArray(members?.members) ? members.members.length : 0
-  const billableMembers = Math.max(1, memberCount) // Vercel charges at least 1
+  const billableMembers = Math.max(1, memberCount)
   const recurringCost = isPro ? 20 * billableMembers : 0
 
-  // ── Vercel usage metrics ────────────────────────────────────────────────
-  // The Vercel /v2/teams/{id}/usage endpoint returns numeric usage per metric.
-  // On Hobby plan many metrics return 0 or aren't included. We only render rows
-  // where the API returned a meaningful value (>= 0 and the field exists).
-  // When the team upgrades to Pro/Enterprise these rows will auto-populate.
-  //
-  // Each metric has: { key, label, included (free tier), unit formatter, overagePerUnit, hint }
-  const USAGE_METRICS: Array<{
-    key: string
-    label: string
-    included: number
-    format: (v: number) => string
-    overagePerUnit: number  // $ per single unit above included
-    hint: string
-  }> = [
-    { key: 'bandwidth',             label: 'Fast Data Transfer',          included: 100 * 1024**3, format: bytes,   overagePerUnit: 0.15 / 1024**3, hint: 'Banda dati servita dalla CDN — Hobby 100 GB · Pro 1 TB · oltre $0.15/GB' },
-    { key: 'edgeRequest',           label: 'Edge Requests',                included: 1_000_000,    format: nFmt,    overagePerUnit: 2.00 / 1_000_000, hint: 'Richieste edge — Hobby 1M · Pro 10M · oltre $2/M' },
-    { key: 'functionInvocation',    label: 'Function Invocations',         included: 100_000,      format: nFmt,    overagePerUnit: 0.60 / 1_000_000, hint: 'Esecuzioni serverless — Hobby 100k · Pro 1M · oltre $0.60/M' },
-    { key: 'functionDuration',      label: 'Function Duration (GB-Hr)',    included: 100,          format: (v) => `${v.toFixed(1)} GB-h`, overagePerUnit: 0.18, hint: 'Tempo esecuzione funzioni — Hobby 100 GB-Hr · Pro 1000 · oltre $0.18/GB-Hr' },
-    { key: 'edgeMiddlewareInvocations', label: 'Edge Middleware',          included: 1_000_000,    format: nFmt,    overagePerUnit: 0.65 / 1_000_000, hint: 'Hobby 1M · Pro illimitato · oltre $0.65/M' },
-    { key: 'imageOptimization',     label: 'Image Optimization (sources)', included: 1_000,        format: nFmt,    overagePerUnit: 5.00 / 1_000, hint: 'Sorgenti immagini ottimizzate — Hobby 1k · Pro 5k · oltre $5/1k' },
-    { key: 'sourceImagesCount',     label: 'Image Optimization (sources)', included: 1_000,        format: nFmt,    overagePerUnit: 5.00 / 1_000, hint: 'Alias del campo imageOptimization usato da alcune versioni API' },
-    { key: 'webAnalyticsEvents',    label: 'Web Analytics Events',         included: 25_000,       format: nFmt,    overagePerUnit: 14 / 100_000, hint: 'Hobby 25k · Pro 100k incluso · oltre $14/100k' },
-    { key: 'fluidActiveCpu',        label: 'Fluid Active CPU (h)',         included: 0,            format: (v) => `${v.toFixed(2)} h`, overagePerUnit: 0.128, hint: 'Pro: $0.128/h CPU attivo Fluid' },
-    { key: 'fluidProvisionedMemory', label: 'Fluid Provisioned Memory (GB-h)', included: 0,         format: (v) => `${v.toFixed(2)} GB-h`, overagePerUnit: 0.0106, hint: 'Pro: $0.0106/GB-h memoria provisioned Fluid' },
-  ]
-
-  function bytes(v: number): string {
-    if (v >= 1024**3) return `${(v / 1024**3).toFixed(2)} GB`
-    if (v >= 1024**2) return `${(v / 1024**2).toFixed(1)} MB`
-    if (v >= 1024)    return `${(v / 1024).toFixed(1)} KB`
-    return `${v} B`
-  }
-  function nFmt(v: number): string { return v.toLocaleString('it-IT') }
-
-  // Extract values: usage shape is { bandwidth: number, edgeRequest: number, ... }
-  // Some Vercel API versions wrap values as { value: number }; handle both.
+  // Extract usage value — supports flat object or { value: number } wrapper
   function extractUsageValue(field: string): number | null {
     if (!usage || typeof usage !== 'object') return null
     const raw = (usage as any)[field]
@@ -145,20 +111,129 @@ export default async function AdminVercelPage({ searchParams }: { searchParams: 
     return null
   }
 
-  // Build the list of usage rows that have real data (>= 0 and field present)
-  const usageRows = USAGE_METRICS
-    .map(m => ({ ...m, value: extractUsageValue(m.key) }))
-    .filter(m => m.value !== null && m.value !== undefined)
-    // dedupe by label (some metrics are aliases like imageOptimization vs sourceImagesCount)
-    .filter((m, i, arr) => arr.findIndex(x => x.label === m.label) === i)
-    .map(m => {
-      const v = m.value as number
-      const overage = Math.max(0, v - m.included)
-      const cost = overage * m.overagePerUnit
-      return { ...m, value: v, overage, cost }
-    })
+  // All required metrics — always shown
+  type MetricDef = {
+    key: string
+    label: string
+    includedHobby: number
+    includedPro: number
+    format: (v: number) => string
+    overagePerUnit: number
+    hint: string
+    proOnly?: boolean
+  }
 
-  const usageAddonCost = usageRows.reduce((s, r) => s + r.cost, 0)
+  const ALL_METRICS: MetricDef[] = [
+    {
+      key: 'bandwidth',
+      label: 'Fast Data Transfer',
+      includedHobby: 100 * 1024**3,
+      includedPro: 1024 * 1024**3,
+      format: bytes,
+      overagePerUnit: 0.15 / 1024**3,
+      hint: 'Banda dati servita dalla CDN — Hobby: 100 GB · Pro: 1 TB · oltre: $0.15/GB',
+    },
+    {
+      key: 'fastOriginTransfer',
+      label: 'Fast Origin Transfer',
+      includedHobby: 10 * 1024**3,
+      includedPro: 100 * 1024**3,
+      format: bytes,
+      overagePerUnit: 0.15 / 1024**3,
+      hint: 'Trasferimento dati verso origine — Hobby: 10 GB · Pro: 100 GB · oltre: $0.15/GB',
+    },
+    {
+      key: 'edgeRequest',
+      label: 'Edge Requests',
+      includedHobby: 1_000_000,
+      includedPro: 10_000_000,
+      format: nFmt,
+      overagePerUnit: 2.00 / 1_000_000,
+      hint: 'Richieste edge — Hobby: 1M · Pro: 10M · oltre: $2/M',
+    },
+    {
+      key: 'edgeCpuTime',
+      label: 'Edge Request CPU Duration',
+      includedHobby: 0,
+      includedPro: 0,
+      format: (v) => `${v.toLocaleString('it-IT')} ms`,
+      overagePerUnit: 0.65 / 1_000_000,
+      hint: 'Durata CPU richieste edge — Pro: $0.65/M ms',
+      proOnly: true,
+    },
+    {
+      key: 'functionInvocation',
+      label: 'Serverless Function Invocations',
+      includedHobby: 100_000,
+      includedPro: 1_000_000,
+      format: nFmt,
+      overagePerUnit: 0.60 / 1_000_000,
+      hint: 'Esecuzioni funzioni serverless — Hobby: 100k · Pro: 1M · oltre: $0.60/M',
+    },
+    {
+      key: 'buildMinute',
+      label: 'Build Execution',
+      includedHobby: 100,
+      includedPro: 6000,
+      format: minFmt,
+      overagePerUnit: 0.70 / 100,
+      hint: 'Minuti di build — Hobby: 100 min · Pro: 6.000 min · oltre: $0.70/100 min',
+    },
+    {
+      key: 'imageOptimization',
+      label: 'Image Optimization',
+      includedHobby: 1_000,
+      includedPro: 5_000,
+      format: nFmt,
+      overagePerUnit: 5.00 / 1_000,
+      hint: 'Ottimizzazione immagini — Hobby: 1k · Pro: 5k · oltre: $5/1k',
+    },
+    {
+      key: 'edgeMiddlewareInvocations',
+      label: 'Edge Middleware',
+      includedHobby: 1_000_000,
+      includedPro: Infinity,
+      format: nFmt,
+      overagePerUnit: 0.65 / 1_000_000,
+      hint: 'Esecuzioni Edge Middleware — Hobby: 1M · Pro: illimitato',
+    },
+  ]
+
+  type MetricRow = MetricDef & {
+    value: number | null
+    unavailableReason: string | null
+    overage: number
+    cost: number
+    included: number
+    pct: number
+  }
+
+  const metricRows: MetricRow[] = ALL_METRICS.map(m => {
+    const included = isPro ? m.includedPro : m.includedHobby
+    const value = extractUsageValue(m.key)
+
+    let unavailableReason: string | null = null
+    if (value === null) {
+      if (usage === null) {
+        unavailableReason = 'Errore API — verificare ADMIN_VERCEL_TOKEN'
+      } else if (!isPro && m.proOnly) {
+        unavailableReason = 'Non disponibile sul piano Hobby — upgrade a Pro'
+      } else if (isPro) {
+        unavailableReason = 'Dato non restituito dall\'API'
+      } else {
+        unavailableReason = 'Non disponibile sul piano Hobby — upgrade a Pro'
+      }
+    }
+
+    const v = value ?? 0
+    const overage = included === Infinity ? 0 : Math.max(0, v - included)
+    const cost = overage * m.overagePerUnit
+    const pct = included > 0 && included !== Infinity ? Math.min((v / included) * 100, 200) : 0
+
+    return { ...m, value, unavailableReason, overage, cost, included, pct }
+  })
+
+  const usageAddonCost = metricRows.reduce((s, r) => s + r.cost, 0)
   const addonCost = domainAddonCost + usageAddonCost
 
   const monthLabel = new Date(monthStr + '-01').toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })
@@ -167,8 +242,16 @@ export default async function AdminVercelPage({ searchParams }: { searchParams: 
     <div className="py-10 px-8">
       {/* Header */}
       <div className="pb-8 mb-8 border-b border-gray-100 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{project?.name ?? team?.name ?? 'histyon'}</h1>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-gray-900 flex items-center justify-center shrink-0">
+            <svg viewBox="0 0 116 100" fill="white" className="w-4 h-4">
+              <path d="M57.5 0L115 100H0L57.5 0z"/>
+            </svg>
+          </div>
+          <div>
+            <p className="text-[10px] font-medium text-gray-400 uppercase tracking-[0.14em]">Vercel</p>
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{project?.name ?? team?.name ?? 'histyon'}</h1>
+          </div>
         </div>
         <a href="https://vercel.com/dashboard" target="_blank" rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-700 transition-colors">
@@ -211,7 +294,7 @@ export default async function AdminVercelPage({ searchParams }: { searchParams: 
           <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 text-right">Costo</p>
         </div>
 
-        {/* Piano Hobby */}
+        {/* Piano Hobby / Pro */}
         <details className="group">
           <summary className="grid grid-cols-[1fr_200px_100px] gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer list-none transition-colors">
             <div className="flex items-center gap-2">
@@ -234,10 +317,9 @@ export default async function AdminVercelPage({ searchParams }: { searchParams: 
           </div>
         </details>
 
-        {/* Usage rows — only metrics actually returned by Vercel API */}
-        {usageRows.map((r, idx) => {
-          const pct = r.included > 0 ? Math.min((r.value / r.included) * 100, 200) : 0
-          const isLast = idx === usageRows.length - 1 && allDomains.length === 0
+        {/* Metric rows — always shown */}
+        {metricRows.map((r, idx) => {
+          const isLast = idx === metricRows.length - 1 && allDomains.length === 0
           return (
             <details key={r.key} className="group">
               <summary className={`grid grid-cols-[1fr_200px_100px] gap-4 px-6 py-4 ${!isLast ? 'border-b border-gray-50' : ''} hover:bg-gray-50 cursor-pointer list-none transition-colors`}>
@@ -246,31 +328,37 @@ export default async function AdminVercelPage({ searchParams }: { searchParams: 
                   <span className="text-sm text-gray-800">{r.label}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  {r.included > 0 ? (
-                    <>
-                      <div className="flex-1 h-1.5 bg-gray-100 max-w-[120px]">
-                        <div
-                          className={`h-full transition-all ${pct >= 100 ? 'bg-red-500' : pct >= 80 ? 'bg-amber-400' : 'bg-gray-800'}`}
-                          style={{ width: `${Math.min(pct, 100)}%` }}
-                        />
-                      </div>
-                      <span className="text-[10px] font-mono text-gray-500 whitespace-nowrap">
-                        {r.format(r.value)} / {r.format(r.included)}
-                      </span>
-                    </>
+                  {r.value !== null ? (
+                    r.included > 0 && r.included !== Infinity ? (
+                      <>
+                        <div className="flex-1 h-1.5 bg-gray-100 max-w-[120px]">
+                          <div
+                            className={`h-full transition-all ${r.pct >= 100 ? 'bg-red-500' : r.pct >= 80 ? 'bg-amber-400' : 'bg-gray-800'}`}
+                            style={{ width: `${Math.min(r.pct, 100)}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] font-mono text-gray-500 whitespace-nowrap">
+                          {r.format(r.value)} / {r.format(r.included)}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-[10px] font-mono text-gray-500">{r.format(r.value)}</span>
+                    )
                   ) : (
-                    <span className="text-[10px] font-mono text-gray-500">{r.format(r.value)}</span>
+                    <span className={`text-xs ${usage === null ? 'text-amber-600' : 'text-gray-300'}`}>
+                      {r.unavailableReason}
+                    </span>
                   )}
                 </div>
                 <div className="text-right">
                   <span className={`text-sm font-bold ${r.cost > 0 ? 'text-red-600' : 'text-gray-400'}`}>
-                    {r.cost > 0 ? `$${r.cost.toFixed(2)}` : '$0.00'}
+                    {r.value !== null ? (r.cost > 0 ? `$${r.cost.toFixed(2)}` : '$0.00') : '—'}
                   </span>
                 </div>
               </summary>
               <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
                 <p>{r.hint}</p>
-                {r.overage > 0 && (
+                {r.value !== null && r.overage > 0 && (
                   <p className="text-red-600">Overage: {r.format(r.overage)} oltre la soglia inclusa.</p>
                 )}
               </div>
@@ -278,7 +366,7 @@ export default async function AdminVercelPage({ searchParams }: { searchParams: 
           )
         })}
 
-        {/* Domini — one row per domain */}
+        {/* Domini */}
         {allDomains.length === 0 ? (
           <div className="px-6 py-4 text-xs text-gray-300">Nessun dominio configurato su questo account</div>
         ) : allDomains.map((d: any, idx: number) => {
@@ -325,7 +413,7 @@ export default async function AdminVercelPage({ searchParams }: { searchParams: 
         })}
       </div>
 
-      {/* App data — only essential business metrics. Cost-influencing fields go in the table above. */}
+      {/* App data */}
       {(() => {
         const items: { label: string; value: string }[] = []
         if (allDeployments.length > 0) items.push({ label: 'Deployment (ultimi 50)', value: allDeployments.length.toLocaleString('it-IT') })

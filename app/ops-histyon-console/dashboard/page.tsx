@@ -3,6 +3,7 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { AdminStatCard } from '@/components/admin/AdminStatCard'
 import { PaymentBanner } from '@/components/admin/PaymentBanner'
+import { getTotalStorage } from '@/lib/usage/storage'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Console — Histyon' }
@@ -67,17 +68,18 @@ export default async function AdminDashboardPage() {
     { data: recentUsers },
     { data: recentTickets },
     vercelPlan,
+    totalStorageStats,
   ] = await Promise.all([
     supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }).neq('role', 'admin'),
     supabaseAdmin.from('tickets').select('created_at, status').order('created_at', { ascending: true }),
     supabaseAdmin.from('profiles').select('created_at').gte('created_at', thirtyDaysAgo).neq('role', 'admin'),
     supabaseAdmin.from('tickets').select('created_at, status').gte('created_at', thirtyDaysAgo),
     getVercelPlan(),
+    getTotalStorage().catch(() => ({ inputBytes: 0, dziBytes: 0, totalBytes: 0 })),
   ])
 
   const tickets = allTickets ?? []
   const completedTickets = tickets.filter(t => t.status === 'COMPLETED')
-  const totalStorage = 0 // file_size removed from tickets table
 
   const last7 = last30.slice(-7)
   const sevenDaysAgo = `${last7[0]}T00:00:00.000Z`
@@ -150,9 +152,9 @@ export default async function AdminDashboardPage() {
         />
         <AdminStatCard
           label="Storage utilizzato"
-          value={totalStorage}
+          value={totalStorageStats.totalBytes}
           sparkline={storageSparkline}
-          subtitle={formatBytes(totalStorage)}
+          subtitle={formatBytes(totalStorageStats.totalBytes)}
           format="bytes"
         />
       </div>

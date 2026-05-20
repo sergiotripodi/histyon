@@ -25,7 +25,7 @@ export function AuthSidebar({ dict }: AuthSidebarProps) {
     <div className="hidden lg:flex w-[45%] bg-black text-white flex-col justify-between relative overflow-hidden py-6 pr-16 xl:pr-32" style={{ paddingLeft: 'calc((100vw - 80rem) / 2 + var(--app-px))' }}>      
       <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none"></div>
       <Link href="/" className="relative z-10 block hover:opacity-80 transition-opacity">
-        <Logo color="white" />
+        <Logo color="white" className="[&_img]:h-5" />
       </Link>
 
       <div className="relative z-10 h-48 flex flex-col justify-end">
