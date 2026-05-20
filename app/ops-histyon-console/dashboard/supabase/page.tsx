@@ -200,16 +200,16 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
     <div className="py-10 px-8">
       {/* Header */}
       <div className="pb-8 mb-8 border-b border-gray-100 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-[#3ECF8E] flex items-center justify-center shrink-0">
-            <svg viewBox="0 0 109 113" fill="none" className="w-5 h-5">
-              <path d="M63.7076 110.284C60.8481 113.885 55.0502 111.912 54.9813 107.314L53.9738 40.0627L99.1935 40.0627C107.384 40.0627 111.952 49.5228 106.859 55.9374L63.7076 110.284Z" fill="white"/>
-              <path d="M45.317 2.07103C48.1765 -1.53037 53.9745 0.442937 54.0434 5.04075L54.4849 72.2922H9.83113C1.64038 72.2922 -2.92775 62.8321 2.1655 56.4175L45.317 2.07103Z" fill="white" fillOpacity="0.7"/>
-            </svg>
-          </div>
-          <div>
-            <p className="text-[10px] font-medium text-gray-400 uppercase tracking-[0.14em]">Supabase</p>
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{project?.name ?? 'histyon-db'}</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Supabase</h1>
+          <div className="flex items-center gap-2 mt-1.5">
+            <div className="w-5 h-5 bg-[#3ECF8E] flex items-center justify-center shrink-0">
+              <svg viewBox="0 0 109 113" fill="none" className="w-3 h-3">
+                <path d="M63.7076 110.284C60.8481 113.885 55.0502 111.912 54.9813 107.314L53.9738 40.0627L99.1935 40.0627C107.384 40.0627 111.952 49.5228 106.859 55.9374L63.7076 110.284Z" fill="white"/>
+                <path d="M45.317 2.07103C48.1765 -1.53037 53.9745 0.442937 54.0434 5.04075L54.4849 72.2922H9.83113C1.64038 72.2922 -2.92775 62.8321 2.1655 56.4175L45.317 2.07103Z" fill="white" fillOpacity="0.7"/>
+              </svg>
+            </div>
+            <p className="text-sm text-gray-400">{project?.name ?? 'histyon-db'}</p>
           </div>
         </div>
         <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer"

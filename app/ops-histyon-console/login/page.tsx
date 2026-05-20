@@ -19,12 +19,9 @@ export default async function AdminLoginPage(props: {
   return (
     <div className="min-h-screen flex items-center justify-center bg-white">
       <div className="w-full max-w-sm px-6">
-        {/* Logo + label */}
-        <div className="flex items-center gap-3 mb-10">
+        {/* Logo */}
+        <div className="mb-10">
           <Logo color="black" className="[&_img]:h-6" />
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest border-l border-gray-200 pl-3">
-            Console
-          </span>
         </div>
 
         <h1 className="text-2xl font-bold tracking-tight mb-1">Accesso amministratore</h1>

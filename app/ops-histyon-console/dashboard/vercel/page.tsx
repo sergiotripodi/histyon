@@ -242,15 +242,15 @@ export default async function AdminVercelPage({ searchParams }: { searchParams: 
     <div className="py-10 px-8">
       {/* Header */}
       <div className="pb-8 mb-8 border-b border-gray-100 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gray-900 flex items-center justify-center shrink-0">
-            <svg viewBox="0 0 116 100" fill="white" className="w-4 h-4">
-              <path d="M57.5 0L115 100H0L57.5 0z"/>
-            </svg>
-          </div>
-          <div>
-            <p className="text-[10px] font-medium text-gray-400 uppercase tracking-[0.14em]">Vercel</p>
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{project?.name ?? team?.name ?? 'histyon'}</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Vercel</h1>
+          <div className="flex items-center gap-2 mt-1.5">
+            <div className="w-5 h-5 bg-gray-900 flex items-center justify-center shrink-0">
+              <svg viewBox="0 0 116 100" fill="white" className="w-3 h-3">
+                <path d="M57.5 0L115 100H0L57.5 0z"/>
+              </svg>
+            </div>
+            <p className="text-sm text-gray-400">{project?.name ?? team?.name ?? 'histyon'}</p>
           </div>
         </div>
         <a href="https://vercel.com/dashboard" target="_blank" rel="noopener noreferrer"
