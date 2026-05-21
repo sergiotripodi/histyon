@@ -21,14 +21,6 @@ const COLORS: Record<ServiceKey, string> = {
   resend:   '#6366F1',
 }
 
-// Colore del pallino nei filtri quando il bottone è attivo (bianco su grigio-900)
-// Vercel è nero → invisibile su bg-gray-900, quindi usiamo bianco per tutti gli attivi
-const DOT_COLOR_INACTIVE: Record<ServiceKey, string> = {
-  vercel:   '#111827',
-  supabase: '#3ECF8E',
-  resend:   '#6366F1',
-}
-
 const LABELS: Record<ServiceKey, string> = {
   vercel:   'Vercel',
   supabase: 'Supabase',
@@ -40,14 +32,13 @@ const ALL: ServiceKey[] = ['vercel', 'supabase', 'resend']
 const CHART_H = 160
 const LEFT    = 44
 const BOT     = 28
-const GAP     = 8   // gap tra barre
+const RIGHT   = 16
 
 export function SpendingChart({ data }: SpendingChartProps) {
   const [active, setActive] = useState<Set<ServiceKey>>(new Set(ALL))
   const containerRef = useRef<HTMLDivElement>(null)
   const [chartWidth, setChartWidth] = useState(600)
 
-  // Responsivo: aggiorna la larghezza al resize del container
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
@@ -71,16 +62,25 @@ export function SpendingChart({ data }: SpendingChartProps) {
   }
 
   const isAllActive = active.size === ALL.length
+  const plotW = chartWidth - LEFT - RIGHT
+  const n = data.length
 
-  // Larghezza barra calcolata in base alla larghezza disponibile
-  const n = data.length || 1
-  const plotW = chartWidth - LEFT - 8
-  const BAR_W = Math.max(8, Math.floor((plotW - GAP * (n - 1)) / n))
-
-  const maxTotal = Math.max(
-    ...data.map(m => ALL.filter(s => active.has(s)).reduce((sum, s) => sum + m[s], 0)),
+  // Max value across all visible series
+  const maxVal = Math.max(
+    ...data.flatMap(m => ALL.filter(s => active.has(s)).map(s => m[s])),
     1,
   )
+
+  // X position for month i
+  function xOf(i: number) {
+    if (n <= 1) return LEFT + plotW / 2
+    return LEFT + (i / (n - 1)) * plotW
+  }
+
+  // Y position for value v
+  function yOf(v: number) {
+    return CHART_H - (v / maxVal) * CHART_H
+  }
 
   const ySteps = [0, 0.25, 0.5, 0.75, 1]
 
@@ -111,10 +111,11 @@ export function SpendingChart({ data }: SpendingChartProps) {
               }`}
             >
               <span
-                className="w-2 h-2 shrink-0 ring-1 ring-white/20"
-                style={{ background: isOn ? DOT_COLOR_INACTIVE[s] : '#d1d5db',
-                  // Vercel attivo: bordo bianco per distinguerlo dal bg nero
-                  outline: isOn && s === 'vercel' ? '1.5px solid rgba(255,255,255,0.5)' : undefined }}
+                className="w-2 h-2 shrink-0"
+                style={{
+                  background: isOn ? COLORS[s] : '#d1d5db',
+                  outline: isOn && s === 'vercel' ? '1.5px solid rgba(255,255,255,0.45)' : undefined,
+                }}
               />
               {LABELS[s]}
             </button>
@@ -122,23 +123,20 @@ export function SpendingChart({ data }: SpendingChartProps) {
         })}
       </div>
 
-      {/* SVG chart — full width */}
+      {/* SVG line chart */}
       <div ref={containerRef} className="w-full">
-        <svg
-          width={chartWidth}
-          height={CHART_H + BOT}
-          className="block overflow-visible"
-        >
-          {/* Grid + Y labels */}
+        <svg width={chartWidth} height={CHART_H + BOT} className="block overflow-visible">
+
+          {/* Grid + Y axis labels */}
           {ySteps.map(pct => {
             const y = CHART_H - pct * CHART_H
-            const val = pct * maxTotal
+            const val = pct * maxVal
             return (
               <g key={pct}>
                 <line
-                  x1={LEFT - 4} y1={y}
-                  x2={chartWidth - 4} y2={y}
-                  stroke="#f3f4f6" strokeWidth={1}
+                  x1={LEFT} y1={y} x2={chartWidth - RIGHT} y2={y}
+                  stroke={pct === 0 ? '#e5e7eb' : '#f3f4f6'}
+                  strokeWidth={1}
                 />
                 <text
                   x={LEFT - 6} y={y + 4}
@@ -153,63 +151,73 @@ export function SpendingChart({ data }: SpendingChartProps) {
             )
           })}
 
-          {/* Bars */}
+          {/* X axis month labels */}
           {data.map((m, i) => {
-            const barX = LEFT + i * (BAR_W + GAP)
-            const activeServices = ALL.filter(s => active.has(s))
-
-            let stackY = CHART_H
-            const segments = activeServices.map(s => {
-              const h = maxTotal > 0 ? (m[s] / maxTotal) * CHART_H : 0
-              const segY = stackY - h
-              stackY -= h
-              return { s, y: segY, h }
-            })
-
+            // show fewer labels if crowded
+            const step = n > 18 ? 3 : n > 9 ? 2 : 1
+            if (i % step !== 0 && i !== n - 1) return null
             const raw = new Date(m.month + '-02').toLocaleDateString('it-IT', { month: 'short' })
-            const labelCap = raw.replace('.', '').replace(/^\w/, c => c.toUpperCase())
-            const total = activeServices.reduce((sum, s) => sum + m[s], 0)
-
+            const label = raw.replace('.', '').replace(/^\w/, c => c.toUpperCase())
             return (
-              <g key={m.month}>
-                <title>${total.toFixed(2)} — {labelCap}</title>
-                {segments.map(seg => (
-                  <rect
-                    key={seg.s}
-                    x={barX}
-                    y={seg.y}
-                    width={BAR_W}
-                    height={seg.h}
-                    fill={COLORS[seg.s]}
-                  />
-                ))}
-                <text
-                  x={barX + BAR_W / 2}
-                  y={CHART_H + 17}
-                  textAnchor="middle"
-                  fontSize={9}
-                  fill="#9ca3af"
-                >
-                  {labelCap}
-                </text>
-              </g>
+              <text
+                key={m.month}
+                x={xOf(i)}
+                y={CHART_H + 17}
+                textAnchor="middle"
+                fontSize={9}
+                fill="#9ca3af"
+              >
+                {label}
+              </text>
             )
           })}
 
-          {/* Baseline */}
-          <line
-            x1={LEFT - 4} y1={CHART_H}
-            x2={chartWidth - 4} y2={CHART_H}
-            stroke="#e5e7eb" strokeWidth={1}
-          />
+          {/* Lines per service */}
+          {ALL.filter(s => active.has(s)).map(s => {
+            const points = data.map((m, i) => `${xOf(i).toFixed(1)},${yOf(m[s]).toFixed(1)}`).join(' ')
+            return (
+              <polyline
+                key={s}
+                points={points}
+                fill="none"
+                stroke={COLORS[s]}
+                strokeWidth={1.5}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+              />
+            )
+          })}
+
+          {/* Dots per service */}
+          {ALL.filter(s => active.has(s)).map(s =>
+            data.map((m, i) => (
+              <g key={`${s}-${m.month}`}>
+                <title>{LABELS[s]}: ${m[s].toFixed(2)} — {new Date(m.month + '-02').toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })}</title>
+                {/* Hit area invisibile */}
+                <circle cx={xOf(i)} cy={yOf(m[s])} r={8} fill="transparent" />
+                {/* Dot visibile */}
+                <circle
+                  cx={xOf(i)}
+                  cy={yOf(m[s])}
+                  r={n <= 3 ? 4 : 3}
+                  fill={COLORS[s]}
+                  stroke="white"
+                  strokeWidth={1.5}
+                />
+              </g>
+            ))
+          )}
         </svg>
       </div>
 
       {/* Legend */}
       <div className="flex items-center gap-5 mt-4">
-        {ALL.map(s => (
+        {ALL.filter(s => active.has(s)).map(s => (
           <div key={s} className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 shrink-0 border border-gray-200" style={{ background: COLORS[s] }} />
+            <span
+              className="w-5 h-[2px] shrink-0"
+              style={{ background: COLORS[s] }}
+            />
             <span className="text-[10px] text-gray-500">{LABELS[s]}</span>
           </div>
         ))}
