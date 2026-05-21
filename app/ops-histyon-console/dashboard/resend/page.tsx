@@ -21,15 +21,12 @@ function fmtNum(v: number): string {
  * Max 10 pagine (1.000 email) per non bloccare il render.
  */
 async function countResendEmailsForMonth(key: string, monthStr: string): Promise<number | null> {
-  const startOfMonth = `${monthStr}-01T00:00:00.000Z`
-  // Fine mese: primo giorno del mese successivo
   const [y, m] = monthStr.split('-').map(Number)
-  const endOfMonth = new Date(y, m, 1).toISOString() // mese è 0-based in Date, ma m è già 1-based → ok
+  const monthStart = new Date(Date.UTC(y, m - 1, 1))
+  const monthEnd   = new Date(Date.UTC(y, m, 1))
 
-  let total = 0
-  let offset = 0
-  const PAGE = 100
-  const MAX_PAGES = 10
+  let total = 0, offset = 0
+  const PAGE = 100, MAX_PAGES = 10
 
   for (let page = 0; page < MAX_PAGES; page++) {
     const res = await fetch(`https://api.resend.com/emails?limit=${PAGE}&offset=${offset}`, {
@@ -38,17 +35,18 @@ async function countResendEmailsForMonth(key: string, monthStr: string): Promise
     })
     if (!res.ok) return total > 0 ? total : null
 
-    const json = await res.json()
-    const emails: any[] = json.data ?? []
-    if (emails.length === 0) break
+    const emails: any[] = (await res.json()).data ?? []
+    if (!emails.length) break
 
     for (const e of emails) {
-      const d = e.created_at ?? ''
-      if (d >= startOfMonth && d < endOfMonth) total++
-      else if (d < startOfMonth) return total // emails ordinate desc: siamo oltre il mese
+      if (!e.created_at) continue
+      const created = new Date(e.created_at)
+      if (isNaN(created.getTime())) continue
+      if (created >= monthStart && created < monthEnd) total++
+      else if (created < monthStart) return total  // ordine desc: usciti dal mese
     }
 
-    if (emails.length < PAGE) break // ultima pagina
+    if (emails.length < PAGE) break
     offset += PAGE
   }
 

@@ -171,9 +171,9 @@ async function fetchSupabaseCosts(): Promise<{ recurring: number; addon: number 
 // ── Resend ───────────────────────────────────────────────────────────────────
 
 async function countResendEmailsForMonth(key: string, monthStr: string): Promise<number> {
-  const startOfMonth = `${monthStr}-01T00:00:00.000Z`
   const [y, m] = monthStr.split('-').map(Number)
-  const endOfMonth = new Date(y, m, 1).toISOString()
+  const monthStart = new Date(Date.UTC(y, m - 1, 1))
+  const monthEnd   = new Date(Date.UTC(y, m, 1))
 
   let total = 0, offset = 0
   for (let page = 0; page < 10; page++) {
@@ -184,9 +184,11 @@ async function countResendEmailsForMonth(key: string, monthStr: string): Promise
     const emails: any[] = (await res.json()).data ?? []
     if (!emails.length) break
     for (const e of emails) {
-      const d = e.created_at ?? ''
-      if (d >= startOfMonth && d < endOfMonth) total++
-      else if (d < startOfMonth) return total
+      if (!e.created_at) continue
+      const created = new Date(e.created_at)
+      if (isNaN(created.getTime())) continue
+      if (created >= monthStart && created < monthEnd) total++
+      else if (created < monthStart) return total
     }
     if (emails.length < 100) break
     offset += 100

@@ -61,10 +61,10 @@ async function getVercelPlan(): Promise<string> {
 async function getResendEmailsSent(): Promise<number | null> {
   const key = process.env.RESEND_API_KEY
   if (!key) return null
-  const monthStr = new Date().toISOString().slice(0, 7)
-  const [y, m] = monthStr.split('-').map(Number)
-  const startOfMonth = `${monthStr}-01T00:00:00.000Z`
-  const endOfMonth   = new Date(y, m, 1).toISOString()
+  const now = new Date()
+  const y = now.getUTCFullYear(), m = now.getUTCMonth()
+  const monthStart = new Date(Date.UTC(y, m, 1))
+  const monthEnd   = new Date(Date.UTC(y, m + 1, 1))
   try {
     let total = 0, offset = 0
     for (let page = 0; page < 5; page++) {
@@ -76,9 +76,11 @@ async function getResendEmailsSent(): Promise<number | null> {
       const emails: any[] = (await res.json()).data ?? []
       if (!emails.length) break
       for (const e of emails) {
-        const d = e.created_at ?? ''
-        if (d >= startOfMonth && d < endOfMonth) total++
-        else if (d < startOfMonth) return total
+        if (!e.created_at) continue
+        const created = new Date(e.created_at)
+        if (isNaN(created.getTime())) continue
+        if (created >= monthStart && created < monthEnd) total++
+        else if (created < monthStart) return total  // ordine desc: usciti dal mese
       }
       if (emails.length < 100) break
       offset += 100
@@ -168,7 +170,8 @@ export default async function AdminDashboardPage() {
       <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">
         Statistiche piattaforma
       </h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mb-8">
+      {/* Riga 1: metriche piattaforma */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <AdminStatCard
           label="Utenti registrati"
           value={totalUsers ?? 0}
@@ -181,6 +184,10 @@ export default async function AdminDashboardPage() {
           sparkline={ticketSparkline}
           href="/ops-histyon-console/dashboard/analyses"
         />
+      </div>
+
+      {/* Riga 2: infrastruttura */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <AdminStatCard
           label="Database PostgreSQL"
           value={dbSizeBytes ?? 0}

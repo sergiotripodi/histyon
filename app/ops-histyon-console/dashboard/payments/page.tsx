@@ -99,23 +99,25 @@ async function fetchVercelDomainAddon(monthStr: string): Promise<number> {
 }
 
 async function countResendEmailsForMonth(key: string, monthStr: string): Promise<number | null> {
-  const startOfMonth = `${monthStr}-01T00:00:00.000Z`
   const [y, m] = monthStr.split('-').map(Number)
-  const endOfMonth = new Date(y, m, 1).toISOString()
+  const monthStart = new Date(Date.UTC(y, m - 1, 1))
+  const monthEnd   = new Date(Date.UTC(y, m, 1))
 
   let total = 0, offset = 0
   for (let page = 0; page < 10; page++) {
     const res = await fetch(`https://api.resend.com/emails?limit=100&offset=${offset}`, {
-      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY!}` },
+      headers: { Authorization: `Bearer ${key}` },
       next: { revalidate: 300 },
     }).catch(() => null)
     if (!res?.ok) return total > 0 ? total : null
     const emails: any[] = (await res.json()).data ?? []
     if (!emails.length) break
     for (const e of emails) {
-      const d = e.created_at ?? ''
-      if (d >= startOfMonth && d < endOfMonth) total++
-      else if (d < startOfMonth) return total
+      if (!e.created_at) continue
+      const created = new Date(e.created_at)
+      if (isNaN(created.getTime())) continue
+      if (created >= monthStart && created < monthEnd) total++
+      else if (created < monthStart) return total
     }
     if (emails.length < 100) break
     offset += 100
@@ -436,10 +438,9 @@ export default async function AdminPaymentsPage({
         </div>
       </div>
 
-      {/* Nota cron */}
+      {/* Nota ciclo */}
       <p className="text-[11px] text-gray-400 mb-8">
         Il ciclo di fatturazione si azzera il giorno <strong className="text-gray-600">{BILLING_DAY}</strong> di ogni mese.
-        Lo snapshot viene salvato automaticamente da un cron job.
       </p>
 
       {/* External links */}
