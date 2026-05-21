@@ -1,8 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { ExternalLink, ChevronRight, CheckCircle2, XCircle, Clock } from 'lucide-react'
-import { Suspense } from 'react'
-import { MonthPicker } from '@/components/admin/MonthPicker'
+import { MonthBadge } from '@/components/admin/MonthBadge'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Vercel' }
@@ -51,15 +50,12 @@ function bytes(v: number): string {
 function nFmt(v: number): string { return v.toLocaleString('it-IT') }
 function minFmt(v: number): string { return `${v.toLocaleString('it-IT')} min` }
 
-export default async function AdminVercelPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
+export default async function AdminVercelPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/ops-histyon-console/login')
 
-  const sp = await searchParams
-  const currentMonth = new Date().toISOString().slice(0, 7)
-  const monthStr = sp.month ?? currentMonth
-  const isCurrentMonth = monthStr === currentMonth
+  const monthStr = new Date().toISOString().slice(0, 7)
 
   const { team, project, deployments, domains, members, usage } = await fetchVercelData(monthStr)
 
@@ -236,7 +232,6 @@ export default async function AdminVercelPage({ searchParams }: { searchParams: 
   const usageAddonCost = metricRows.reduce((s, r) => s + r.cost, 0)
   const addonCost = domainAddonCost + usageAddonCost
 
-  const monthLabel = new Date(monthStr + '-01').toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })
 
   return (
     <div className="py-10 px-8">
@@ -260,9 +255,6 @@ export default async function AdminVercelPage({ searchParams }: { searchParams: 
       </div>
 
       {/* Month picker */}
-      <Suspense>
-        <MonthPicker />
-      </Suspense>
 
       {/* Cost summary boxes */}
       <div className="grid grid-cols-2 gap-4 mb-8">
@@ -279,13 +271,10 @@ export default async function AdminVercelPage({ searchParams }: { searchParams: 
       </div>
 
       {/* Unified cost table */}
-      <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">
-        Dettaglio costi — {monthLabel}
-        {!isCurrentMonth && <span className="ml-2 text-gray-300 font-normal normal-case">(storico)</span>}
-      </h2>
-      {!isCurrentMonth && (
-        <p className="text-xs text-gray-400 mb-4">Dati storici non disponibili via API Vercel. Vengono mostrati i dati live correnti.</p>
-      )}
+      <div className="flex items-center gap-3 mb-4">
+        <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400">Dettaglio costi</h2>
+        <MonthBadge monthStr={monthStr} live />
+      </div>
       <div className="border border-gray-200 bg-white mb-8">
         {/* Table header */}
         <div className="grid grid-cols-[1fr_200px_100px] gap-4 px-6 py-3 border-b border-gray-100 bg-gray-50">

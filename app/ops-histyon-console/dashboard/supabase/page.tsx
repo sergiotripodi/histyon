@@ -2,8 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { ExternalLink, ChevronRight } from 'lucide-react'
-import { Suspense } from 'react'
-import { MonthPicker } from '@/components/admin/MonthPicker'
+import { MonthBadge } from '@/components/admin/MonthBadge'
 import { getTotalStorage, getAllDoctorsStorage } from '@/lib/usage/storage'
 
 export const dynamic = 'force-dynamic'
@@ -55,7 +54,7 @@ async function fetchSupabaseData(monthStr: string) {
   return { org, project, usageJson }
 }
 
-export default async function AdminSupabasePage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
+export default async function AdminSupabasePage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/ops-histyon-console/login')
@@ -66,10 +65,7 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
-  const sp = await searchParams
-  const currentMonth = new Date().toISOString().slice(0, 7)
-  const monthStr = sp.month ?? currentMonth
-  const isCurrentMonth = monthStr === currentMonth
+  const monthStr = new Date().toISOString().slice(0, 7)
 
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
@@ -224,7 +220,6 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
     )
   }
 
-  const monthLabel = new Date(monthStr + '-01').toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
 
   return (
@@ -249,11 +244,6 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
         </a>
       </div>
 
-      {/* Month picker */}
-      <Suspense>
-        <MonthPicker />
-      </Suspense>
-
       {/* Cost summary boxes */}
       <div className="grid grid-cols-2 gap-4 mb-8">
         <div className="border border-gray-200 bg-white px-8 py-6">
@@ -269,10 +259,10 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
       </div>
 
       {/* Unified cost table */}
-      <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">
-        Dettaglio costi — {monthLabel}
-        {!isCurrentMonth && <span className="ml-2 text-gray-300 font-normal normal-case">(storico)</span>}
-      </h2>
+      <div className="flex items-center gap-3 mb-4">
+        <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400">Dettaglio costi</h2>
+        <MonthBadge monthStr={monthStr} live />
+      </div>
       <div className="border border-gray-200 bg-white mb-8">
         {/* Table header */}
         <div className="grid grid-cols-[1fr_260px_100px] gap-4 px-6 py-3 border-b border-gray-100 bg-gray-50">

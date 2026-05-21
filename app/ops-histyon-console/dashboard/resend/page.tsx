@@ -2,8 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import { ExternalLink, ChevronRight } from 'lucide-react'
-import { Suspense } from 'react'
-import { MonthPicker } from '@/components/admin/MonthPicker'
+import { MonthBadge } from '@/components/admin/MonthBadge'
 import { ResendPlanSelector } from '@/components/admin/ResendPlanSelector'
 import { RESEND_PLANS, RESEND_OVERAGE_RATE, type ResendPlanKey } from '@/lib/resend/plans'
 
@@ -83,11 +82,7 @@ async function fetchResendData(monthStr: string) {
   }
 }
 
-export default async function AdminResendPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ month?: string }>
-}) {
+export default async function AdminResendPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/ops-histyon-console/login')
@@ -96,10 +91,7 @@ export default async function AdminResendPage({
   const planKey = (cookieStore.get('resend_plan')?.value ?? 'free') as ResendPlanKey
   const plan = RESEND_PLANS[planKey] ?? RESEND_PLANS.free
 
-  const sp = await searchParams
-  const currentMonth = new Date().toISOString().slice(0, 7)
-  const monthStr = sp.month ?? currentMonth
-  const isCurrentMonth = monthStr === currentMonth
+  const monthStr = new Date().toISOString().slice(0, 7)
 
   const { emailsSent, dailyUsed, domains, apiKeyMissing, error } = await fetchResendData(monthStr)
 
@@ -109,7 +101,6 @@ export default async function AdminResendPage({
   const totalCost     = plan.price + overageCost
 
   const verifiedDomains = domains.filter((d: any) => d.status === 'verified')
-  const monthLabel = new Date(monthStr + '-01').toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })
 
   function quotaBar(used: number, limit: number) {
     const pct = Math.min((used / limit) * 100, 200)
@@ -152,9 +143,6 @@ export default async function AdminResendPage({
       </div>
 
       {/* Month picker */}
-      <Suspense>
-        <MonthPicker />
-      </Suspense>
 
       {/* Cost summary */}
       <div className="grid grid-cols-2 gap-4 mb-8">
@@ -175,10 +163,10 @@ export default async function AdminResendPage({
       </div>
 
       {/* Metrics table */}
-      <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">
-        Dettaglio costi — {monthLabel}
-        {!isCurrentMonth && <span className="ml-2 text-gray-300 font-normal normal-case">(storico)</span>}
-      </h2>
+      <div className="flex items-center gap-3 mb-4">
+        <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400">Dettaglio costi</h2>
+        <MonthBadge monthStr={monthStr} live />
+      </div>
       <div className="border border-gray-200 bg-white mb-8">
         <div className="grid grid-cols-[1fr_260px_100px] gap-4 px-6 py-3 border-b border-gray-100 bg-gray-50">
           <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400">Voce</p>

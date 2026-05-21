@@ -5,6 +5,7 @@ import { ExternalLink } from 'lucide-react'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { MonthPicker } from '@/components/admin/MonthPicker'
+import { MonthBadge } from '@/components/admin/MonthBadge'
 import { RESEND_PLANS, type ResendPlanKey } from '@/lib/resend/plans'
 
 export const dynamic = 'force-dynamic'
@@ -113,7 +114,7 @@ export default async function AdminPaymentsPage({ searchParams }: { searchParams
 
       {/* Month picker */}
       <Suspense>
-        <MonthPicker />
+        <MonthPicker minMonth="2026-05" />
       </Suspense>
 
       {/* 3 cost boxes */}
@@ -126,7 +127,7 @@ export default async function AdminPaymentsPage({ searchParams }: { searchParams
           {/* Box 1: Spese fisse */}
           <div className="border border-gray-200 bg-white px-8 py-6">
             <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-3">
-              Spese fisse — {monthLabelCap}
+              Spese fisse
             </p>
             <p className="text-4xl font-bold tabular-nums text-gray-900">${recurringCost.toFixed(2)}</p>
             <p className="text-xs text-gray-400 mt-2">Piano mensile Vercel + Supabase + Resend</p>
@@ -138,7 +139,7 @@ export default async function AdminPaymentsPage({ searchParams }: { searchParams
           {/* Box 2: Spese aggiuntive */}
           <div className="border border-gray-200 bg-white px-8 py-6">
             <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-3">
-              Spese aggiuntive — {monthLabelCap}
+              Spese aggiuntive
             </p>
             <p className="text-4xl font-bold tabular-nums text-gray-900">${totalAddon.toFixed(2)}</p>
             <p className="text-xs text-gray-400 mt-2">Overage, domini, add-on uso eccedente</p>
@@ -155,10 +156,13 @@ export default async function AdminPaymentsPage({ searchParams }: { searchParams
         </div>
       )}
 
-      {/* Service cards — visibili sempre (non solo mese corrente) */}
+      {/* Service cards */}
       {!isFuture && (
         <>
-          <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">Costi per servizio</h2>
+          <div className="flex items-center gap-3 mb-4">
+            <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400">Costi per servizio</h2>
+            <MonthBadge monthStr={monthStr} live={isCurrentMonth} />
+          </div>
           <div className="grid grid-cols-3 gap-4 mb-8">
 
             <Link href="/ops-histyon-console/dashboard/vercel" className="block group border border-gray-200 bg-white p-6 hover:border-gray-400 transition-colors">
@@ -213,7 +217,6 @@ export default async function AdminPaymentsPage({ searchParams }: { searchParams
       {/* Nota ciclo di fatturazione */}
       <p className="text-[11px] text-gray-400 mb-8">
         Il ciclo di fatturazione si azzera il giorno <strong className="text-gray-600">{BILLING_DAY}</strong> di ogni mese.
-        Quando arriverà quel giorno potrai impostare il giorno esatto di fatturazione Vercel + Supabase.
       </p>
 
       {/* External links */}
