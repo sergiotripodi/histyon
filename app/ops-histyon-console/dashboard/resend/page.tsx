@@ -186,9 +186,7 @@ export default async function AdminResendPage({
                 ? <span className="text-xs text-amber-600">RESEND_API_KEY non configurata in Vercel</span>
                 : error
                   ? <span className="text-xs text-amber-600">Errore chiamata API Resend — verifica la chiave</span>
-                  : emailsSent === null
-                    ? <span className="text-xs text-gray-300">Dato non disponibile</span>
-                    : quotaBar(emailsUsed, plan.quota)
+                  : quotaBar(emailsUsed, plan.quota)
               }
             </div>
             <div className="text-right">
@@ -273,11 +271,11 @@ export default async function AdminResendPage({
         {[
           {
             label: 'Email inviate (mese)',
-            value: emailsSent !== null ? fmtNum(emailsSent) : '—',
+            value: fmtNum(emailsSent ?? 0),
           },
           {
             label: 'Quota rimanente',
-            value: emailsSent !== null ? fmtNum(Math.max(0, plan.quota - emailsUsed)) : '—',
+            value: fmtNum(Math.max(0, plan.quota - emailsUsed)),
           },
           {
             label: 'Costo totale stimato',
