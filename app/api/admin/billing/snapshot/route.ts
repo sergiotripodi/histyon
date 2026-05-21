@@ -10,8 +10,9 @@
  *
  * Env var richieste (oltre a quelle già esistenti):
  *   CRON_SECRET   — stringa casuale, da impostare nelle env Vercel
- *   RESEND_PLAN   — chiave piano Resend attivo (es. "free", "pro_50k")
- *                   (non leggibile dai cookie lato cron, va messa come env var)
+ *
+ * Il piano Resend viene letto dalla tabella admin_settings (chiave "resend_plan"),
+ * aggiornata automaticamente ogni volta che si usa il menu nella console admin.
  */
 
 import { NextResponse } from 'next/server'
@@ -193,9 +194,29 @@ async function countResendEmailsForMonth(key: string, monthStr: string): Promise
   return total
 }
 
+async function getResendPlanFromDb(): Promise<ResendPlanKey> {
+  try {
+    const db = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } },
+    )
+    const { data } = await db
+      .from('admin_settings')
+      .select('value')
+      .eq('key', 'resend_plan')
+      .single<{ value: string }>()
+    const val = data?.value ?? 'free'
+    return (val in RESEND_PLANS ? val : 'free') as ResendPlanKey
+  } catch {
+    return 'free'
+  }
+}
+
 async function fetchResendCosts(monthStr: string): Promise<{ recurring: number; addon: number }> {
   const key     = process.env.RESEND_API_KEY
-  const planKey = (process.env.RESEND_PLAN ?? 'free') as ResendPlanKey
+  // Legge il piano dal DB (aggiornato ogni volta che si usa il menu nella console)
+  const planKey = await getResendPlanFromDb()
   const plan    = RESEND_PLANS[planKey] ?? RESEND_PLANS.free
 
   if (!key) return { recurring: plan.price, addon: 0 }
@@ -232,17 +253,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Month before project start' }, { status: 400 })
   }
 
-  const [vercel, supabase, resend] = await Promise.all([
-    fetchVercelCosts(monthStr),
-    fetchSupabaseCosts(),
-    fetchResendCosts(monthStr),
-  ])
-
   const db = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } },
   )
+
+  const [vercel, supabase, resend] = await Promise.all([
+    fetchVercelCosts(monthStr),
+    fetchSupabaseCosts(),
+    fetchResendCosts(monthStr),
+  ])
 
   const { error } = await db
     .from('admin_billing_snapshots')
