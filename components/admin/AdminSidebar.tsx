@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { Logo } from '@/components/ui/Logo'
 import {
   LayoutDashboard, Users, Server,
-  Database, CreditCard, LogOut
+  Database, CreditCard, LogOut, Mail
 } from 'lucide-react'
 import { adminLogout } from '@/lib/actions/admin-auth'
 import { useTransition } from 'react'
@@ -15,6 +15,7 @@ const navItems = [
   { href: '/ops-histyon-console/dashboard/users',     icon: Users,           label: 'Utenti' },
   { href: '/ops-histyon-console/dashboard/vercel',    icon: Server,          label: 'Vercel' },
   { href: '/ops-histyon-console/dashboard/supabase',  icon: Database,        label: 'Supabase' },
+  { href: '/ops-histyon-console/dashboard/resend',    icon: Mail,            label: 'Resend' },
   { href: '/ops-histyon-console/dashboard/payments',  icon: CreditCard,      label: 'Pagamenti' },
 ]
 
