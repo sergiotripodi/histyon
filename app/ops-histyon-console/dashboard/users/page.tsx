@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { TimeChart } from '@/components/admin/TimeChart'
+import { UsersTable, type UserRow } from '@/components/admin/UsersTable'
 import Link from 'next/link'
 import { getAllDoctorsStorage } from '@/lib/usage/storage'
 
@@ -14,12 +15,6 @@ type TicketRow = {
   created_at: string
 }
 
-function formatBytes(b: number): string {
-  if (b >= 1e9) return `${(b / 1e9).toFixed(2)} GB`
-  if (b >= 1e6) return `${(b / 1e6).toFixed(1)} MB`
-  if (b >= 1e3) return `${(b / 1e3).toFixed(1)} KB`
-  return b > 0 ? `${b} B` : '—'
-}
 
 function getLast90Days(): { key: string; label: string }[] {
   return Array.from({ length: 90 }, (_, i) => {
@@ -63,8 +58,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
     supabaseAdmin.from('profiles')
       .select('id, email, first_name, last_name, created_at, hospital_name')
       .neq('role', 'admin')
-      .order('created_at', { ascending: false })
-      .limit(50),
+      .order('created_at', { ascending: false }),
     supabaseAdmin.from('profiles')
       .select('created_at')
       .neq('role', 'admin')
@@ -172,51 +166,23 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
       </div>
 
       {/* Users table */}
+      <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">
+        Dati utenti
+      </h2>
       <div className="border border-gray-200 bg-white mb-8">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400">
-            Ultimi 50 utenti registrati · analisi, storage ed egress per utente
-          </p>
-        </div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-100">
-              {['Nome', 'Analisi', 'Storage', 'Egress mese', 'Email', 'Ospedale', 'Registrato il'].map(h => (
-                <th key={h} className="text-left px-6 py-3 text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {(allUsers ?? []).map(u => {
-              const userAnalyses = analysesByUser[u.id] ?? 0
-              const userStorage  = storageByUser[u.id] ?? 0
-              const userEgress   = egressByUser[u.id] ?? 0
-              return (
-                <tr key={u.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-3 font-medium text-gray-900">
-                    {u.first_name && u.last_name ? `Dr. ${u.last_name}` : u.first_name ?? '—'}
-                  </td>
-                  <td className="px-6 py-3 text-xs font-mono text-gray-700">
-                    {userAnalyses > 0 ? userAnalyses.toLocaleString('it-IT') : '—'}
-                  </td>
-                  <td className="px-6 py-3 text-xs font-mono text-gray-500">
-                    {formatBytes(userStorage)}
-                  </td>
-                  <td className="px-6 py-3 text-xs font-mono text-gray-500">
-                    {userEgress > 0 ? formatBytes(userEgress) : '—'}
-                  </td>
-                  <td className="px-6 py-3 text-gray-500">{u.email}</td>
-                  <td className="px-6 py-3 text-gray-400">{u.hospital_name ?? '—'}</td>
-                  <td className="px-6 py-3 text-gray-400 font-mono text-xs">
-                    {new Date(u.created_at).toLocaleDateString('it-IT')}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+        <UsersTable
+          users={(allUsers ?? []).map(u => ({
+            id:           u.id,
+            email:        u.email ?? null,
+            first_name:   u.first_name ?? null,
+            last_name:    u.last_name ?? null,
+            hospital_name: u.hospital_name ?? null,
+            created_at:   u.created_at,
+            analyses:     analysesByUser[u.id] ?? 0,
+            storageBytes: storageByUser[u.id] ?? 0,
+            egressBytes:  egressByUser[u.id] ?? 0,
+          } satisfies UserRow))}
+        />
       </div>
 
       {/* Charts */}
