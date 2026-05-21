@@ -6,8 +6,7 @@ import { AdminStatCard } from '@/components/admin/AdminStatCard'
 import { PaymentBanner } from '@/components/admin/PaymentBanner'
 import { getTotalStorage } from '@/lib/usage/storage'
 import { RESEND_PLANS, type ResendPlanKey } from '@/lib/resend/plans'
-
-const PROJECT_START = '2026-05'
+import { PROJECT_START } from '@/lib/billing/config'
 
 function computeHistoricalTotal(recurringCost: number): number {
   const start = new Date(PROJECT_START + '-01')
@@ -154,7 +153,7 @@ export default async function AdminDashboardPage() {
             {todayCapitalized}
           </p>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-            Panoramica Histyon.
+            Panoramica Histyon
           </h1>
         </div>
       </div>
@@ -169,7 +168,7 @@ export default async function AdminDashboardPage() {
       <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">
         Statistiche piattaforma
       </h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mb-8">
         <AdminStatCard
           label="Utenti registrati"
           value={totalUsers ?? 0}
@@ -196,6 +195,12 @@ export default async function AdminDashboardPage() {
           format="bytes"
           href="/ops-histyon-console/dashboard/supabase"
         />
+        <AdminStatCard
+          label="Email inviate"
+          value={resendEmailsSent ?? 0}
+          sparkline={storageSparkline}
+          href="/ops-histyon-console/dashboard/resend"
+        />
       </div>
 
       {/* Service cards */}
@@ -219,11 +224,7 @@ export default async function AdminDashboardPage() {
               {vercelPlan}
             </span>
           </div>
-          <p className="text-xs text-gray-400 mb-3">Hosting, deployment e domini</p>
-          <div className="flex justify-between text-xs text-gray-500">
-            <span>${vercelMonthlyCost}/mese</span>
-            <span className="text-green-600 font-medium">● Online</span>
-          </div>
+          <p className="text-xs text-gray-400">Hosting, deployment e domini</p>
         </a>
 
         {/* Supabase */}
@@ -242,11 +243,7 @@ export default async function AdminDashboardPage() {
               free
             </span>
           </div>
-          <p className="text-xs text-gray-400 mb-3">Database, autenticazione e storage</p>
-          <div className="flex justify-between text-xs text-gray-500">
-            <span>${supabaseMonthlyCost}/mese</span>
-            <span className="text-green-600 font-medium">● Active Healthy</span>
-          </div>
+          <p className="text-xs text-gray-400">Database, autenticazione e storage</p>
         </a>
 
         {/* Resend */}
@@ -254,7 +251,9 @@ export default async function AdminDashboardPage() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 bg-black flex items-center justify-center">
-                <span className="text-white text-[10px] font-black tracking-tighter">R</span>
+                <svg viewBox="0 0 24 24" fill="white" className="w-3.5 h-3.5">
+                  <path d="M5 3h8a5 5 0 0 1 0 10h-4l5 8h-3l-5-8H8v8H5V3zm3 3v4h5a2 2 0 0 0 0-4H8z" />
+                </svg>
               </div>
               <span className="text-sm font-bold text-gray-900">Resend</span>
             </div>
@@ -262,16 +261,7 @@ export default async function AdminDashboardPage() {
               {resendPlanKey.replace('_', ' ')}
             </span>
           </div>
-          <p className="text-xs text-gray-400 mb-3">Email transazionali e marketing</p>
-          <div className="flex justify-between text-xs text-gray-500">
-            <span>
-              {resendEmailsSent !== null
-                ? `${resendEmailsSent.toLocaleString('it-IT')} email/mese`
-                : `${resendPlan.quota.toLocaleString('it-IT')} email quota`
-              }
-            </span>
-            <span className="text-gray-500">${resendMonthlyCost}/mese</span>
-          </div>
+          <p className="text-xs text-gray-400">Email transazionali e marketing</p>
         </a>
       </div>
     </div>

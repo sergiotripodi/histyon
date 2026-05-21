@@ -127,9 +127,13 @@ export default async function AdminResendPage() {
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Resend</h1>
           <div className="flex items-center gap-2 mt-1.5">
             <div className="w-5 h-5 bg-black flex items-center justify-center shrink-0">
-              <span className="text-white text-[9px] font-black tracking-tighter">R</span>
+              <svg viewBox="0 0 24 24" fill="white" className="w-2.5 h-2.5">
+                <path d="M5 3h8a5 5 0 0 1 0 10h-4l5 8h-3l-5-8H8v8H5V3zm3 3v4h5a2 2 0 0 0 0-4H8z" />
+              </svg>
             </div>
-            <p className="text-sm text-gray-400">{plan.label} · {domains.length} {domains.length === 1 ? 'dominio' : 'domini'}</p>
+            <p className="text-sm text-gray-400">
+              {verifiedDomains[0]?.name ?? domains[0]?.name ?? 'resend.com'}
+            </p>
           </div>
         </div>
         <a
@@ -210,7 +214,9 @@ export default async function AdminResendPage() {
                 ? <span className="text-xs text-amber-600">RESEND_API_KEY non configurata in Vercel</span>
                 : error
                   ? <span className="text-xs text-amber-600">Errore chiamata API Resend — verifica la chiave</span>
-                  : quotaBar(emailsUsed, plan.quota)
+                  : emailsSent !== null
+                    ? quotaBar(emailsUsed, plan.quota)
+                    : <span className="text-xs text-gray-300">Conteggio non disponibile</span>
               }
             </div>
             <div className="text-right">
@@ -225,34 +231,40 @@ export default async function AdminResendPage() {
               <p>Limite giornaliero: <strong>{fmtNum(plan.dailyLimit)} email/giorno</strong> (solo piano Free)</p>
             )}
             <p>Overage: <strong>$0.90/1.000 email</strong> oltre la quota (piani pagati)</p>
-            {!apiKeyMissing && <p className="text-gray-400">Dato letto dall&apos;header <code>x-resend-monthly-quota</code> · cache 5 minuti</p>}
+            {!apiKeyMissing && <p className="text-gray-400">Dato calcolato paginando <code>GET /emails</code> · cache 5 minuti</p>}
           </div>
         </details>
 
-        {/* 3. Limite giornaliero (solo Free) */}
-        {plan.dailyLimit != null && (
-          <details className="group">
-            <summary className="grid grid-cols-[1fr_260px_100px] gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer list-none transition-colors">
-              <div className="flex items-center gap-2">
-                <ChevronRight className="w-3 h-3 text-gray-300 group-open:rotate-90 transition-transform shrink-0" />
-                <span className="text-sm text-gray-800">Limite giornaliero</span>
-              </div>
-              <div className="flex items-center">
-                {dailyUsed !== null
-                  ? quotaBar(dailyUsed, plan.dailyLimit)
-                  : <span className="text-xs text-gray-300">—</span>
-                }
-              </div>
-              <div className="text-right">
-                <span className="text-sm font-bold text-gray-400">$0.00</span>
-              </div>
-            </summary>
-            <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
-              <p>Il piano Free limita a <strong>100 email/giorno</strong>. Superato il limite, le email vengono bloccate fino al giorno successivo.</p>
-              <p>Passa a un piano Pro per rimuovere il limite giornaliero.</p>
+        {/* 3. Limite giornaliero */}
+        <details className="group">
+          <summary className="grid grid-cols-[1fr_260px_100px] gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer list-none transition-colors">
+            <div className="flex items-center gap-2">
+              <ChevronRight className="w-3 h-3 text-gray-300 group-open:rotate-90 transition-transform shrink-0" />
+              <span className="text-sm text-gray-800">Limite giornaliero</span>
             </div>
-          </details>
-        )}
+            <div className="flex items-center">
+              {plan.dailyLimit != null
+                ? (dailyUsed !== null
+                    ? quotaBar(dailyUsed, plan.dailyLimit)
+                    : <span className="text-[10px] font-mono text-gray-500">{fmtNum(plan.dailyLimit)} email/giorno</span>
+                  )
+                : <span className="text-[10px] font-mono text-gray-400">Illimitato</span>
+              }
+            </div>
+            <div className="text-right">
+              <span className="text-sm font-bold text-gray-400">$0.00</span>
+            </div>
+          </summary>
+          <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
+            {plan.dailyLimit != null
+              ? <>
+                  <p>Il piano Free limita a <strong>100 email/giorno</strong>. Superato il limite, le email vengono bloccate fino al giorno successivo.</p>
+                  <p>Passa a un piano Pro per rimuovere il limite giornaliero.</p>
+                </>
+              : <p>Il piano <strong>{plan.label}</strong> non ha limiti giornalieri — puoi inviare fino a <strong>{fmtNum(plan.quota)} email/mese</strong> liberamente.</p>
+            }
+          </div>
+        </details>
 
         {/* 4. Domini */}
         <details className="group">
@@ -295,11 +307,13 @@ export default async function AdminResendPage() {
         {[
           {
             label: 'Email inviate (mese)',
-            value: fmtNum(emailsSent ?? 0),
+            value: emailsSent !== null ? fmtNum(emailsSent) : '—',
           },
           {
             label: 'Quota rimanente',
-            value: fmtNum(Math.max(0, plan.quota - emailsUsed)),
+            value: emailsSent !== null
+              ? fmtNum(Math.max(0, plan.quota - emailsUsed))
+              : '—',
           },
           {
             label: 'Costo totale stimato',
