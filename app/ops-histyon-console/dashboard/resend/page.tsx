@@ -17,7 +17,7 @@ function fmtNum(v: number): string {
 }
 
 async function fetchResendData() {
-  const key = process.env.ADMIN_RESEND_API_KEY
+  const key = process.env.RESEND_API_KEY
   if (!key) return { emailsSent: null, dailyUsed: null, domains: [], apiKeyMissing: true, error: false }
 
   try {
@@ -183,7 +183,7 @@ export default async function AdminResendPage({
             </div>
             <div className="flex items-center">
               {apiKeyMissing
-                ? <span className="text-xs text-amber-600">ADMIN_RESEND_API_KEY non configurata in Vercel</span>
+                ? <span className="text-xs text-amber-600">RESEND_API_KEY non configurata in Vercel</span>
                 : error
                   ? <span className="text-xs text-amber-600">Errore chiamata API Resend — verifica la chiave</span>
                   : emailsSent === null

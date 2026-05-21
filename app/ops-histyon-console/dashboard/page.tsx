@@ -48,7 +48,7 @@ async function getVercelPlan(): Promise<string> {
 }
 
 async function getResendEmailsSent(): Promise<number | null> {
-  const key = process.env.ADMIN_RESEND_API_KEY
+  const key = process.env.RESEND_API_KEY
   if (!key) return null
   try {
     const res = await fetch('https://api.resend.com/domains', {
