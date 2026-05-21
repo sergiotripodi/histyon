@@ -291,7 +291,6 @@ export default async function AdminPaymentsPage({
     <div className="py-10 px-8">
       {/* Header */}
       <div className="pb-8 mb-8 border-b border-gray-100">
-        <p className="text-[10px] font-medium text-gray-400 uppercase tracking-[0.14em] mb-2">Fatturazione</p>
         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Pagamenti e costi</h1>
       </div>
 
