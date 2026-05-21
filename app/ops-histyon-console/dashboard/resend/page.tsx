@@ -16,31 +16,67 @@ function fmtNum(v: number): string {
   return v.toLocaleString('it-IT')
 }
 
-async function fetchResendData() {
+/**
+ * Conta le email inviate nel mese indicato paginando GET /emails.
+ * Resend non ha un endpoint di statistiche — l'unica fonte è la lista email.
+ * Max 10 pagine (1.000 email) per non bloccare il render.
+ */
+async function countResendEmailsForMonth(key: string, monthStr: string): Promise<number | null> {
+  const startOfMonth = `${monthStr}-01T00:00:00.000Z`
+  // Fine mese: primo giorno del mese successivo
+  const [y, m] = monthStr.split('-').map(Number)
+  const endOfMonth = new Date(y, m, 1).toISOString() // mese è 0-based in Date, ma m è già 1-based → ok
+
+  let total = 0
+  let offset = 0
+  const PAGE = 100
+  const MAX_PAGES = 10
+
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const res = await fetch(`https://api.resend.com/emails?limit=${PAGE}&offset=${offset}`, {
+      headers: { Authorization: `Bearer ${key}` },
+      next: { revalidate: 300 },
+    })
+    if (!res.ok) return total > 0 ? total : null
+
+    const json = await res.json()
+    const emails: any[] = json.data ?? []
+    if (emails.length === 0) break
+
+    for (const e of emails) {
+      const d = e.created_at ?? ''
+      if (d >= startOfMonth && d < endOfMonth) total++
+      else if (d < startOfMonth) return total // emails ordinate desc: siamo oltre il mese
+    }
+
+    if (emails.length < PAGE) break // ultima pagina
+    offset += PAGE
+  }
+
+  return total
+}
+
+async function fetchResendData(monthStr: string) {
   const key = process.env.RESEND_API_KEY
   if (!key) return { emailsSent: null, dailyUsed: null, domains: [], apiKeyMissing: true, error: false }
 
   try {
-    const domainsRes = await fetch('https://api.resend.com/domains', {
-      headers: { Authorization: `Bearer ${key}`, 'User-Agent': 'histyon-admin/1.0' },
-      next: { revalidate: 300 },
-    })
-
-    const rawMonthly = domainsRes.headers.get('x-resend-monthly-quota')
-    const rawDaily   = domainsRes.headers.get('x-resend-daily-quota')
-
-    // Header può essere "1500" oppure "1500/50000"
-    const emailsSent = rawMonthly ? Number(rawMonthly.split('/')[0]) : null
-    const dailyUsed  = rawDaily   ? Number(rawDaily.split('/')[0])   : null
+    const [domainsRes, emailsSent] = await Promise.all([
+      fetch('https://api.resend.com/domains', {
+        headers: { Authorization: `Bearer ${key}` },
+        next: { revalidate: 300 },
+      }),
+      countResendEmailsForMonth(key, monthStr),
+    ])
 
     const domainsJson = domainsRes.ok ? await domainsRes.json() : { data: [] }
 
     return {
-      emailsSent: emailsSent !== null && !isNaN(emailsSent) ? emailsSent : null,
-      dailyUsed:  dailyUsed  !== null && !isNaN(dailyUsed)  ? dailyUsed  : null,
-      domains:    (domainsJson.data ?? []) as any[],
+      emailsSent,
+      dailyUsed:    null, // non esposto dall'API Resend
+      domains:      (domainsJson.data ?? []) as any[],
       apiKeyMissing: false,
-      error: !domainsRes.ok,
+      error:        !domainsRes.ok,
     }
   } catch {
     return { emailsSent: null, dailyUsed: null, domains: [], apiKeyMissing: false, error: true }
@@ -65,7 +101,7 @@ export default async function AdminResendPage({
   const monthStr = sp.month ?? currentMonth
   const isCurrentMonth = monthStr === currentMonth
 
-  const { emailsSent, dailyUsed, domains, apiKeyMissing, error } = await fetchResendData()
+  const { emailsSent, dailyUsed, domains, apiKeyMissing, error } = await fetchResendData(monthStr)
 
   const emailsUsed    = emailsSent ?? 0
   const overageEmails = Math.max(0, emailsUsed - plan.quota)

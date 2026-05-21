@@ -62,14 +62,29 @@ async function getVercelPlan(): Promise<string> {
 async function getResendEmailsSent(): Promise<number | null> {
   const key = process.env.RESEND_API_KEY
   if (!key) return null
+  const monthStr = new Date().toISOString().slice(0, 7)
+  const [y, m] = monthStr.split('-').map(Number)
+  const startOfMonth = `${monthStr}-01T00:00:00.000Z`
+  const endOfMonth   = new Date(y, m, 1).toISOString()
   try {
-    const res = await fetch('https://api.resend.com/domains', {
-      headers: { Authorization: `Bearer ${key}`, 'User-Agent': 'histyon-admin/1.0' },
-      next: { revalidate: 300 },
-    })
-    const raw = res.headers.get('x-resend-monthly-quota')
-    const n = raw ? Number(raw.split('/')[0]) : null
-    return n !== null && !isNaN(n) ? n : null
+    let total = 0, offset = 0
+    for (let page = 0; page < 5; page++) {
+      const res = await fetch(`https://api.resend.com/emails?limit=100&offset=${offset}`, {
+        headers: { Authorization: `Bearer ${key}` },
+        next: { revalidate: 300 },
+      })
+      if (!res.ok) break
+      const emails: any[] = (await res.json()).data ?? []
+      if (!emails.length) break
+      for (const e of emails) {
+        const d = e.created_at ?? ''
+        if (d >= startOfMonth && d < endOfMonth) total++
+        else if (d < startOfMonth) return total
+      }
+      if (emails.length < 100) break
+      offset += 100
+    }
+    return total
   } catch { return null }
 }
 
