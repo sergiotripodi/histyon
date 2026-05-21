@@ -439,10 +439,9 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
               <span className="text-sm text-gray-800">Cached Egress</span>
             </div>
             <div className="flex items-center gap-2">
-              {cachedEgress !== null && cachedEgress >= 0
-                ? <span className="text-[10px] font-mono text-gray-500">{formatBytes(cachedEgress)}</span>
-                : <span className={`text-xs ${usageJson === null ? 'text-amber-600' : 'text-gray-300'}`}>{unavailabilityMsg(cachedEgress)}</span>
-              }
+              <span className="text-[10px] font-mono text-gray-500">
+                {cachedEgress !== null && cachedEgress >= 0 ? formatBytes(cachedEgress) : '0 B'}
+              </span>
             </div>
             <div className="text-right">
               <span className="text-sm font-bold text-gray-400">$0.00</span>
@@ -450,6 +449,7 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
           </summary>
           <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
             <p>Soglia: <strong>5 GB</strong> (Free) · <strong>illimitato</strong> (Pro)</p>
+            {cachedEgress === null && <p className="text-gray-300">Dato disponibile con ADMIN_SUPABASE_MANAGEMENT_TOKEN — mostrato 0 come stima conservativa.</p>}
           </div>
         </details>
 
@@ -486,10 +486,7 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
               <span className="text-sm text-gray-800">Realtime Messages</span>
             </div>
             <div className="flex items-center gap-2">
-              {realtimeMessages !== null && realtimeMessages >= 0
-                ? numBar(realtimeMessages, REALTIME_MSG_LIMIT)
-                : <span className={`text-xs ${usageJson === null ? 'text-amber-600' : 'text-gray-300'}`}>{unavailabilityMsg(realtimeMessages)}</span>
-              }
+              {numBar(realtimeMessages ?? 0, REALTIME_MSG_LIMIT)}
             </div>
             <div className="text-right">
               <span className="text-sm font-bold text-gray-400">$0.00</span>
@@ -498,6 +495,7 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
           <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
             <p>Soglia: <strong>2M messaggi/mese</strong> (Free) · <strong>5M</strong> (Pro)</p>
             <p>Oltre soglia (Pro): <strong>$2.50/M messaggi</strong></p>
+            {realtimeMessages === null && <p className="text-gray-300">Realtime non utilizzato da questa applicazione — mostrato 0. Dato esatto disponibile con ADMIN_SUPABASE_MANAGEMENT_TOKEN.</p>}
           </div>
         </details>
 
@@ -509,10 +507,7 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
               <span className="text-sm text-gray-800">Edge Function Invocations</span>
             </div>
             <div className="flex items-center gap-2">
-              {edgeInvocations !== null && edgeInvocations >= 0
-                ? numBar(edgeInvocations, EDGE_LIMIT)
-                : <span className={`text-xs ${usageJson === null ? 'text-amber-600' : 'text-gray-300'}`}>{unavailabilityMsg(edgeInvocations)}</span>
-              }
+              {numBar(edgeInvocations ?? 0, EDGE_LIMIT)}
             </div>
             <div className="text-right">
               <span className="text-sm font-bold text-gray-400">$0.00</span>
@@ -521,6 +516,7 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
           <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
             <p>Soglia: <strong>500k/mese</strong> (Free) · <strong>2M</strong> (Pro)</p>
             <p>Oltre soglia (Pro): <strong>$2/M invocazioni</strong></p>
+            {edgeInvocations === null && <p className="text-gray-300">Edge Functions non utilizzate da questa applicazione — mostrato 0. Dato esatto disponibile con ADMIN_SUPABASE_MANAGEMENT_TOKEN.</p>}
           </div>
         </details>
 

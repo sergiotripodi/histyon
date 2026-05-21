@@ -69,6 +69,7 @@ export default async function AdminDashboardPage() {
     { data: recentTickets },
     vercelPlan,
     totalStorageStats,
+    dbSizeBytes,
   ] = await Promise.all([
     supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }).neq('role', 'admin'),
     supabaseAdmin.from('tickets').select('created_at, status').order('created_at', { ascending: true }),
@@ -76,6 +77,7 @@ export default async function AdminDashboardPage() {
     supabaseAdmin.from('tickets').select('created_at, status').gte('created_at', thirtyDaysAgo),
     getVercelPlan(),
     getTotalStorage().catch(() => ({ inputBytes: 0, dziBytes: 0, totalBytes: 0 })),
+    supabaseAdmin.rpc('get_db_size_bytes').then(({ data }) => data as number | null, () => null),
   ])
 
   const tickets = allTickets ?? []
@@ -144,11 +146,12 @@ export default async function AdminDashboardPage() {
           href="/ops-histyon-console/dashboard/analyses"
         />
         <AdminStatCard
-          label="Analisi completate"
-          value={completedTickets.length}
-          sparkline={completedSparkline}
-          subtitle={`${tickets.length > 0 ? Math.round((completedTickets.length / tickets.length) * 100) : 0}% del totale`}
-          href="/ops-histyon-console/dashboard/analyses"
+          label="Database PostgreSQL"
+          value={dbSizeBytes ?? 0}
+          sparkline={storageSparkline}
+          subtitle={dbSizeBytes !== null ? formatBytes(dbSizeBytes) : '—'}
+          format="bytes"
+          href="/ops-histyon-console/dashboard/supabase"
         />
         <AdminStatCard
           label="Storage utilizzato"
