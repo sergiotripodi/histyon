@@ -139,21 +139,18 @@ export default async function AdminDashboardPage() {
           label="Utenti registrati"
           value={totalUsers ?? 0}
           sparkline={userSparkline}
-          subtitle={`+${recentUsers7.length} ultimi 7 giorni`}
           href="/ops-histyon-console/dashboard/users"
         />
         <AdminStatCard
           label="Analisi totali"
           value={tickets.length}
           sparkline={ticketSparkline}
-          subtitle={`${tickets.length} totali`}
           href="/ops-histyon-console/dashboard/analyses"
         />
         <AdminStatCard
           label="Database PostgreSQL"
           value={dbSizeBytes ?? 0}
           sparkline={storageSparkline}
-          subtitle={dbSizeBytes !== null ? formatBytes(dbSizeBytes) : '—'}
           format="bytes"
           href="/ops-histyon-console/dashboard/supabase"
         />
@@ -161,7 +158,6 @@ export default async function AdminDashboardPage() {
           label="Storage bucket"
           value={totalStorageStats.totalBytes}
           sparkline={storageSparkline}
-          subtitle={formatBytes(totalStorageStats.totalBytes)}
           format="bytes"
           href="/ops-histyon-console/dashboard/supabase"
         />

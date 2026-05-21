@@ -10,9 +10,12 @@ export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Supabase' }
 
 function formatBytes(b: number): string {
-  if (b >= 1e9) return `${(b / 1e9).toFixed(2)} GB`
-  if (b >= 1e6) return `${(b / 1e6).toFixed(1)} MB`
-  if (b >= 1e3) return `${(b / 1e3).toFixed(1)} KB`
+  const GiB = 1024 * 1024 * 1024
+  const MiB = 1024 * 1024
+  const KiB = 1024
+  if (b >= GiB) return `${(b / GiB).toFixed(2)} GB`
+  if (b >= MiB) return `${(b / MiB).toFixed(1)} MB`
+  if (b >= KiB) return `${(b / KiB).toFixed(1)} KB`
   return `${b} B`
 }
 
@@ -388,10 +391,7 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
               <span className="text-sm text-gray-800">Storage Egress</span>
             </div>
             <div className="flex items-center gap-2">
-              {egressBytes !== null && egressBytes >= 0
-                ? pctBar(egressBytes, egressLimit)
-                : <span className="text-xs text-gray-300">Nessun egress registrato</span>
-              }
+              {pctBar(egressBytes ?? 0, egressLimit)}
             </div>
             <div className="text-right">
               <span className={`text-sm font-bold ${isPro && egressBytes !== null && egressBytes > EGRESS_LIMIT_PRO ? 'text-red-600' : 'text-gray-400'}`}>
@@ -580,27 +580,28 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
       </div>
 
       {/* App data */}
-      <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">Dati applicazione</h2>
-      <div className="grid grid-cols-3 gap-4 mb-4">
-        {[
-          { label: 'Medici registrati', value: (totalUsers ?? 0).toLocaleString('it-IT') },
-          { label: 'Analisi totali', value: (totalAnalyses ?? 0).toLocaleString('it-IT') },
-          { label: 'Organizzazione', value: org?.name ?? '—' },
-        ].map(({ label, value }) => (
-          <div key={label} className="border border-gray-200 bg-white px-6 py-5">
-            <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-2">{label}</p>
-            <p className="text-2xl font-bold tabular-nums text-gray-900">{value}</p>
-          </div>
-        ))}
-      </div>
-      <div className="grid grid-cols-2 gap-4">
+      <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">Utilizzo corrente</h2>
+      <div className="grid grid-cols-3 gap-4">
         <div className="border border-gray-200 bg-white px-6 py-5">
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-2">Storage Input</p>
-          <p className="text-2xl font-bold tabular-nums text-gray-900">{formatBytes(totalStorageStats.inputBytes)}</p>
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-2">Spazio DB PostgreSQL</p>
+          <p className="text-2xl font-bold tabular-nums text-gray-900">
+            {dbSizeBytes !== null ? formatBytes(dbSizeBytes) : '—'}
+          </p>
+          <p className="text-xs text-gray-400 mt-1">/ {formatBytes(dbSizeLimit)}</p>
         </div>
         <div className="border border-gray-200 bg-white px-6 py-5">
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-2">Storage DZI (Analisi)</p>
-          <p className="text-2xl font-bold tabular-nums text-gray-900">{formatBytes(totalStorageStats.dziBytes)}</p>
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-2">Spazio Storage bucket</p>
+          <p className="text-2xl font-bold tabular-nums text-gray-900">
+            {formatBytes(storageBytesReal)}
+          </p>
+          <p className="text-xs text-gray-400 mt-1">/ {formatBytes(storageLimit)}</p>
+        </div>
+        <div className="border border-gray-200 bg-white px-6 py-5">
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-2">Egress questo mese</p>
+          <p className="text-2xl font-bold tabular-nums text-gray-900">
+            {formatBytes(egressBytes ?? 0)}
+          </p>
+          <p className="text-xs text-gray-400 mt-1">/ {formatBytes(egressLimit)}</p>
         </div>
       </div>
     </div>
