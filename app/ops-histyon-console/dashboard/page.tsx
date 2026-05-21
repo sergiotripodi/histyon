@@ -3,8 +3,20 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { AdminStatCard } from '@/components/admin/AdminStatCard'
+import { PaymentBanner } from '@/components/admin/PaymentBanner'
 import { getTotalStorage } from '@/lib/usage/storage'
 import { RESEND_PLANS, type ResendPlanKey } from '@/lib/resend/plans'
+
+const PROJECT_START = '2026-05'
+
+function computeHistoricalTotal(recurringCost: number): number {
+  const start = new Date(PROJECT_START + '-01')
+  const now = new Date()
+  const monthsElapsed =
+    (now.getFullYear() - start.getFullYear()) * 12 +
+    (now.getMonth() - start.getMonth()) + 1
+  return Math.max(1, monthsElapsed) * recurringCost
+}
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Dashboard' }
@@ -116,6 +128,8 @@ export default async function AdminDashboardPage() {
   const vercelMonthlyCost   = vercelPlan === 'pro' ? 20 : 0
   const supabaseMonthlyCost = 0 // free plan
   const resendMonthlyCost   = resendPlan.price
+  const recurringCost       = vercelMonthlyCost + supabaseMonthlyCost + resendMonthlyCost
+  const historicalTotal     = computeHistoricalTotal(recurringCost)
 
   return (
     <div className="py-10 px-8">
@@ -129,6 +143,12 @@ export default async function AdminDashboardPage() {
           </h1>
         </div>
       </div>
+
+      {/* Payment banner */}
+      <PaymentBanner
+        monthlyRecurring={recurringCost}
+        historicalTotal={historicalTotal}
+      />
 
       {/* Stat cards */}
       <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">
