@@ -141,6 +141,7 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
   const STORAGE_LIMIT_PRO = 100 * 1024 * 1024 * 1024
   const EGRESS_LIMIT_FREE = 5 * 1024 * 1024 * 1024
   const EGRESS_LIMIT_PRO = 250 * 1024 * 1024 * 1024
+  const CACHED_EGRESS_LIMIT = 5 * 1024 * 1024 * 1024  // 5 GB (Free); Pro: illimitato
   const REALTIME_CONN_LIMIT = isPro ? 500 : 200
   const REALTIME_MSG_LIMIT = isPro ? 5_000_000 : 2_000_000
   const EDGE_LIMIT = isPro ? 2_000_000 : 500_000
@@ -178,6 +179,13 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
     return null
   }
 
+  // Formatta numeri grandi in modo leggibile: 2000000 → "2M", 500000 → "500K"
+  function fmtNum(v: number): string {
+    if (v >= 1_000_000) return `${(v / 1_000_000 % 1 === 0 ? v / 1_000_000 : (v / 1_000_000).toFixed(1))}M`
+    if (v >= 1_000) return `${(v / 1_000 % 1 === 0 ? v / 1_000 : (v / 1_000).toFixed(1))}K`
+    return v.toLocaleString('it-IT')
+  }
+
   function pctBar(value: number, limit: number) {
     const pct = Math.min((value / limit) * 100, 200)
     return (
@@ -195,8 +203,9 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
     )
   }
 
-  function numBar(value: number, limit: number, fmt: (v: number) => string = (v) => v.toLocaleString('it-IT')) {
+  function numBar(value: number, limit: number, unit?: string, fmt: (v: number) => string = fmtNum) {
     const pct = Math.min((value / limit) * 100, 200)
+    const label = (v: number) => `${fmt(v)}${unit ? ` ${unit}` : ''}`
     return (
       <div className="flex items-center gap-2">
         <div className="flex-1 h-1.5 bg-gray-100 max-w-[120px]">
@@ -206,7 +215,7 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
           />
         </div>
         <span className="text-[10px] font-mono text-gray-500 whitespace-nowrap">
-          {fmt(value)} / {fmt(limit)}
+          {label(value)} / {label(limit)}
         </span>
       </div>
     )
@@ -324,7 +333,7 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
             </div>
             <div className="flex items-center gap-2">
               {dbConnections !== null && dbConnections >= 0
-                ? numBar(dbConnections, REALTIME_CONN_LIMIT)
+                ? numBar(dbConnections, REALTIME_CONN_LIMIT, 'conn.')
                 : <span className={`text-xs ${usageJson === null ? 'text-amber-600' : 'text-gray-300'}`}>{unavailabilityMsg(realtimePeakConnections)}</span>
               }
             </div>
@@ -408,7 +417,7 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
               <span className="text-sm text-gray-800">Monthly Active Users (MAU)</span>
             </div>
             <div className="flex items-center gap-2">
-              {numBar(mauUsed, MAU_LIMIT)}
+              {numBar(mauUsed, MAU_LIMIT, 'utenti')}
             </div>
             <div className="text-right">
               <span className={`text-sm font-bold ${isPro && mauUsed > MAU_LIMIT ? 'text-red-600' : 'text-gray-400'}`}>
@@ -439,9 +448,10 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
               <span className="text-sm text-gray-800">Cached Egress</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono text-gray-500">
-                {cachedEgress !== null && cachedEgress >= 0 ? formatBytes(cachedEgress) : '0 B'}
-              </span>
+              {isPro
+                ? <span className="text-[10px] font-mono text-gray-500">{formatBytes(cachedEgress ?? 0)} / illimitato</span>
+                : pctBar(cachedEgress ?? 0, CACHED_EGRESS_LIMIT)
+              }
             </div>
             <div className="text-right">
               <span className="text-sm font-bold text-gray-400">$0.00</span>
@@ -462,7 +472,7 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
             </div>
             <div className="flex items-center gap-2">
               {thirdPartyMau !== null && thirdPartyMau >= 0
-                ? numBar(thirdPartyMau, 50_000)
+                ? numBar(thirdPartyMau, 50_000, 'utenti')
                 : <span className={`text-xs ${usageJson === null ? 'text-amber-600' : 'text-gray-300'}`}>{unavailabilityMsg(thirdPartyMau)}</span>
               }
             </div>
@@ -486,7 +496,7 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
               <span className="text-sm text-gray-800">Realtime Messages</span>
             </div>
             <div className="flex items-center gap-2">
-              {numBar(realtimeMessages ?? 0, REALTIME_MSG_LIMIT)}
+              {numBar(realtimeMessages ?? 0, REALTIME_MSG_LIMIT, 'msg')}
             </div>
             <div className="text-right">
               <span className="text-sm font-bold text-gray-400">$0.00</span>
@@ -507,7 +517,7 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
               <span className="text-sm text-gray-800">Edge Function Invocations</span>
             </div>
             <div className="flex items-center gap-2">
-              {numBar(edgeInvocations ?? 0, EDGE_LIMIT)}
+              {numBar(edgeInvocations ?? 0, EDGE_LIMIT, 'inv.')}
             </div>
             <div className="text-right">
               <span className="text-sm font-bold text-gray-400">$0.00</span>
@@ -529,7 +539,7 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
             </div>
             <div className="flex items-center gap-2">
               {ssoMau !== null && ssoMau >= 0
-                ? numBar(ssoMau, 50_000)
+                ? numBar(ssoMau, 50_000, 'utenti')
                 : ssoMau === -1 || (!isPro && ssoMau === null)
                   ? <span className="text-xs text-gray-300">Non disponibile nel piano Free — funzionalità disponibile da piano Pro</span>
                   : <span className={`text-xs ${usageJson === null ? 'text-amber-600' : 'text-gray-300'}`}>{unavailabilityMsg(ssoMau)}</span>
@@ -553,7 +563,7 @@ export default async function AdminSupabasePage({ searchParams }: { searchParams
             </div>
             <div className="flex items-center gap-2">
               {imageTransformations !== null && imageTransformations >= 0
-                ? numBar(imageTransformations, 100)
+                ? numBar(imageTransformations, 100, 'trasf.')
                 : imageTransformations === -1 || (!isPro && imageTransformations === null)
                   ? <span className="text-xs text-gray-300">Non disponibile nel piano Free — attiva da piano Pro</span>
                   : <span className={`text-xs ${usageJson === null ? 'text-amber-600' : 'text-gray-300'}`}>{unavailabilityMsg(imageTransformations)}</span>
