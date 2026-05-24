@@ -83,14 +83,14 @@ export async function fetchSupabaseManagement(opts: {
     errors.push('Nessun organization_id trovato per il progetto')
   }
 
-  // Step 3: usage (chiamata separata, può fallire senza bloccare tutto)
-  const usage = await safeFetch(`${BASE}/v1/projects/${projectId}/usage`, headers, revalidate)
-  const usageStatus = usage.res?.status ?? 0
-  const usageJson = usage.json
+  // NOTA: l'endpoint /v1/projects/{id}/usage NON ESISTE su Supabase (verificato 2026-05-24).
+  // Supabase non espone via API i consumi/limiti per piano. Restituiamo null:
+  // i limiti dei piani vengono presi dal pricing pubblico Supabase (in SB_FALLBACK).
+  const usageStatus = 404
+  const usageJson = null
 
   if (!projRes.json) errors.push(`project HTTP ${projStatus}`)
   if (!org)          errors.push(`org HTTP ${orgStatus}`)
-  if (!usageJson)    errors.push(`usage HTTP ${usageStatus}`)
 
   const plan = org?.plan ?? null
   const isPro = !!plan && plan !== 'free'

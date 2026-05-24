@@ -146,22 +146,20 @@ export default async function AdminSupabasePage() {
   const tier  = isPro ? 'pro' : 'free'
   const recurringCost = isPro ? 25 : 0
 
-  // Limiti: fonte primaria = risposta API Supabase (usageJson)
-  // Fallback = SB_FALLBACK[key][tier] da lib/billing/config.ts
-  const dbSizeLimit   = extractSbLimit(usageJson, ['db_size_bytes', 'db_size'])
-                        ?? SB_FALLBACK.db_size[tier]
-  const storageLimit  = extractSbLimit(usageJson, ['storage_size_bytes', 'storage_size'])
-                        ?? SB_FALLBACK.storage[tier]
-  const egressLimit   = extractSbLimit(usageJson, ['egress_bytes', 'egress'])
-                        ?? SB_FALLBACK.egress[tier]
-  const MAU_LIMIT     = extractSbLimit(usageJson, ['monthly_active_users', 'mau'])
-                        ?? SB_FALLBACK.mau[tier]
-
-  // Per metriche senza endpoint diretto: Supabase non espone limiti via API → fallback noti
-  const CACHED_EGRESS_LIMIT  = isPro ? Infinity         : 5  * 1024 ** 3
-  const REALTIME_CONN_LIMIT  = isPro ? 500              : 200
-  const REALTIME_MSG_LIMIT   = isPro ? 5_000_000        : 2_000_000
-  const EDGE_LIMIT           = isPro ? 2_000_000        : 500_000
+  // ⚠️ Supabase NON espone via API i limiti del piano (verificato: tutti gli
+  // endpoint /v1/projects/{id}/usage, /v1/organizations/{id}/usage,
+  // /v1/billing/* restituiscono 404). I limiti seguenti vengono dal pricing
+  // pubblico Supabase (https://supabase.com/pricing) tracciato in SB_FALLBACK.
+  // Si aggiornano automaticamente in base al piano restituito da
+  // /v1/organizations/{id} (fonte: API), il piano è quello davvero attivo.
+  const dbSizeLimit         = SB_FALLBACK.db_size[tier]
+  const storageLimit        = SB_FALLBACK.storage[tier]
+  const egressLimit         = SB_FALLBACK.egress[tier]
+  const MAU_LIMIT           = SB_FALLBACK.mau[tier]
+  const CACHED_EGRESS_LIMIT = isPro ? Infinity : 5 * 1024 ** 3
+  const REALTIME_CONN_LIMIT = isPro ? 500       : 200
+  const REALTIME_MSG_LIMIT  = isPro ? 5_000_000 : 2_000_000
+  const EDGE_LIMIT          = isPro ? 2_000_000 : 500_000
 
   // Compute overage costs (only for Pro) — prezzi da config
   const GiB = 1024 ** 3

@@ -8,7 +8,7 @@ import { getTotalStorage } from '@/lib/usage/storage'
 import { RESEND_PLANS, type ResendPlanKey } from '@/lib/resend/plans'
 import { PROJECT_START, getBillingPeriodMs } from '@/lib/billing/config'
 import { fetchSupabaseManagement } from '@/lib/supabase/management'
-import { fetchVercelBilling } from '@/lib/vercel/billing'
+import { getCurrentCosts } from '@/lib/billing/current-costs'
 
 function computeHistoricalTotal(recurringCost: number): number {
   const start = new Date(PROJECT_START + '-01')
@@ -139,17 +139,7 @@ export default async function AdminDashboardPage() {
   const last30 = getLast30Days()
   const thirtyDaysAgo = `${last30[0]}T00:00:00.000Z`
 
-  // Vercel billing reali del ciclo corrente (24→23)
-  const { startMs: cycleStart, endMs: cycleEnd } = getBillingPeriodMs()
-  const vercelBillingPromise = process.env.ADMIN_VERCEL_TOKEN && process.env.ADMIN_VERCEL_TEAM_ID
-    ? fetchVercelBilling({
-        token:  process.env.ADMIN_VERCEL_TOKEN,
-        teamId: process.env.ADMIN_VERCEL_TEAM_ID,
-        fromMs: cycleStart,
-        toMs:   cycleEnd,
-      })
-    : Promise.resolve(null)
-
+  // Tutti i costi del ciclo corrente da UNICA fonte (per allineamento home + payments + banner)
   const [
     { count: totalUsers },
     { data: allTickets },
@@ -160,7 +150,7 @@ export default async function AdminDashboardPage() {
     totalStorageStats,
     dbSizeBytes,
     resendResult,
-    vercelBilling,
+    currentCosts,
   ] = await Promise.all([
     supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }).neq('role', 'admin'),
     supabaseAdmin.from('tickets').select('created_at, status').order('created_at', { ascending: true }),
@@ -171,7 +161,7 @@ export default async function AdminDashboardPage() {
     getTotalStorage().catch(() => ({ inputBytes: 0, dziBytes: 0, totalBytes: 0 })),
     supabaseAdmin.rpc('get_db_size_bytes').then(({ data }) => data as number | null, () => null),
     getResendEmailsSent(),
-    vercelBillingPromise,
+    getCurrentCosts({ resendPlanKey }),
   ])
 
   const resendEmailsSent = resendResult.total
@@ -190,14 +180,9 @@ export default async function AdminDashboardPage() {
   const today = new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })
   const todayCapitalized = today.charAt(0).toUpperCase() + today.slice(1)
 
-  // Costi del ciclo corrente: Vercel = dato reale dall'API billing (totalEffective già post-crediti)
-  // Supabase: prezzo del piano (fonte = API plan), Resend: prezzo del piano (cookie/DB)
-  const vercelEffective = vercelBilling?.ok ? vercelBilling.totalEffective : 0
-  const supabaseIsPro   = supabasePlan !== 'free'
-  const supabaseMonthlyCost = supabaseIsPro ? 25 : 0
-  const resendMonthlyCost   = resendPlan.price
-  const recurringCost       = vercelEffective + supabaseMonthlyCost + resendMonthlyCost
-  const historicalTotal     = computeHistoricalTotal(recurringCost)
+  // Costi unificati: TUTTO da getCurrentCosts() — UNICA fonte di verità
+  const recurringCost   = currentCosts.totalRecurring + currentCosts.totalAddon
+  const historicalTotal = computeHistoricalTotal(recurringCost)
 
   return (
     <div className="py-10 px-8">

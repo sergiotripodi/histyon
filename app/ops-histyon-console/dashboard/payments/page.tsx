@@ -9,9 +9,8 @@ import { MonthPicker } from '@/components/admin/MonthPicker'
 import { MonthBadge } from '@/components/admin/MonthBadge'
 import { RESEND_PLANS, RESEND_OVERAGE_RATE, type ResendPlanKey } from '@/lib/resend/plans'
 import { SpendingChart, type MonthSpend } from '@/components/admin/SpendingChart'
-import { BILLING_DAY, PROJECT_START, getBillingPeriodMs } from '@/lib/billing/config'
-import { fetchSupabaseManagement } from '@/lib/supabase/management'
-import { fetchVercelBilling } from '@/lib/vercel/billing'
+import { BILLING_DAY, PROJECT_START } from '@/lib/billing/config'
+import { getCurrentCosts } from '@/lib/billing/current-costs'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Pagamenti' }
@@ -27,109 +26,6 @@ interface SnapshotRow {
   supabase_addon:      number
   resend_addon:        number
   total_cost:          number
-}
-
-// ─── fetch live (mese corrente) ───────────────────────────────────────────────
-
-async function fetchLivePlans() {
-  const vercelToken  = process.env.ADMIN_VERCEL_TOKEN
-  const vercelTeamId = process.env.ADMIN_VERCEL_TEAM_ID
-  const sbToken      = process.env.ADMIN_SUPABASE_MANAGEMENT_TOKEN
-  const sbProjectId  = process.env.ADMIN_SUPABASE_PROJECT_ID
-
-  // Vercel team plan da /v2/teams/{id} (era v1, ora endpoint corretto)
-  const vercelTeamPromise = vercelToken && vercelTeamId
-    ? fetch(`https://api.vercel.com/v2/teams/${vercelTeamId}`, {
-        headers: { Authorization: `Bearer ${vercelToken}` },
-        next: { revalidate: 300 },
-      }).catch(() => null)
-    : Promise.resolve(null)
-
-  // Supabase plan dal helper che chiama /v1/organizations/{id} (la lista non ha plan)
-  const sbPromise = sbToken && sbProjectId
-    ? fetchSupabaseManagement({ token: sbToken, projectId: sbProjectId })
-    : Promise.resolve(null)
-
-  const [vercelRes, sbResult] = await Promise.all([vercelTeamPromise, sbPromise])
-
-  const vercelJson = vercelRes?.ok ? await vercelRes.json().catch(() => null) : null
-  const vercelPlan: string = vercelJson?.billing?.plan ?? 'hobby'
-  const sbPlan: string = sbResult?.org?.plan ?? 'free'
-
-  return { vercelPlan, sbPlan }
-}
-
-/** Domini Vercel acquistati/rinnovati nel mese corrente */
-async function fetchVercelDomainAddon(monthStr: string): Promise<number> {
-  const token  = process.env.ADMIN_VERCEL_TOKEN
-  const teamId = process.env.ADMIN_VERCEL_TEAM_ID
-  if (!token || !teamId) return 0
-
-  try {
-    const res = await fetch(
-      `https://api.vercel.com/v5/domains?teamId=${teamId}&limit=100`,
-      { headers: { Authorization: `Bearer ${token}` }, next: { revalidate: 60 } },
-    )
-    if (!res.ok) return 0
-    const json = await res.json()
-    const domains: any[] = json.domains ?? []
-
-    const [y, m] = monthStr.split('-').map(Number)
-    const monthStart = new Date(y, m - 1, 1).getTime()
-    const monthEnd   = new Date(y, m, 1).getTime()
-
-    let total = 0
-    for (const d of domains) {
-      const eventTs: number | null = d.renewedAt ?? d.boughtAt ?? null
-      if (eventTs !== null && eventTs >= monthStart && eventTs < monthEnd) {
-        const priceRes = await fetch(
-          `https://api.vercel.com/v4/domains/${d.name}/price?type=renewal&teamId=${teamId}`,
-          { headers: { Authorization: `Bearer ${token}` }, next: { revalidate: 3600 } },
-        ).catch(() => null)
-        if (priceRes?.ok) {
-          const p = await priceRes.json()
-          total += Number(p?.price ?? 0)
-        }
-      }
-    }
-    return total
-  } catch { return 0 }
-}
-
-function parseResendDate(raw: unknown): Date | null {
-  if (!raw) return null
-  const s = String(raw).trim()
-    .replace(' ', 'T')
-    .replace(/(\+00(?::00)?|Z)?$/, 'Z')
-    .replace(/\.\d{4,}Z$/, (m) => m.slice(0, 4) + 'Z')
-  const d = new Date(s)
-  return isNaN(d.getTime()) ? null : d
-}
-
-async function countResendEmailsForMonth(key: string, monthStr: string): Promise<number | null> {
-  const { startMs, endMs } = getBillingPeriodMs(monthStr)
-  const monthStart = new Date(startMs)
-  const monthEnd   = new Date(endMs)
-
-  let total = 0, offset = 0
-  for (let page = 0; page < 10; page++) {
-    const res = await fetch(`https://api.resend.com/emails?limit=100&offset=${offset}`, {
-      headers: { Authorization: `Bearer ${key}` },
-      next: { revalidate: 300 },
-    }).catch(() => null)
-    if (!res?.ok) return total > 0 ? total : null
-    const emails: any[] = (await res.json()).data ?? []
-    if (!emails.length) break
-    for (const e of emails) {
-      const created = parseResendDate(e.created_at)
-      if (!created) continue
-      if (created >= monthStart && created < monthEnd) total++
-      else if (created < monthStart) return total
-    }
-    if (emails.length < 100) break
-    offset += 100
-  }
-  return total
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -215,48 +111,18 @@ export default async function AdminPaymentsPage({
   if (isFuture) {
     dataSource = 'none'
   } else if (isCurrentMonth) {
-    // ── Live: dati reali da API ──
+    // ── Live: STESSA FONTE DELLA HOME (getCurrentCosts) ──
+    // Garantisce che home e payments mostrino gli stessi numeri
     dataSource = 'live'
-    const plans = await fetchLivePlans()
-    vercelPlan = plans.vercelPlan
-    sbPlan     = plans.sbPlan
-
-    // VERCEL: usa /v1/billing/charges (dati ufficiali con crediti già applicati)
-    const { startMs, endMs } = getBillingPeriodMs(currentMonth)
-    const vercelBilling = process.env.ADMIN_VERCEL_TOKEN && process.env.ADMIN_VERCEL_TEAM_ID
-      ? await fetchVercelBilling({
-          token:  process.env.ADMIN_VERCEL_TOKEN,
-          teamId: process.env.ADMIN_VERCEL_TEAM_ID,
-          fromMs: startMs, toMs: endMs,
-        })
-      : null
-
-    if (vercelBilling?.ok) {
-      // Separa "Pro Plan" (recurring) dal resto (addon usage + domini)
-      for (const s of vercelBilling.services) {
-        if (/pro plan|subscription|hobby plan|enterprise plan/i.test(s.name)) {
-          vercelMonthlyCost += s.effectiveCost
-        } else {
-          vercelAddon += s.effectiveCost
-        }
-      }
-    } else {
-      // Fallback se billing API non risponde
-      vercelMonthlyCost = vercelPlan !== 'hobby' && vercelPlan !== 'free' ? 20 : 0
-    }
-
-    sbMonthlyCost = sbPlan !== 'free' ? 25 : 0
-
-    // RESEND: stima overage dalla nostra logica di conteggio email
-    if (process.env.RESEND_API_KEY) {
-      const emailsSent = await countResendEmailsForMonth(process.env.RESEND_API_KEY, currentMonth)
-      if (emailsSent !== null) {
-        const overageEmails = Math.max(0, emailsSent - resendPlan.quota)
-        resendAddon = (overageEmails / 1_000) * RESEND_OVERAGE_RATE
-      }
-    }
-
-    totalAddon = vercelAddon + resendAddon
+    const cc = await getCurrentCosts({ resendPlanKey })
+    vercelPlan        = cc.supabase.plan   // placeholder
+    sbPlan            = cc.supabase.plan
+    vercelMonthlyCost = cc.vercel.recurring
+    vercelAddon       = cc.vercel.addon
+    sbMonthlyCost     = cc.supabase.recurring
+    resendMonthlyCost = cc.resend.recurring
+    resendAddon       = cc.resend.addon
+    totalAddon        = vercelAddon + resendAddon
   } else if (viewedSnapshot) {
     // Dal DB
     dataSource        = 'snapshot'
@@ -464,7 +330,7 @@ export default async function AdminPaymentsPage({
 
       {/* Nota ciclo */}
       <p className="text-[11px] text-gray-400 mb-8">
-        Il ciclo di fatturazione si azzera il giorno <strong className="text-gray-600">{BILLING_DAY}</strong> di ogni mese.
+        Ciclo di fatturazione: dal giorno <strong className="text-gray-600">{BILLING_DAY}</strong> al <strong className="text-gray-600">{BILLING_DAY - 1}</strong> del mese successivo.
       </p>
 
       {/* External links */}

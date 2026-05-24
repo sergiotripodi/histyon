@@ -168,7 +168,7 @@ export default async function AdminVercelPage() {
         </div>
       ) : services.length === 0 ? (
         <div className="border border-gray-200 bg-white px-6 py-4 mb-8 text-xs text-gray-400">
-          Nessun addebito registrato nel ciclo corrente (il ciclo è appena iniziato il giorno 24).
+          Nessun addebito registrato nel ciclo corrente. Vercel può impiegare alcune ore per popolare le voci dopo l&apos;inizio del ciclo.
         </div>
       ) : (
         <div className="border border-gray-200 bg-white mb-8">
