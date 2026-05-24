@@ -29,10 +29,11 @@ async function fetchVercelData(monthStr: string) {
   const [team, project, deployments, domains] = await Promise.all([
     teamRes.json(), projectRes.json(), deploymentsRes.json(), domainsRes.json(),
   ])
-  const members = membersRes?.ok ? await membersRes.json().catch(() => null) : null
-  const usage   = usageRes?.ok ? await usageRes.json().catch(() => null) : null
+  const members    = membersRes?.ok ? await membersRes.json().catch(() => null) : null
+  const usage      = usageRes?.ok ? await usageRes.json().catch(() => null) : null
+  const usageStatus = usageRes?.status ?? 0
 
-  return { team, project, deployments, domains, members, usage }
+  return { team, project, deployments, domains, members, usage, usageStatus }
 }
 
 function deployStateIcon(state: string) {
@@ -57,7 +58,7 @@ export default async function AdminVercelPage() {
 
   const monthStr = new Date().toISOString().slice(0, 7)
 
-  const { team, project, deployments, domains, members, usage } = await fetchVercelData(monthStr)
+  const { team, project, deployments, domains, members, usage, usageStatus } = await fetchVercelData(monthStr)
 
   const billing = team?.billing ?? {}
   const plan = billing.plan ?? 'hobby'
@@ -211,7 +212,19 @@ export default async function AdminVercelPage() {
     let unavailableReason: string | null = null
     if (value === null) {
       if (usage === null) {
-        unavailableReason = 'Errore API — verificare ADMIN_VERCEL_TOKEN'
+        if (!process.env.ADMIN_VERCEL_TEAM_ID) {
+          unavailableReason = 'ADMIN_VERCEL_TEAM_ID non configurata nelle env vars'
+        } else if (!process.env.ADMIN_VERCEL_TOKEN) {
+          unavailableReason = 'ADMIN_VERCEL_TOKEN non configurata nelle env vars'
+        } else if (usageStatus === 401 || usageStatus === 403) {
+          unavailableReason = 'Token non autorizzato (401/403) — rigenera il token Vercel con scope "Full Account"'
+        } else if (usageStatus === 404) {
+          unavailableReason = 'Team non trovato (404) — ADMIN_VERCEL_TEAM_ID deve essere il team ID (team_xxx), non lo slug'
+        } else if (usageStatus === 402) {
+          unavailableReason = 'Piano insufficiente — usage API disponibile solo su Pro'
+        } else {
+          unavailableReason = `Errore API usage (HTTP ${usageStatus || '?'}) — verifica token e ADMIN_VERCEL_TEAM_ID`
+        }
       } else if (!isPro && m.proOnly) {
         unavailableReason = 'Non disponibile sul piano Hobby — upgrade a Pro'
       } else if (isPro) {

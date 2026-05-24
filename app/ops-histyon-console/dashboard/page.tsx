@@ -58,6 +58,16 @@ async function getVercelPlan(): Promise<string> {
   } catch { return 'hobby' }
 }
 
+function parseResendDate(raw: unknown): Date | null {
+  if (!raw) return null
+  const s = String(raw).trim()
+    .replace(' ', 'T')
+    .replace(/(\+00(?::00)?|Z)?$/, 'Z')
+    .replace(/\.\d{4,}Z$/, (m) => m.slice(0, 4) + 'Z')
+  const d = new Date(s)
+  return isNaN(d.getTime()) ? null : d
+}
+
 async function getResendEmailsSent(): Promise<{ total: number | null; sparkline: number[] }> {
   const key = process.env.RESEND_API_KEY
   if (!key) return { total: null, sparkline: [] }
@@ -84,9 +94,8 @@ async function getResendEmailsSent(): Promise<{ total: number | null; sparkline:
       if (!emails.length) break
       let done = false
       for (const e of emails) {
-        if (!e.created_at) continue
-        const created = new Date(e.created_at)
-        if (isNaN(created.getTime())) continue
+        const created = parseResendDate(e.created_at)
+        if (!created) continue
         if (created >= monthStart && created < monthEnd) {
           total++
           const day = created.toISOString().slice(0, 10)

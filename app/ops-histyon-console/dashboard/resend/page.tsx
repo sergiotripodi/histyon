@@ -16,6 +16,23 @@ function fmtNum(v: number): string {
 }
 
 /**
+ * Resend restituisce created_at in formato PostgreSQL: "2026-05-24 10:00:00.000000+00"
+ * oppure senza timezone. new Date() su questa stringa è undefined behavior in Node.js.
+ * Normalizziamo esplicitamente a ISO 8601 UTC.
+ */
+function parseResendDate(raw: unknown): Date | null {
+  if (!raw) return null
+  // "2026-05-24 10:00:00.123456" → "2026-05-24T10:00:00.123Z"
+  // "2026-05-24T10:00:00.000Z"   → invariato
+  const s = String(raw).trim()
+    .replace(' ', 'T')                     // spazio → T
+    .replace(/(\+00(?::00)?|Z)?$/, 'Z')   // normalizza timezone a Z
+    .replace(/\.\d{4,}Z$/, (m) => m.slice(0, 4) + 'Z')  // tronca microsecondi
+  const d = new Date(s)
+  return isNaN(d.getTime()) ? null : d
+}
+
+/**
  * Conta le email inviate nel mese indicato paginando GET /emails.
  * Resend non ha un endpoint di statistiche — l'unica fonte è la lista email.
  * Max 10 pagine (1.000 email) per non bloccare il render.
@@ -39,9 +56,8 @@ async function countResendEmailsForMonth(key: string, monthStr: string): Promise
     if (!emails.length) break
 
     for (const e of emails) {
-      if (!e.created_at) continue
-      const created = new Date(e.created_at)
-      if (isNaN(created.getTime())) continue
+      const created = parseResendDate(e.created_at)
+      if (!created) continue
       if (created >= monthStart && created < monthEnd) total++
       else if (created < monthStart) return total  // ordine desc: usciti dal mese
     }

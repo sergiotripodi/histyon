@@ -98,6 +98,16 @@ async function fetchVercelDomainAddon(monthStr: string): Promise<number> {
   } catch { return 0 }
 }
 
+function parseResendDate(raw: unknown): Date | null {
+  if (!raw) return null
+  const s = String(raw).trim()
+    .replace(' ', 'T')
+    .replace(/(\+00(?::00)?|Z)?$/, 'Z')
+    .replace(/\.\d{4,}Z$/, (m) => m.slice(0, 4) + 'Z')
+  const d = new Date(s)
+  return isNaN(d.getTime()) ? null : d
+}
+
 async function countResendEmailsForMonth(key: string, monthStr: string): Promise<number | null> {
   const [y, m] = monthStr.split('-').map(Number)
   const monthStart = new Date(Date.UTC(y, m - 1, 1))
@@ -113,9 +123,8 @@ async function countResendEmailsForMonth(key: string, monthStr: string): Promise
     const emails: any[] = (await res.json()).data ?? []
     if (!emails.length) break
     for (const e of emails) {
-      if (!e.created_at) continue
-      const created = new Date(e.created_at)
-      if (isNaN(created.getTime())) continue
+      const created = parseResendDate(e.created_at)
+      if (!created) continue
       if (created >= monthStart && created < monthEnd) total++
       else if (created < monthStart) return total
     }
