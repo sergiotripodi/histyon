@@ -3,36 +3,52 @@ import { createClient } from '@/lib/supabase/server'
 import { ExternalLink, ChevronRight, CheckCircle2, XCircle, Clock } from 'lucide-react'
 import { MonthBadge } from '@/components/admin/MonthBadge'
 import { getBillingPeriodMs } from '@/lib/billing/config'
+import { fetchVercelBilling } from '@/lib/vercel/billing'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Vercel' }
 
-async function fetchVercelData(monthStr: string) {
+/**
+ * Pagina Vercel — fonte unica dei costi: GET /v1/billing/charges (FOCUS v1.3 JSONL)
+ *
+ * Tutti i numeri di costo qui vengono direttamente dalla billing API ufficiale.
+ * Nessun calcolo manuale di overage, nessun hardcoding di prezzi: i dati arrivano
+ * con `BilledCost` (lordo) e `EffectiveCost` (netto post-crediti) per ogni servizio.
+ *
+ * Endpoint di supporto:
+ *  - /v2/teams/{id}             → info team (plan, members, billing period)
+ *  - /v9/projects/{id}          → info progetto
+ *  - /v6/deployments            → ultimi deployment
+ *  - /v5/domains                → lista domini (data acquisto, scadenza, prezzo)
+ */
+
+async function fetchVercelInfo(monthStr: string) {
   const token = process.env.ADMIN_VERCEL_TOKEN!
   const teamId = process.env.ADMIN_VERCEL_TEAM_ID!
   const projectId = process.env.ADMIN_VERCEL_PROJECT_ID!
   const headers = { Authorization: `Bearer ${token}` }
 
-  // Uso il periodo di fatturazione reale (giorno 24 → giorno 23) invece del mese solare
-  const { startMs: monthStartMs, endMs: monthEndMs } = getBillingPeriodMs(monthStr)
+  // Periodo di fatturazione reale (giorno 24 → 23) anche per le query usage
+  const { startMs, endMs } = getBillingPeriodMs(monthStr)
 
-  const [teamRes, projectRes, deploymentsRes, domainsRes, membersRes, usageRes] = await Promise.all([
-    fetch(`https://api.vercel.com/v1/teams/${teamId}`, { headers, next: { revalidate: 300 } }),
+  const [teamRes, projectRes, deploymentsRes, domainsRes, membersRes, billing] = await Promise.all([
+    fetch(`https://api.vercel.com/v2/teams/${teamId}`, { headers, next: { revalidate: 300 } }),
     fetch(`https://api.vercel.com/v9/projects/${projectId}?teamId=${teamId}`, { headers, next: { revalidate: 300 } }),
     fetch(`https://api.vercel.com/v6/deployments?projectId=${projectId}&teamId=${teamId}&limit=50`, { headers, next: { revalidate: 300 } }),
     fetch(`https://api.vercel.com/v5/domains?teamId=${teamId}`, { headers, next: { revalidate: 30 } }),
-    fetch(`https://api.vercel.com/v2/teams/${teamId}/members`, { headers, next: { revalidate: 300 } }).catch(() => null),
-    fetch(`https://api.vercel.com/v2/teams/${teamId}/usage?from=${monthStartMs}&to=${monthEndMs}`, { headers, next: { revalidate: 300 } }).catch(() => null),
+    fetch(`https://api.vercel.com/v3/teams/${teamId}/members`, { headers, next: { revalidate: 300 } }).catch(() => null),
+    fetchVercelBilling({ token, teamId, fromMs: startMs, toMs: endMs, revalidate: 300 }),
   ])
 
   const [team, project, deployments, domains] = await Promise.all([
-    teamRes.json(), projectRes.json(), deploymentsRes.json(), domainsRes.json(),
+    teamRes.json().catch(() => null),
+    projectRes.json().catch(() => null),
+    deploymentsRes.json().catch(() => null),
+    domainsRes.json().catch(() => null),
   ])
-  const members    = membersRes?.ok ? await membersRes.json().catch(() => null) : null
-  const usage      = usageRes?.ok ? await usageRes.json().catch(() => null) : null
-  const usageStatus = usageRes?.status ?? 0
+  const members = membersRes?.ok ? await membersRes.json().catch(() => null) : null
 
-  return { team, project, deployments, domains, members, usage, usageStatus }
+  return { team, project, deployments, domains, members, billing }
 }
 
 function deployStateIcon(state: string) {
@@ -41,14 +57,23 @@ function deployStateIcon(state: string) {
   return <Clock className="w-3.5 h-3.5 text-amber-500" />
 }
 
-function bytes(v: number): string {
-  if (v >= 1024**3) return `${(v / 1024**3).toFixed(2)} GB`
-  if (v >= 1024**2) return `${(v / 1024**2).toFixed(1)} MB`
-  if (v >= 1024)    return `${(v / 1024).toFixed(1)} KB`
-  return `${v} B`
+function fmtUnit(qty: number, unit: string): string {
+  if (!unit) return qty.toLocaleString('it-IT')
+  const u = unit.toLowerCase()
+  // Byte units
+  if (u === 'bytes' || u === 'b') {
+    if (qty >= 1024 ** 3) return `${(qty / 1024 ** 3).toFixed(2)} GB`
+    if (qty >= 1024 ** 2) return `${(qty / 1024 ** 2).toFixed(1)} MB`
+    if (qty >= 1024) return `${(qty / 1024).toFixed(1)} KB`
+    return `${qty} B`
+  }
+  if (u === 'gb' || u === 'gigabytes') return `${qty.toFixed(2)} GB`
+  if (u === 'mb') return `${qty.toFixed(1)} MB`
+  // Numerical units (requests, invocations)
+  if (qty >= 1_000_000) return `${(qty / 1_000_000).toFixed(2)}M ${unit}`
+  if (qty >= 1_000) return `${(qty / 1_000).toFixed(1)}K ${unit}`
+  return `${qty.toLocaleString('it-IT')} ${unit}`
 }
-function nFmt(v: number): string { return v.toLocaleString('it-IT') }
-function minFmt(v: number): string { return `${v.toLocaleString('it-IT')} min` }
 
 export default async function AdminVercelPage() {
   const supabase = await createClient()
@@ -57,227 +82,34 @@ export default async function AdminVercelPage() {
 
   const monthStr = new Date().toISOString().slice(0, 7)
 
-  const { team, project, deployments, domains, members, usage, usageStatus } = await fetchVercelData(monthStr)
+  const { team, project, deployments, domains, members, billing } = await fetchVercelInfo(monthStr)
 
-  const billing = team?.billing ?? {}
-  const plan = billing.plan ?? 'hobby'
+  const teamBilling = team?.billing ?? {}
+  const plan: string = teamBilling.plan ?? 'hobby'
   const isPro = plan !== 'hobby' && plan !== 'free'
 
-  // Billing cycle from Vercel API (when Pro was activated)
-  const billingPeriodStart: number | null = billing.period?.start ?? billing.cycleStartDate ?? null
-  const billingPeriodEnd: number | null   = billing.period?.end   ?? billing.cycleEndDate   ?? null
-  const billingDayOfMonth: number | null  = billingPeriodStart
-    ? new Date(billingPeriodStart).getDate()
-    : null
-
-  // Observability Plus add-on ($10/seat/month on Pro)
-  const addons: any[] = billing.addons ?? []
-  const hasObservabilityPlus = addons.some((a: any) => {
-    const id = typeof a === 'string' ? a : (a?.id ?? a?.type ?? a?.name ?? '')
-    return String(id).toLowerCase().includes('observab')
-  })
+  // Periodo fatturazione dal team API (se disponibile)
+  const periodStart: number | null = teamBilling.period?.start ?? null
+  const periodEnd: number | null = teamBilling.period?.end ?? null
 
   const allDomains: any[] = domains?.domains ?? []
   const allDeployments: any[] = deployments?.deployments ?? []
   const lastDeploy = allDeployments[0]
-
-  const [y, m] = monthStr.split('-').map(Number)
-
-  function domainRenewalCostThisMonth(d: any): number {
-    // boughtAt / renewedAt sono Unix timestamp in ms
-    const eventTs: number | null = d.renewedAt ?? d.boughtAt ?? null
-    if (!eventTs) return 0
-    const monthStart = Date.UTC(y, m - 1, 1)
-    const monthEnd   = Date.UTC(y, m, 1)
-    if (eventTs >= monthStart && eventTs < monthEnd) return d.price ?? 0
-    return 0
-  }
-
-  function domainRegistrar(d: any): string {
-    if (d.serviceType === 'zeit') return 'Vercel'
-    const ns = (d.nameservers ?? []).join(' ').toLowerCase()
-    if (ns.includes('vercel-dns')) return 'Vercel'
-    if (ns.includes('cloudflare')) return 'Cloudflare'
-    const match = d.nameservers?.[0]?.match(/([^.]+\.[^.]+)$/)
-    if (match) return match[1]
-    return 'Esterno'
-  }
-
-  function domainNextRenewal(d: any): string | null {
-    if (!d.expiresAt) return null
-    return new Date(d.expiresAt).toLocaleDateString('it-IT')
-  }
-
-  const domainAddonCost = allDomains.reduce((s, d) => s + domainRenewalCostThisMonth(d), 0)
-
   const memberCount: number = Array.isArray(members?.members) ? members.members.length : 0
-  const billableMembers = Math.max(1, memberCount)
-  // Observability è incluso nel piano Pro — nessun costo fisso aggiuntivo
-  // Eventuale overage: $1.20/1M eventi (tracciato nell'usage se l'API lo espone)
-  const recurringCost = isPro ? 20 * billableMembers : 0
 
-  // Extract usage value — supports flat number or { value, limit } wrapper
-  function extractUsageValue(field: string): number | null {
-    if (!usage || typeof usage !== 'object') return null
-    const raw = (usage as any)[field]
-    if (raw == null) return null
-    if (typeof raw === 'number') return raw
-    if (typeof raw === 'object' && typeof raw.value === 'number') return raw.value
-    return null
+  // ── Dati REALI dalla billing API ─────────────────────────────────────────
+  // Tutto viene da /v1/billing/charges (formato FOCUS v1.3)
+  // Nessun calcolo, nessuna stima, nessun hardcoding
+  const billingOk = billing.ok
+  const totalBilled    = billing.totalBilled
+  const totalEffective = billing.totalEffective
+  const creditsApplied = billing.creditsApplied   // valore positivo: $20.00 di credito Pro
+  const services       = billing.services         // già aggregati per ServiceName
+
+  // Helper per categorizzare servizi
+  function isSubscription(name: string): boolean {
+    return /pro plan|subscription|hobby plan|enterprise plan/i.test(name)
   }
-
-  // Extract limit from usage response — API-first, no hardcoding
-  function extractUsageLimit(field: string): number | null {
-    if (!usage || typeof usage !== 'object') return null
-    const raw = (usage as any)[field]
-    if (raw && typeof raw === 'object' && raw.limit != null) return Number(raw.limit)
-    // Some APIs return {field}Limit as a sibling key
-    const limitKey = field + 'Limit'
-    const rawLimit = (usage as any)[limitKey]
-    if (rawLimit != null) return Number(rawLimit)
-    return null
-  }
-
-  // All required metrics — always shown
-  type MetricDef = {
-    key: string
-    label: string
-    includedHobby: number
-    includedPro: number
-    format: (v: number) => string
-    overagePerUnit: number
-    hint: string
-    proOnly?: boolean
-  }
-
-  const ALL_METRICS: MetricDef[] = [
-    {
-      key: 'bandwidth',
-      label: 'Fast Data Transfer',
-      includedHobby: 100 * 1024**3,
-      includedPro: 1024 * 1024**3,
-      format: bytes,
-      overagePerUnit: 0.15 / 1024**3,
-      hint: 'Banda dati servita dalla CDN — Hobby: 100 GB · Pro: 1 TB · oltre: $0.15/GB',
-    },
-    {
-      key: 'fastOriginTransfer',
-      label: 'Fast Origin Transfer',
-      includedHobby: 10 * 1024**3,
-      includedPro: 100 * 1024**3,
-      format: bytes,
-      overagePerUnit: 0.15 / 1024**3,
-      hint: 'Trasferimento dati verso origine — Hobby: 10 GB · Pro: 100 GB · oltre: $0.15/GB',
-    },
-    {
-      key: 'edgeRequest',
-      label: 'Edge Requests',
-      includedHobby: 1_000_000,
-      includedPro: 10_000_000,
-      format: nFmt,
-      overagePerUnit: 2.00 / 1_000_000,
-      hint: 'Richieste edge — Hobby: 1M · Pro: 10M · oltre: $2/M',
-    },
-    {
-      key: 'edgeCpuTime',
-      label: 'Edge Request CPU Duration',
-      includedHobby: 0,
-      includedPro: 0,
-      format: (v) => `${v.toLocaleString('it-IT')} ms`,
-      overagePerUnit: 0.65 / 1_000_000,
-      hint: 'Durata CPU richieste edge — Pro: $0.65/M ms',
-      proOnly: true,
-    },
-    {
-      key: 'functionInvocation',
-      label: 'Serverless Function Invocations',
-      includedHobby: 100_000,
-      includedPro: 1_000_000,
-      format: nFmt,
-      overagePerUnit: 0.60 / 1_000_000,
-      hint: 'Esecuzioni funzioni serverless — Hobby: 100k · Pro: 1M · oltre: $0.60/M',
-    },
-    {
-      key: 'buildMinute',
-      label: 'Build Execution',
-      includedHobby: 100,
-      includedPro: 6000,
-      format: minFmt,
-      overagePerUnit: 0.70 / 100,
-      hint: 'Minuti di build — Hobby: 100 min · Pro: 6.000 min · oltre: $0.70/100 min',
-    },
-    {
-      key: 'imageOptimization',
-      label: 'Image Optimization',
-      includedHobby: 1_000,
-      includedPro: 5_000,
-      format: nFmt,
-      overagePerUnit: 5.00 / 1_000,
-      hint: 'Ottimizzazione immagini — Hobby: 1k · Pro: 5k · oltre: $5/1k',
-    },
-    {
-      key: 'edgeMiddlewareInvocations',
-      label: 'Edge Middleware',
-      includedHobby: 1_000_000,
-      includedPro: Infinity,
-      format: nFmt,
-      overagePerUnit: 0.65 / 1_000_000,
-      hint: 'Esecuzioni Edge Middleware — Hobby: 1M · Pro: illimitato',
-    },
-  ]
-
-  type MetricRow = MetricDef & {
-    value: number | null
-    unavailableReason: string | null
-    overage: number
-    cost: number
-    included: number
-    pct: number
-  }
-
-  const metricRows: MetricRow[] = ALL_METRICS.map(m => {
-    // Fonte primaria: limite restituito dall'API usage di Vercel
-    // Fallback: valori noti per piano (hardcoded solo qui come ultima risorsa)
-    const apiLimit = extractUsageLimit(m.key)
-    const included = apiLimit ?? (isPro ? m.includedPro : m.includedHobby)
-    const value = extractUsageValue(m.key)
-
-    let unavailableReason: string | null = null
-    if (value === null) {
-      if (usage === null) {
-        if (!process.env.ADMIN_VERCEL_TEAM_ID) {
-          unavailableReason = 'ADMIN_VERCEL_TEAM_ID non configurata nelle env vars'
-        } else if (!process.env.ADMIN_VERCEL_TOKEN) {
-          unavailableReason = 'ADMIN_VERCEL_TOKEN non configurata nelle env vars'
-        } else if (usageStatus === 401 || usageStatus === 403) {
-          unavailableReason = 'Token non autorizzato (401/403) — rigenera il token Vercel con scope "Full Account"'
-        } else if (usageStatus === 404) {
-          unavailableReason = 'Team non trovato (404) — ADMIN_VERCEL_TEAM_ID deve essere il team ID (team_xxx), non lo slug'
-        } else if (usageStatus === 402) {
-          unavailableReason = 'Piano insufficiente — usage API disponibile solo su Pro'
-        } else {
-          unavailableReason = `Errore API usage (HTTP ${usageStatus || '?'}) — verifica token e ADMIN_VERCEL_TEAM_ID`
-        }
-      } else if (!isPro && m.proOnly) {
-        unavailableReason = 'Non disponibile sul piano Hobby — upgrade a Pro'
-      } else if (isPro) {
-        unavailableReason = 'Dato non restituito dall\'API'
-      } else {
-        unavailableReason = 'Non disponibile sul piano Hobby — upgrade a Pro'
-      }
-    }
-
-    const v = value ?? 0
-    const overage = included === Infinity ? 0 : Math.max(0, v - included)
-    const cost = overage * m.overagePerUnit
-    const pct = included > 0 && included !== Infinity ? Math.min((v / included) * 100, 200) : 0
-
-    return { ...m, value, unavailableReason, overage, cost, included, pct }
-  })
-
-  const usageAddonCost = metricRows.reduce((s, r) => s + r.cost, 0)
-  const addonCost = domainAddonCost + usageAddonCost
-
 
   return (
     <div className="py-10 px-8">
@@ -300,162 +132,147 @@ export default async function AdminVercelPage() {
         </a>
       </div>
 
-      {/* Cost summary boxes */}
-      <div className="grid grid-cols-2 gap-4 mb-8">
-        <div className="border border-gray-200 bg-white px-8 py-6">
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-3">Costo ricorrente</p>
-          <p className="text-4xl font-bold tabular-nums text-gray-900">${recurringCost.toFixed(2)}</p>
-          <p className="text-xs text-gray-400 mt-2">
-            Piano {isPro ? 'Pro' : 'Hobby'}
-            {hasObservabilityPlus ? ' · Observability incluso' : ''}
-          </p>
+      {/* Cost summary boxes — dati REALI da /v1/billing/charges */}
+      <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="border border-gray-200 bg-white px-6 py-5">
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-3">Lordo</p>
+          <p className="text-3xl font-bold tabular-nums text-gray-900">${totalBilled.toFixed(2)}</p>
+          <p className="text-xs text-gray-400 mt-2">Somma BilledCost di tutti i servizi</p>
         </div>
-        <div className="border border-gray-200 bg-white px-8 py-6">
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-3">Costo add-on</p>
-          <p className="text-4xl font-bold tabular-nums text-gray-900">${Math.max(0, addonCost - 20).toFixed(2)}</p>
-          <p className="text-xs text-gray-400 mt-2">
-            {addonCost > 0
-              ? `$${addonCost.toFixed(2)} lordo — $20.00 credito Pro = $${Math.max(0, addonCost - 20).toFixed(2)} netto`
-              : 'Nessun utilizzo oltre le soglie incluse nel piano'
-            }
-          </p>
+        <div className="border border-gray-200 bg-white px-6 py-5">
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-3">Crediti applicati</p>
+          <p className="text-3xl font-bold tabular-nums text-green-600">−${creditsApplied.toFixed(2)}</p>
+          <p className="text-xs text-gray-400 mt-2">Crediti infrastrutturali del piano</p>
+        </div>
+        <div className="border border-gray-900 bg-gray-900 px-6 py-5">
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-3">Netto effettivo</p>
+          <p className="text-3xl font-bold tabular-nums text-white">${totalEffective.toFixed(2)}</p>
+          <p className="text-xs text-gray-500 mt-2">Quello che pagherai realmente</p>
         </div>
       </div>
 
-      {/* Unified cost table */}
+      {/* Dettaglio costi reali */}
       <div className="flex items-center gap-3 mb-4">
-        <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400">Dettaglio costi</h2>
+        <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400">Dettaglio costi del ciclo corrente</h2>
         <MonthBadge monthStr={monthStr} live />
       </div>
-      <div className="border border-gray-200 bg-white mb-8">
-        {/* Table header */}
-        <div className="grid grid-cols-[1fr_200px_100px] gap-4 px-6 py-3 border-b border-gray-100 bg-gray-50">
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400">Voce</p>
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400">Utilizzo</p>
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 text-right">Costo</p>
+
+      {!billingOk ? (
+        <div className="border border-amber-200 bg-amber-50 px-6 py-4 mb-8">
+          <p className="text-xs font-bold text-amber-700 mb-1">API billing non disponibile</p>
+          <p className="text-xs text-amber-600 font-mono">{billing.error ?? `HTTP ${billing.status}`}</p>
+          <p className="text-[11px] text-amber-700 mt-2">
+            L&apos;endpoint <code>/v1/billing/charges</code> è disponibile solo su team Pro/Enterprise. Verifica:
+            (a) il piano è Pro · (b) il token ha ruolo Owner/Billing · (c) team ID corretto.
+          </p>
         </div>
-
-        {/* Piano Hobby / Pro */}
-        <details className="group">
-          <summary className="grid grid-cols-[1fr_200px_100px] gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer list-none transition-colors">
-            <div className="flex items-center gap-2">
-              <ChevronRight className="w-3 h-3 text-gray-300 group-open:rotate-90 transition-transform shrink-0" />
-              <span className="text-sm text-gray-800">Piano {isPro ? 'Pro' : 'Hobby'}</span>
-            </div>
-            <div className="flex items-center">
-              <span className="text-xs text-gray-400">Costo fisso mensile</span>
-            </div>
-            <div className="text-right">
-              <span className="text-sm font-bold text-gray-900">${recurringCost.toFixed(2)}</span>
-            </div>
-          </summary>
-          <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
-            <p>Piano Hobby: <strong>$0/mese</strong> — uso personale e non commerciale</p>
-            <p>Piano Pro: <strong>$20/mese per membro</strong> — include analytics, team features, SLA</p>
-            {hasObservabilityPlus && <p>Observability: <strong>incluso nel Pro</strong> · overage $1.20/1M eventi</p>}
-            {isPro && memberCount > 0 && (
-              <p className="text-gray-700">Membri: <strong>{memberCount}</strong> × $20 = <strong>${recurringCost.toFixed(2)}/mese</strong></p>
-            )}
-            {billingPeriodStart && (
-              <p className="text-gray-400 border-t border-gray-100 pt-1 mt-1">Ciclo attivo: dal {new Date(billingPeriodStart).toLocaleDateString('it-IT')} al {billingPeriodEnd ? new Date(billingPeriodEnd).toLocaleDateString('it-IT') : '—'}</p>
-            )}
+      ) : services.length === 0 ? (
+        <div className="border border-gray-200 bg-white px-6 py-4 mb-8 text-xs text-gray-400">
+          Nessun addebito registrato nel ciclo corrente (il ciclo è appena iniziato il giorno 24).
+        </div>
+      ) : (
+        <div className="border border-gray-200 bg-white mb-8">
+          <div className="grid grid-cols-[1fr_180px_100px_100px] gap-4 px-6 py-3 border-b border-gray-100 bg-gray-50">
+            <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400">Servizio</p>
+            <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400">Consumo</p>
+            <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 text-right">Lordo</p>
+            <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 text-right">Netto</p>
           </div>
-        </details>
 
-        {/* Metric rows — always shown */}
-        {metricRows.map((r, idx) => {
-          const isLast = idx === metricRows.length - 1 && allDomains.length === 0
-          return (
-            <details key={r.key} className="group">
-              <summary className={`grid grid-cols-[1fr_200px_100px] gap-4 px-6 py-4 ${!isLast ? 'border-b border-gray-50' : ''} hover:bg-gray-50 cursor-pointer list-none transition-colors`}>
-                <div className="flex items-center gap-2">
-                  <ChevronRight className="w-3 h-3 text-gray-300 group-open:rotate-90 transition-transform shrink-0" />
-                  <span className="text-sm text-gray-800">{r.label}</span>
+          {services.map((s, idx) => {
+            const isLast = idx === services.length - 1
+            const isSub = isSubscription(s.name)
+            const credit = s.billedCost - s.effectiveCost
+            return (
+              <div key={s.name}
+                className={`grid grid-cols-[1fr_180px_100px_100px] gap-4 px-6 py-3 ${!isLast ? 'border-b border-gray-50' : ''} hover:bg-gray-50 transition-colors`}>
+                <div className="flex items-center gap-2 min-w-0">
+                  {isSub
+                    ? <span className="text-[9px] font-bold uppercase tracking-wider text-gray-900 bg-gray-100 px-1.5 py-0.5">PIANO</span>
+                    : <ChevronRight className="w-3 h-3 text-gray-200 shrink-0" />
+                  }
+                  <span className="text-sm text-gray-800 truncate">{s.name}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  {r.value !== null ? (
-                    r.included > 0 && r.included !== Infinity ? (
-                      <>
-                        <div className="flex-1 h-1.5 bg-gray-100 max-w-[120px]">
-                          <div
-                            className={`h-full transition-all ${r.pct >= 100 ? 'bg-red-500' : r.pct >= 80 ? 'bg-amber-400' : 'bg-gray-800'}`}
-                            style={{ width: `${Math.min(r.pct, 100)}%` }}
-                          />
-                        </div>
-                        <span className="text-[10px] font-mono text-gray-500 whitespace-nowrap">
-                          {r.format(r.value)} / {r.format(r.included)}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-[10px] font-mono text-gray-500">{r.format(r.value)}</span>
-                    )
-                  ) : (
-                    <span className={`text-xs ${usage === null ? 'text-amber-600' : 'text-gray-300'}`}>
-                      {r.unavailableReason}
-                    </span>
-                  )}
-                </div>
-                <div className="text-right">
-                  <span className={`text-sm font-bold ${r.cost > 0 ? 'text-red-600' : 'text-gray-400'}`}>
-                    {r.value !== null ? (r.cost > 0 ? `$${r.cost.toFixed(2)}` : '$0.00') : '—'}
+                <div className="flex items-center">
+                  <span className="text-[11px] font-mono text-gray-500">
+                    {s.quantity > 0 ? fmtUnit(s.quantity, s.unit) : '—'}
                   </span>
                 </div>
-              </summary>
-              <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
-                <p>{r.hint}</p>
-                {r.value !== null && r.overage > 0 && (
-                  <p className="text-red-600">Overage: {r.format(r.overage)} oltre la soglia inclusa.</p>
-                )}
+                <div className="text-right">
+                  <span className="text-sm font-mono text-gray-500">${s.billedCost.toFixed(2)}</span>
+                </div>
+                <div className="text-right">
+                  <span className={`text-sm font-bold tabular-nums ${s.effectiveCost > 0 ? 'text-gray-900' : 'text-gray-400'}`}>
+                    ${s.effectiveCost.toFixed(2)}
+                  </span>
+                  {credit > 0.001 && (
+                    <p className="text-[9px] text-green-600 mt-0.5">−${credit.toFixed(2)} crediti</p>
+                  )}
+                </div>
               </div>
-            </details>
-          )
-        })}
+            )
+          })}
+        </div>
+      )}
 
-        {/* Domini */}
+      {/* Domini — sezione separata con TUTTI i domini, non solo quelli del mese */}
+      <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">Domini</h2>
+      <div className="border border-gray-200 bg-white mb-8">
+        <div className="grid grid-cols-[1fr_140px_140px_120px] gap-4 px-6 py-3 border-b border-gray-100 bg-gray-50">
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400">Dominio</p>
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400">Acquistato</p>
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400">Rinnovo</p>
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 text-right">Costo/anno</p>
+        </div>
         {allDomains.length === 0 ? (
-          <div className="px-6 py-4 text-xs text-gray-300">Nessun dominio configurato su questo account</div>
+          <div className="px-6 py-4 text-xs text-gray-300">Nessun dominio configurato</div>
         ) : allDomains.map((d: any, idx: number) => {
-          const renewalCost = domainRenewalCostThisMonth(d)
-          const registrar = domainRegistrar(d)
-          const renewal = domainNextRenewal(d)
+          const bought = d.boughtAt ? new Date(d.boughtAt).toLocaleDateString('it-IT') : null
+          const expires = d.expiresAt ? new Date(d.expiresAt).toLocaleDateString('it-IT') : null
           const isVercelManaged = d.serviceType === 'zeit' || !!d.price
           const isLast = idx === allDomains.length - 1
           return (
-            <details key={d.id ?? d.name} className="group">
-              <summary className={`grid grid-cols-[1fr_200px_100px] gap-4 px-6 py-4 ${!isLast ? 'border-b border-gray-50' : ''} hover:bg-gray-50 cursor-pointer list-none transition-colors`}>
-                <div className="flex items-center gap-2">
-                  <ChevronRight className="w-3 h-3 text-gray-300 group-open:rotate-90 transition-transform shrink-0" />
-                  <span className="text-sm text-gray-800">{d.name}</span>
-                  {d.verified
-                    ? <CheckCircle2 className="w-3 h-3 text-green-500 shrink-0" />
-                    : <XCircle className="w-3 h-3 text-red-400 shrink-0" />
-                  }
-                </div>
-                <div className="flex items-center">
-                  <span className="text-xs text-gray-400">{registrar}</span>
-                </div>
-                <div className="text-right">
-                  <span className={`text-sm font-bold ${renewalCost > 0 ? 'text-gray-900' : 'text-gray-400'}`}>
-                    {renewalCost > 0 ? `$${renewalCost.toFixed(2)}` : '$0.00'}
-                  </span>
-                </div>
-              </summary>
-              <div className={`px-6 py-4 bg-gray-50 ${!isLast ? 'border-b border-gray-100' : ''} text-xs text-gray-500 space-y-1`}>
-                <p>Registrar: <strong>{registrar}</strong></p>
-                <p>Scadenza: <strong>{renewal ?? 'Dato non disponibile'}</strong></p>
-                {isVercelManaged && d.price && (
-                  <p>Costo annuale: <strong>${d.price}/anno</strong> — addebitato nel mese di rinnovo ({new Date(d.boughtAt).toLocaleDateString('it-IT', { month: 'long' })})</p>
-                )}
-                {!isVercelManaged && (
-                  <p>Dominio gestito esternamente — nessun costo su Vercel</p>
-                )}
-                {d.nameservers?.length > 0 && (
-                  <p className="text-gray-400 font-mono">NS: {d.nameservers.slice(0, 2).join(', ')}</p>
-                )}
+            <div key={d.id ?? d.name}
+              className={`grid grid-cols-[1fr_140px_140px_120px] gap-4 px-6 py-3 ${!isLast ? 'border-b border-gray-50' : ''} hover:bg-gray-50 transition-colors`}>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-sm font-mono text-gray-800 truncate">{d.name}</span>
+                {d.verified
+                  ? <CheckCircle2 className="w-3 h-3 text-green-500 shrink-0" />
+                  : <XCircle className="w-3 h-3 text-red-400 shrink-0" />
+                }
               </div>
-            </details>
+              <span className="text-xs text-gray-500 font-mono">{bought ?? '—'}</span>
+              <span className="text-xs text-gray-500 font-mono">{expires ?? '—'}</span>
+              <span className={`text-sm font-bold tabular-nums text-right ${isVercelManaged ? 'text-gray-900' : 'text-gray-300'}`}>
+                {isVercelManaged && d.price ? `$${Number(d.price).toFixed(2)}` : '—'}
+              </span>
+            </div>
           )
         })}
+      </div>
+
+      {/* Info piano */}
+      <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">Piano e ciclo</h2>
+      <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="border border-gray-200 bg-white px-6 py-5">
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-2">Piano attivo</p>
+          <p className="text-2xl font-bold tabular-nums text-gray-900">{plan}</p>
+          <p className="text-xs text-gray-400 mt-1">{memberCount > 0 ? `${memberCount} membri` : '—'}</p>
+        </div>
+        <div className="border border-gray-200 bg-white px-6 py-5">
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-2">Inizio ciclo</p>
+          <p className="text-lg font-bold tabular-nums text-gray-900">
+            {periodStart ? new Date(periodStart).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }) : '—'}
+          </p>
+          <p className="text-xs text-gray-400 mt-1">da team.billing.period.start</p>
+        </div>
+        <div className="border border-gray-200 bg-white px-6 py-5">
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-2">Fine ciclo</p>
+          <p className="text-lg font-bold tabular-nums text-gray-900">
+            {periodEnd ? new Date(periodEnd).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }) : '—'}
+          </p>
+          <p className="text-xs text-gray-400 mt-1">da team.billing.period.end</p>
+        </div>
       </div>
 
       {/* App data */}
@@ -467,7 +284,7 @@ export default async function AdminVercelPage() {
         return (
           <>
             <h2 className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">Statistiche app</h2>
-            <div className={`grid gap-4 mb-8 ${items.length === 1 ? 'grid-cols-1' : items.length === 2 ? 'grid-cols-2' : items.length === 3 ? 'grid-cols-3' : 'grid-cols-4'}`}>
+            <div className={`grid gap-4 mb-8 ${items.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
               {items.map(({ label, value }) => (
                 <div key={label} className="border border-gray-200 bg-white px-6 py-5">
                   <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-2">{label}</p>

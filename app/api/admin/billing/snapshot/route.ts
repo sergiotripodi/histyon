@@ -26,7 +26,10 @@ import {
   SB_OVERAGE_DB_PER_GiB,
   SB_OVERAGE_STORAGE_PER_GiB,
   SB_OVERAGE_EGRESS_PER_GiB,
+  getBillingPeriodMs,
 } from '@/lib/billing/config'
+import { fetchVercelBilling } from '@/lib/vercel/billing'
+import { fetchSupabaseManagement } from '@/lib/supabase/management'
 
 const SB_INCLUDED_DB_GiB      = SB_FALLBACK.db_size.pro / (1024 ** 3)
 const SB_INCLUDED_STORAGE_GiB = SB_FALLBACK.storage.pro / (1024 ** 3)
@@ -47,45 +50,25 @@ async function fetchVercelCosts(monthStr: string): Promise<{ recurring: number; 
   const teamId = process.env.ADMIN_VERCEL_TEAM_ID
   if (!token || !teamId) return { recurring: 0, addon: 0 }
 
-  try {
-    const teamRes  = await fetch(`https://api.vercel.com/v1/teams/${teamId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    const teamJson = teamRes.ok ? await teamRes.json() : null
-    const plan: string = teamJson?.billing?.plan ?? 'hobby'
-    const recurring = plan === 'pro' ? 20 : 0
+  // Periodo di fatturazione reale (24→23)
+  const { startMs: fromMs, endMs: toMs } = getBillingPeriodMs(monthStr)
 
-    // Domini acquistati/rinnovati nel mese corrente
-    const domainsRes = await fetch(
-      `https://api.vercel.com/v5/domains?teamId=${teamId}&limit=100`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    )
-    const domainsJson = domainsRes.ok ? await domainsRes.json() : { domains: [] }
-    const domains: any[] = domainsJson.domains ?? []
+  // Dati VERI da /v1/billing/charges (formato FOCUS v1.3 JSONL)
+  // Include automaticamente: piano ricorrente, usage, domini, crediti applicati
+  const billing = await fetchVercelBilling({ token, teamId, fromMs, toMs, revalidate: 0 })
 
-    const [y, m] = monthStr.split('-').map(Number)
-    const monthStart = new Date(y, m - 1, 1).getTime()
-    const monthEnd   = new Date(y, m, 1).getTime()
-
-    let domainAddon = 0
-    for (const d of domains) {
-      const eventTs: number | null = d.renewedAt ?? d.boughtAt ?? null
-      if (eventTs !== null && eventTs >= monthStart && eventTs < monthEnd) {
-        const priceRes = await fetch(
-          `https://api.vercel.com/v4/domains/${d.name}/price?type=renewal&teamId=${teamId}`,
-          { headers: { Authorization: `Bearer ${token}` } },
-        ).catch(() => null)
-        if (priceRes?.ok) {
-          const p = await priceRes.json()
-          domainAddon += Number(p?.price ?? 0)
-        }
-      }
-    }
-
-    return { recurring, addon: domainAddon }
-  } catch {
+  if (!billing.ok) {
     return { recurring: 0, addon: 0 }
   }
+
+  // Split tra "Subscription / Pro Plan" (recurring) e tutto il resto (addon usage + domini)
+  let recurring = 0, addon = 0
+  for (const s of billing.services) {
+    const isSubscription = /pro plan|subscription|hobby|enterprise/i.test(s.name)
+    if (isSubscription) recurring += s.effectiveCost
+    else                addon     += s.effectiveCost
+  }
+  return { recurring, addon: Math.max(0, addon) }
 }
 
 // ── Supabase ─────────────────────────────────────────────────────────────────
@@ -102,24 +85,22 @@ async function fetchSupabaseCosts(): Promise<{ recurring: number; addon: number 
     { auth: { autoRefreshToken: false, persistSession: false } },
   )
 
-  // Piano ricorrente
+  // Piano ricorrente — helper chiama /v1/organizations/{id} che ha il plan
+  // (la lista /v1/organizations non lo restituisce, bug noto)
   let recurring = 0
   let sbPlan = 'free'
-  if (mgmtToken) {
+  const sbProjectId = process.env.ADMIN_SUPABASE_PROJECT_ID ?? projectRef
+  if (mgmtToken && sbProjectId) {
     try {
-      const orgRes = await fetch('https://api.supabase.com/v1/organizations', {
-        headers: { Authorization: `Bearer ${mgmtToken}`, 'Content-Type': 'application/json' },
-      })
-      const orgJson = orgRes.ok ? await orgRes.json() : null
-      const org = Array.isArray(orgJson) ? orgJson[0] : null
-      sbPlan = org?.plan ?? 'free'
-      recurring = sbPlan === 'pro' ? 25 : 0
+      const result = await fetchSupabaseManagement({ token: mgmtToken, projectId: sbProjectId })
+      sbPlan = result.org?.plan ?? 'free'
+      recurring = sbPlan !== 'free' ? 25 : 0
     } catch { /* usa free */ }
   }
 
   // Overage (solo su Pro)
   let addon = 0
-  if (sbPlan === 'pro') {
+  if (sbPlan !== 'free') {
     try {
       const [dbSizeResult, storageStats] = await Promise.all([
         db.rpc('get_db_size_bytes').then(({ data }) => data as number | null, () => null),

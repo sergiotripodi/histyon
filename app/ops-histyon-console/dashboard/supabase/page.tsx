@@ -5,6 +5,7 @@ import { ExternalLink, ChevronRight } from 'lucide-react'
 import { MonthBadge } from '@/components/admin/MonthBadge'
 import { getTotalStorage, getAllDoctorsStorage } from '@/lib/usage/storage'
 import { getBillingPeriodMs, SB_FALLBACK, SB_OVERAGE_DB_PER_GiB, SB_OVERAGE_STORAGE_PER_GiB, SB_OVERAGE_EGRESS_PER_GiB } from '@/lib/billing/config'
+import { fetchSupabaseManagement, extractSbLimit as extractSbLimitHelper } from '@/lib/supabase/management'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Supabase' }
@@ -48,22 +49,18 @@ function extractSbLimit(usageJson: any, keys: string[]): number | null {
   return null
 }
 
-async function fetchSupabaseData(monthStr: string) {
+async function fetchSupabaseData(_monthStr: string) {
   const token = process.env.ADMIN_SUPABASE_MANAGEMENT_TOKEN!
   const projectId = process.env.ADMIN_SUPABASE_PROJECT_ID!
-  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
-
-  const [orgRes, projectRes, usageRes] = await Promise.all([
-    fetch(`https://api.supabase.com/v1/organizations`, { headers, next: { revalidate: 300 } }),
-    fetch(`https://api.supabase.com/v1/projects/${projectId}`, { headers, next: { revalidate: 300 } }),
-    fetch(`https://api.supabase.com/v1/projects/${projectId}/usage`, { headers, next: { revalidate: 300 } }).catch(() => null),
-  ])
-
-  const [orgs, project] = await Promise.all([orgRes.json(), projectRes.json()])
-  const org = Array.isArray(orgs) ? orgs[0] : null
-  const usageJson = usageRes?.ok ? await usageRes.json().catch(() => null) : null
-
-  return { org, project, usageJson }
+  // Helper: fetcha lista org → estrae orgId → chiama /v1/organizations/{id} per avere plan
+  // (la lista non include il campo plan, era il bug principale del riconoscimento Pro)
+  const result = await fetchSupabaseManagement({ token, projectId })
+  return {
+    org:        result.org,
+    project:    result.project,
+    usageJson:  result.usageJson,
+    mgmtErrors: result.errors,
+  }
 }
 
 export default async function AdminSupabasePage() {
@@ -85,7 +82,7 @@ export default async function AdminSupabasePage() {
   const startOfBillingPeriod = new Date(startMs).toISOString()
 
   const [
-    { org, project, usageJson },
+    { org, project, usageJson, mgmtErrors },
     { count: totalUsers },
     { count: totalAnalyses },
     egressResult,

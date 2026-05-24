@@ -7,6 +7,8 @@ import { PaymentBanner } from '@/components/admin/PaymentBanner'
 import { getTotalStorage } from '@/lib/usage/storage'
 import { RESEND_PLANS, type ResendPlanKey } from '@/lib/resend/plans'
 import { PROJECT_START, getBillingPeriodMs } from '@/lib/billing/config'
+import { fetchSupabaseManagement } from '@/lib/supabase/management'
+import { fetchVercelBilling } from '@/lib/vercel/billing'
 
 function computeHistoricalTotal(recurringCost: number): number {
   const start = new Date(PROJECT_START + '-01')
@@ -50,12 +52,22 @@ function formatBytes(b: number): string {
 async function getVercelPlan(): Promise<string> {
   try {
     const res = await fetch(
-      `https://api.vercel.com/v1/teams/${process.env.ADMIN_VERCEL_TEAM_ID}`,
+      `https://api.vercel.com/v2/teams/${process.env.ADMIN_VERCEL_TEAM_ID}`,
       { headers: { Authorization: `Bearer ${process.env.ADMIN_VERCEL_TOKEN}` }, next: { revalidate: 3600 } }
     )
     const json = await res.json()
     return json?.billing?.plan ?? 'hobby'
   } catch { return 'hobby' }
+}
+
+async function getSupabasePlan(): Promise<string> {
+  const token = process.env.ADMIN_SUPABASE_MANAGEMENT_TOKEN
+  const projectId = process.env.ADMIN_SUPABASE_PROJECT_ID
+  if (!token || !projectId) return 'free'
+  try {
+    const r = await fetchSupabaseManagement({ token, projectId })
+    return r.org?.plan ?? 'free'
+  } catch { return 'free' }
 }
 
 function parseResendDate(raw: unknown): Date | null {
@@ -127,24 +139,39 @@ export default async function AdminDashboardPage() {
   const last30 = getLast30Days()
   const thirtyDaysAgo = `${last30[0]}T00:00:00.000Z`
 
+  // Vercel billing reali del ciclo corrente (24→23)
+  const { startMs: cycleStart, endMs: cycleEnd } = getBillingPeriodMs()
+  const vercelBillingPromise = process.env.ADMIN_VERCEL_TOKEN && process.env.ADMIN_VERCEL_TEAM_ID
+    ? fetchVercelBilling({
+        token:  process.env.ADMIN_VERCEL_TOKEN,
+        teamId: process.env.ADMIN_VERCEL_TEAM_ID,
+        fromMs: cycleStart,
+        toMs:   cycleEnd,
+      })
+    : Promise.resolve(null)
+
   const [
     { count: totalUsers },
     { data: allTickets },
     { data: recentUsers },
     { data: recentTickets },
     vercelPlan,
+    supabasePlan,
     totalStorageStats,
     dbSizeBytes,
     resendResult,
+    vercelBilling,
   ] = await Promise.all([
     supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }).neq('role', 'admin'),
     supabaseAdmin.from('tickets').select('created_at, status').order('created_at', { ascending: true }),
     supabaseAdmin.from('profiles').select('created_at').gte('created_at', thirtyDaysAgo).neq('role', 'admin'),
     supabaseAdmin.from('tickets').select('created_at, status').gte('created_at', thirtyDaysAgo),
     getVercelPlan(),
+    getSupabasePlan(),
     getTotalStorage().catch(() => ({ inputBytes: 0, dziBytes: 0, totalBytes: 0 })),
     supabaseAdmin.rpc('get_db_size_bytes').then(({ data }) => data as number | null, () => null),
     getResendEmailsSent(),
+    vercelBillingPromise,
   ])
 
   const resendEmailsSent = resendResult.total
@@ -163,11 +190,13 @@ export default async function AdminDashboardPage() {
   const today = new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })
   const todayCapitalized = today.charAt(0).toUpperCase() + today.slice(1)
 
-  // Calcolo costi attuali per i badge
-  const vercelMonthlyCost   = vercelPlan !== 'hobby' && vercelPlan !== 'free' ? 20 : 0
-  const supabaseMonthlyCost = 25 // Supabase Pro
+  // Costi del ciclo corrente: Vercel = dato reale dall'API billing (totalEffective già post-crediti)
+  // Supabase: prezzo del piano (fonte = API plan), Resend: prezzo del piano (cookie/DB)
+  const vercelEffective = vercelBilling?.ok ? vercelBilling.totalEffective : 0
+  const supabaseIsPro   = supabasePlan !== 'free'
+  const supabaseMonthlyCost = supabaseIsPro ? 25 : 0
   const resendMonthlyCost   = resendPlan.price
-  const recurringCost       = vercelMonthlyCost + supabaseMonthlyCost + resendMonthlyCost
+  const recurringCost       = vercelEffective + supabaseMonthlyCost + resendMonthlyCost
   const historicalTotal     = computeHistoricalTotal(recurringCost)
 
   return (
@@ -268,7 +297,7 @@ export default async function AdminDashboardPage() {
               <span className="text-sm font-bold text-gray-900">Supabase</span>
             </div>
             <span className="text-[10px] font-bold uppercase text-gray-400 border border-gray-100 px-2 py-0.5">
-              free
+              {supabasePlan}
             </span>
           </div>
           <p className="text-xs text-gray-400">Database, autenticazione e storage</p>
