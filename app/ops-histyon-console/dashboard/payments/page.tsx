@@ -70,7 +70,7 @@ async function fetchVercelDomainAddon(monthStr: string): Promise<number> {
   try {
     const res = await fetch(
       `https://api.vercel.com/v5/domains?teamId=${teamId}&limit=100`,
-      { headers: { Authorization: `Bearer ${token}` }, next: { revalidate: 3600 } },
+      { headers: { Authorization: `Bearer ${token}` }, next: { revalidate: 60 } },
     )
     if (!res.ok) return 0
     const json = await res.json()
@@ -222,8 +222,8 @@ export default async function AdminPaymentsPage({
     const plans = await fetchLivePlans()
     vercelPlan        = plans.vercelPlan
     sbPlan            = plans.sbPlan
-    vercelMonthlyCost = vercelPlan === 'pro' ? 20 : 0
-    sbMonthlyCost     = sbPlan === 'pro' ? 25 : 0
+    vercelMonthlyCost = vercelPlan !== 'hobby' && vercelPlan !== 'free' ? 20 : 0
+    sbMonthlyCost     = sbPlan !== 'free' ? 25 : 0
 
     const [domainAddon, emailsSent] = await Promise.all([
       fetchVercelDomainAddon(currentMonth),

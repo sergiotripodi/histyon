@@ -164,8 +164,8 @@ export default async function AdminDashboardPage() {
   const todayCapitalized = today.charAt(0).toUpperCase() + today.slice(1)
 
   // Calcolo costi attuali per i badge
-  const vercelMonthlyCost   = vercelPlan === 'pro' ? 20 : 0
-  const supabaseMonthlyCost = 0 // free plan
+  const vercelMonthlyCost   = vercelPlan !== 'hobby' && vercelPlan !== 'free' ? 20 : 0
+  const supabaseMonthlyCost = 25 // Supabase Pro
   const resendMonthlyCost   = resendPlan.price
   const recurringCost       = vercelMonthlyCost + supabaseMonthlyCost + resendMonthlyCost
   const historicalTotal     = computeHistoricalTotal(recurringCost)

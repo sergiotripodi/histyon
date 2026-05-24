@@ -129,7 +129,9 @@ export default async function AdminSupabasePage() {
   const dbConnections = dbConnectionsFromRpc ?? realtimePeakConnections
 
   const plan = org?.plan ?? 'free'
-  const isPro = plan === 'pro'
+  // Quando Supabase è connesso via Vercel marketplace il piano può essere
+  // 'pro', 'team', 'enterprise' — qualsiasi valore != 'free' è a pagamento
+  const isPro = plan !== 'free'
   const recurringCost = isPro ? 25 : 0
 
   // Limits

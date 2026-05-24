@@ -21,7 +21,7 @@ async function fetchVercelData(monthStr: string) {
     fetch(`https://api.vercel.com/v1/teams/${teamId}`, { headers, next: { revalidate: 300 } }),
     fetch(`https://api.vercel.com/v9/projects/${projectId}?teamId=${teamId}`, { headers, next: { revalidate: 300 } }),
     fetch(`https://api.vercel.com/v6/deployments?projectId=${projectId}&teamId=${teamId}&limit=50`, { headers, next: { revalidate: 300 } }),
-    fetch(`https://api.vercel.com/v5/domains?teamId=${teamId}`, { headers, next: { revalidate: 300 } }),
+    fetch(`https://api.vercel.com/v5/domains?teamId=${teamId}`, { headers, next: { revalidate: 30 } }),
     fetch(`https://api.vercel.com/v2/teams/${teamId}/members`, { headers, next: { revalidate: 300 } }).catch(() => null),
     fetch(`https://api.vercel.com/v2/teams/${teamId}/usage?from=${monthStartMs}&to=${monthEndMs}`, { headers, next: { revalidate: 300 } }).catch(() => null),
   ])
@@ -62,18 +62,35 @@ export default async function AdminVercelPage() {
 
   const billing = team?.billing ?? {}
   const plan = billing.plan ?? 'hobby'
-  const isPro = plan === 'pro'
+  const isPro = plan !== 'hobby' && plan !== 'free'
+
+  // Billing cycle from Vercel API (when Pro was activated)
+  const billingPeriodStart: number | null = billing.period?.start ?? billing.cycleStartDate ?? null
+  const billingPeriodEnd: number | null   = billing.period?.end   ?? billing.cycleEndDate   ?? null
+  const billingDayOfMonth: number | null  = billingPeriodStart
+    ? new Date(billingPeriodStart).getDate()
+    : null
+
+  // Observability Plus add-on ($10/seat/month on Pro)
+  const addons: any[] = billing.addons ?? []
+  const hasObservabilityPlus = addons.some((a: any) => {
+    const id = typeof a === 'string' ? a : (a?.id ?? a?.type ?? a?.name ?? '')
+    return String(id).toLowerCase().includes('observab')
+  })
 
   const allDomains: any[] = domains?.domains ?? []
   const allDeployments: any[] = deployments?.deployments ?? []
   const lastDeploy = allDeployments[0]
 
-  const selectedMonthNum = Number(monthStr.split('-')[1])
+  const [y, m] = monthStr.split('-').map(Number)
 
   function domainRenewalCostThisMonth(d: any): number {
-    if (!d.price || !d.boughtAt) return 0
-    const bought = new Date(d.boughtAt)
-    if (bought.getMonth() + 1 === selectedMonthNum) return d.price
+    // boughtAt / renewedAt sono Unix timestamp in ms
+    const eventTs: number | null = d.renewedAt ?? d.boughtAt ?? null
+    if (!eventTs) return 0
+    const monthStart = Date.UTC(y, m - 1, 1)
+    const monthEnd   = Date.UTC(y, m, 1)
+    if (eventTs >= monthStart && eventTs < monthEnd) return d.price ?? 0
     return 0
   }
 
@@ -96,7 +113,8 @@ export default async function AdminVercelPage() {
 
   const memberCount: number = Array.isArray(members?.members) ? members.members.length : 0
   const billableMembers = Math.max(1, memberCount)
-  const recurringCost = isPro ? 20 * billableMembers : 0
+  const observabilityPlusCost = hasObservabilityPlus ? 10 * billableMembers : 0
+  const recurringCost = isPro ? 20 * billableMembers + observabilityPlusCost : 0
 
   // Extract usage value — supports flat object or { value: number } wrapper
   function extractUsageValue(field: string): number | null {
@@ -269,17 +287,34 @@ export default async function AdminVercelPage() {
 
       {/* Month picker */}
 
+      {/* Billing cycle info */}
+      {billingPeriodStart && (
+        <div className="mb-6 px-4 py-3 bg-gray-50 border border-gray-100 flex items-center gap-3">
+          <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400">Ciclo di fatturazione</span>
+          <span className="text-xs text-gray-600">
+            {new Date(billingPeriodStart).toLocaleDateString('it-IT', { day: 'numeric', month: 'long' })}
+            {billingPeriodEnd ? ` → ${new Date(billingPeriodEnd).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}` : ''}
+          </span>
+          {billingDayOfMonth && (
+            <span className="text-[10px] text-gray-400 ml-auto">si rinnova il giorno {billingDayOfMonth} di ogni mese</span>
+          )}
+        </div>
+      )}
+
       {/* Cost summary boxes */}
       <div className="grid grid-cols-2 gap-4 mb-8">
         <div className="border border-gray-200 bg-white px-8 py-6">
           <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-3">Costo ricorrente</p>
           <p className="text-4xl font-bold tabular-nums text-gray-900">${recurringCost.toFixed(2)}</p>
-          <p className="text-xs text-gray-400 mt-2">Piano {isPro ? 'Pro' : 'Hobby (Free)'}</p>
+          <p className="text-xs text-gray-400 mt-2">
+            Piano {isPro ? 'Pro' : 'Hobby'}
+            {hasObservabilityPlus ? ' + Observability Plus' : ''}
+          </p>
         </div>
         <div className="border border-gray-200 bg-white px-8 py-6">
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-3">Costo add-on</p>
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-3">Costo add-on stimato</p>
           <p className="text-4xl font-bold tabular-nums text-gray-900">${addonCost.toFixed(2)}</p>
-          <p className="text-xs text-gray-400 mt-2">Utilizzo oltre soglie incluse nel piano</p>
+          <p className="text-xs text-gray-400 mt-2">Stima pre-crediti — Vercel applica crediti infrastrutturali che riducono la fattura effettiva</p>
         </div>
       </div>
 
@@ -313,8 +348,12 @@ export default async function AdminVercelPage() {
           <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
             <p>Piano Hobby: <strong>$0/mese</strong> — uso personale e non commerciale</p>
             <p>Piano Pro: <strong>$20/mese per membro</strong> — include analytics, team features, SLA</p>
+            {hasObservabilityPlus && <p>Observability Plus: <strong>+$10/mese per membro</strong> (rilevato automaticamente)</p>}
             {isPro && memberCount > 0 && (
-              <p className="text-gray-700">Membri attivi: <strong>{memberCount}</strong> × $20 = <strong>${recurringCost.toFixed(2)}/mese</strong></p>
+              <p className="text-gray-700">Membri: <strong>{memberCount}</strong> × ${20 + (hasObservabilityPlus ? 10 : 0)} = <strong>${recurringCost.toFixed(2)}/mese</strong></p>
+            )}
+            {billingPeriodStart && (
+              <p className="text-gray-400 border-t border-gray-100 pt-1 mt-1">Ciclo attivo: dal {new Date(billingPeriodStart).toLocaleDateString('it-IT')} al {billingPeriodEnd ? new Date(billingPeriodEnd).toLocaleDateString('it-IT') : '—'}</p>
             )}
           </div>
         </details>
