@@ -58,13 +58,20 @@ async function getVercelPlan(): Promise<string> {
   } catch { return 'hobby' }
 }
 
-async function getResendEmailsSent(): Promise<number | null> {
+async function getResendEmailsSent(): Promise<{ total: number | null; sparkline: number[] }> {
   const key = process.env.RESEND_API_KEY
-  if (!key) return null
+  if (!key) return { total: null, sparkline: [] }
   const now = new Date()
   const y = now.getUTCFullYear(), m = now.getUTCMonth()
   const monthStart = new Date(Date.UTC(y, m, 1))
   const monthEnd   = new Date(Date.UTC(y, m + 1, 1))
+  // Ultimi 7 giorni per la sparkline
+  const last7 = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date()
+    d.setDate(d.getDate() - (6 - i))
+    return d.toISOString().slice(0, 10)
+  })
+  const dayMap: Record<string, number> = {}
   try {
     let total = 0, offset = 0
     for (let page = 0; page < 5; page++) {
@@ -75,18 +82,22 @@ async function getResendEmailsSent(): Promise<number | null> {
       if (!res.ok) break
       const emails: any[] = (await res.json()).data ?? []
       if (!emails.length) break
+      let done = false
       for (const e of emails) {
         if (!e.created_at) continue
         const created = new Date(e.created_at)
         if (isNaN(created.getTime())) continue
-        if (created >= monthStart && created < monthEnd) total++
-        else if (created < monthStart) return total  // ordine desc: usciti dal mese
+        if (created >= monthStart && created < monthEnd) {
+          total++
+          const day = created.toISOString().slice(0, 10)
+          dayMap[day] = (dayMap[day] ?? 0) + 1
+        } else if (created < monthStart) { done = true; break }
       }
-      if (emails.length < 100) break
+      if (done || emails.length < 100) break
       offset += 100
     }
-    return total
-  } catch { return null }
+    return { total, sparkline: last7.map(d => dayMap[d] ?? 0) }
+  } catch { return { total: null, sparkline: [] } }
 }
 
 export default async function AdminDashboardPage() {
@@ -115,7 +126,7 @@ export default async function AdminDashboardPage() {
     vercelPlan,
     totalStorageStats,
     dbSizeBytes,
-    resendEmailsSent,
+    resendResult,
   ] = await Promise.all([
     supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }).neq('role', 'admin'),
     supabaseAdmin.from('tickets').select('created_at, status').order('created_at', { ascending: true }),
@@ -127,6 +138,9 @@ export default async function AdminDashboardPage() {
     getResendEmailsSent(),
   ])
 
+  const resendEmailsSent = resendResult.total
+  const resendSparkline  = resendResult.sparkline
+
   const tickets = allTickets ?? []
   const last7 = last30.slice(-7)
   const sevenDaysAgo = `${last7[0]}T00:00:00.000Z`
@@ -135,7 +149,7 @@ export default async function AdminDashboardPage() {
 
   const userSparkline   = groupByDay(recentUsers7, last7)
   const ticketSparkline = groupByDay(recentTickets7, last7)
-  const storageSparkline = last7.map(() => 0)
+
 
   const today = new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })
   const todayCapitalized = today.charAt(0).toUpperCase() + today.slice(1)
@@ -191,21 +205,19 @@ export default async function AdminDashboardPage() {
         <AdminStatCard
           label="Database PostgreSQL"
           value={dbSizeBytes ?? 0}
-          sparkline={storageSparkline}
           format="bytes"
           href="/ops-histyon-console/dashboard/supabase"
         />
         <AdminStatCard
           label="Storage bucket"
           value={totalStorageStats.totalBytes}
-          sparkline={storageSparkline}
           format="bytes"
           href="/ops-histyon-console/dashboard/supabase"
         />
         <AdminStatCard
           label="Email inviate"
           value={resendEmailsSent ?? 0}
-          sparkline={storageSparkline}
+          sparkline={resendSparkline}
           href="/ops-histyon-console/dashboard/resend"
         />
       </div>
@@ -258,9 +270,7 @@ export default async function AdminDashboardPage() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 bg-black flex items-center justify-center">
-                <svg viewBox="0 0 24 24" fill="white" className="w-3.5 h-3.5">
-                  <path d="M5 3h8a5 5 0 0 1 0 10h-4l5 8h-3l-5-8H8v8H5V3zm3 3v4h5a2 2 0 0 0 0-4H8z" />
-                </svg>
+                <span className="text-white font-black text-[13px] leading-none select-none">R</span>
               </div>
               <span className="text-sm font-bold text-gray-900">Resend</span>
             </div>

@@ -125,9 +125,7 @@ export default async function AdminResendPage() {
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Resend</h1>
           <div className="flex items-center gap-2 mt-1.5">
             <div className="w-5 h-5 bg-black flex items-center justify-center shrink-0">
-              <svg viewBox="0 0 24 24" fill="white" className="w-2.5 h-2.5">
-                <path d="M5 3h8a5 5 0 0 1 0 10h-4l5 8h-3l-5-8H8v8H5V3zm3 3v4h5a2 2 0 0 0 0-4H8z" />
-              </svg>
+              <span className="text-white font-black text-[10px] leading-none select-none">R</span>
             </div>
             <p className="text-sm text-gray-400">
               {verifiedDomains[0]?.name ?? domains[0]?.name ?? 'resend.com'}
@@ -357,24 +355,6 @@ export default async function AdminResendPage() {
         </div>
       </div>
 
-      {/* External links */}
-      <div className="border-t border-gray-100 pt-6 mt-6 flex gap-6">
-        {[
-          { label: 'Overview Resend',     href: 'https://resend.com/overview' },
-          { label: 'Fatturazione Resend', href: 'https://resend.com/settings/billing' },
-          { label: 'Domini Resend',       href: 'https://resend.com/domains' },
-        ].map(({ label, href }) => (
-          <a
-            key={href}
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-700 transition-colors"
-          >
-            {label} <ExternalLink className="w-3 h-3" />
-          </a>
-        ))}
-      </div>
     </div>
   )
 }

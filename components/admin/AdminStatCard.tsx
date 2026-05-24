@@ -9,7 +9,7 @@ import { ArrowRight } from 'lucide-react'
 interface AdminStatCardProps {
   label: string
   value: number
-  sparkline: number[]
+  sparkline?: number[]
   subtitle?: string
   format?: 'number' | 'bytes' | 'currency'
   href?: string
@@ -32,7 +32,7 @@ function numberFormatter(v: number): string {
   return Math.round(v).toLocaleString('it-IT')
 }
 
-export function AdminStatCard({ label, value, sparkline, subtitle, format = 'number', href }: AdminStatCardProps) {
+export function AdminStatCard({ label, value, sparkline = [], subtitle, format = 'number', href }: AdminStatCardProps) {
   const formatter = useMemo(
     () =>
       format === 'bytes' ? makeBytesFormatter(value)
@@ -61,7 +61,9 @@ export function AdminStatCard({ label, value, sparkline, subtitle, format = 'num
         <span className="text-3xl font-bold tracking-tight tabular-nums leading-none text-gray-900 truncate min-w-0">
           {display}
         </span>
-        <Sparkline data={sparkline} width={72} height={32} className="shrink-0" />
+        {sparkline.length > 0 && (
+          <Sparkline data={sparkline} width={72} height={32} className="shrink-0" />
+        )}
       </div>
 
       {subtitle && (

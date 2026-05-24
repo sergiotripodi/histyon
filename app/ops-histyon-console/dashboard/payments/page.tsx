@@ -138,14 +138,10 @@ function computeHistoricalTotal(snapshots: SnapshotRow[], liveTotal: number): nu
   return snapshotSum + currentContrib
 }
 
-// ─── SVG Resend icon ──────────────────────────────────────────────────────────
+// ─── Resend icon ──────────────────────────────────────────────────────────────
 
 function ResendIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="white" className="w-3.5 h-3.5">
-      <path d="M5 3h8a5 5 0 0 1 0 10h-4l5 8h-3l-5-8H8v8H5V3zm3 3v4h5a2 2 0 0 0 0-4H8z" />
-    </svg>
-  )
+  return <span className="text-white font-black text-[13px] leading-none select-none">R</span>
 }
 
 // ─── page ─────────────────────────────────────────────────────────────────────

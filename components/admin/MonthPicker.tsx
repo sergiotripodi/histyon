@@ -64,10 +64,10 @@ export function MonthPicker({ minMonth }: MonthPickerProps) {
       <button
         onClick={() => navigateArrow(-1)}
         disabled={atMin}
-        className="p-1.5 hover:bg-gray-100 transition-colors border border-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
+        className="p-1.5 hover:bg-gray-100 transition-colors border border-gray-200 disabled:opacity-20 disabled:cursor-not-allowed"
         aria-label="Mese precedente"
       >
-        <ChevronLeft className="w-3.5 h-3.5 text-gray-400" />
+        <ChevronLeft className="w-3.5 h-3.5 text-gray-700" />
       </button>
 
       {recent.map(m => (
@@ -93,10 +93,10 @@ export function MonthPicker({ minMonth }: MonthPickerProps) {
       <button
         onClick={() => navigateArrow(1)}
         disabled={atMax}
-        className="p-1.5 hover:bg-gray-100 transition-colors border border-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
+        className="p-1.5 hover:bg-gray-100 transition-colors border border-gray-200 disabled:opacity-20 disabled:cursor-not-allowed"
         aria-label="Mese successivo"
       >
-        <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
+        <ChevronRight className="w-3.5 h-3.5 text-gray-700" />
       </button>
 
       {clamped !== nowKey && (
