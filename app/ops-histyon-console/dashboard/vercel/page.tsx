@@ -300,22 +300,6 @@ export default async function AdminVercelPage() {
         </a>
       </div>
 
-      {/* Month picker */}
-
-      {/* Billing cycle info */}
-      {billingPeriodStart && (
-        <div className="mb-6 px-4 py-3 bg-gray-50 border border-gray-100 flex items-center gap-3">
-          <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400">Ciclo di fatturazione</span>
-          <span className="text-xs text-gray-600">
-            {new Date(billingPeriodStart).toLocaleDateString('it-IT', { day: 'numeric', month: 'long' })}
-            {billingPeriodEnd ? ` → ${new Date(billingPeriodEnd).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}` : ''}
-          </span>
-          {billingDayOfMonth && (
-            <span className="text-[10px] text-gray-400 ml-auto">si rinnova il giorno {billingDayOfMonth} di ogni mese</span>
-          )}
-        </div>
-      )}
-
       {/* Cost summary boxes */}
       <div className="grid grid-cols-2 gap-4 mb-8">
         <div className="border border-gray-200 bg-white px-8 py-6">
@@ -327,9 +311,14 @@ export default async function AdminVercelPage() {
           </p>
         </div>
         <div className="border border-gray-200 bg-white px-8 py-6">
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-3">Costo add-on stimato</p>
-          <p className="text-4xl font-bold tabular-nums text-gray-900">${addonCost.toFixed(2)}</p>
-          <p className="text-xs text-gray-400 mt-2">Stima pre-crediti — Vercel applica crediti infrastrutturali che riducono la fattura effettiva</p>
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-3">Costo add-on</p>
+          <p className="text-4xl font-bold tabular-nums text-gray-900">${Math.max(0, addonCost - 20).toFixed(2)}</p>
+          <p className="text-xs text-gray-400 mt-2">
+            {addonCost > 0
+              ? `$${addonCost.toFixed(2)} lordo — $20.00 credito Pro = $${Math.max(0, addonCost - 20).toFixed(2)} netto`
+              : 'Nessun utilizzo oltre le soglie incluse nel piano'
+            }
+          </p>
         </div>
       </div>
 
