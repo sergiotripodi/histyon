@@ -112,8 +112,9 @@ export default async function AdminVercelPage() {
 
   const memberCount: number = Array.isArray(members?.members) ? members.members.length : 0
   const billableMembers = Math.max(1, memberCount)
-  const observabilityPlusCost = hasObservabilityPlus ? 10 * billableMembers : 0
-  const recurringCost = isPro ? 20 * billableMembers + observabilityPlusCost : 0
+  // Observability è incluso nel piano Pro — nessun costo fisso aggiuntivo
+  // Eventuale overage: $1.20/1M eventi (tracciato nell'usage se l'API lo espone)
+  const recurringCost = isPro ? 20 * billableMembers : 0
 
   // Extract usage value — supports flat number or { value, limit } wrapper
   function extractUsageValue(field: string): number | null {
@@ -322,7 +323,7 @@ export default async function AdminVercelPage() {
           <p className="text-4xl font-bold tabular-nums text-gray-900">${recurringCost.toFixed(2)}</p>
           <p className="text-xs text-gray-400 mt-2">
             Piano {isPro ? 'Pro' : 'Hobby'}
-            {hasObservabilityPlus ? ' + Observability Plus' : ''}
+            {hasObservabilityPlus ? ' · Observability incluso' : ''}
           </p>
         </div>
         <div className="border border-gray-200 bg-white px-8 py-6">
@@ -362,9 +363,9 @@ export default async function AdminVercelPage() {
           <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
             <p>Piano Hobby: <strong>$0/mese</strong> — uso personale e non commerciale</p>
             <p>Piano Pro: <strong>$20/mese per membro</strong> — include analytics, team features, SLA</p>
-            {hasObservabilityPlus && <p>Observability Plus: <strong>+$10/mese per membro</strong> (rilevato automaticamente)</p>}
+            {hasObservabilityPlus && <p>Observability: <strong>incluso nel Pro</strong> · overage $1.20/1M eventi</p>}
             {isPro && memberCount > 0 && (
-              <p className="text-gray-700">Membri: <strong>{memberCount}</strong> × ${20 + (hasObservabilityPlus ? 10 : 0)} = <strong>${recurringCost.toFixed(2)}/mese</strong></p>
+              <p className="text-gray-700">Membri: <strong>{memberCount}</strong> × $20 = <strong>${recurringCost.toFixed(2)}/mese</strong></p>
             )}
             {billingPeriodStart && (
               <p className="text-gray-400 border-t border-gray-100 pt-1 mt-1">Ciclo attivo: dal {new Date(billingPeriodStart).toLocaleDateString('it-IT')} al {billingPeriodEnd ? new Date(billingPeriodEnd).toLocaleDateString('it-IT') : '—'}</p>
