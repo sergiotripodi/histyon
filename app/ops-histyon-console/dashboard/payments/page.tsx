@@ -9,7 +9,7 @@ import { MonthPicker } from '@/components/admin/MonthPicker'
 import { MonthBadge } from '@/components/admin/MonthBadge'
 import { RESEND_PLANS, RESEND_OVERAGE_RATE, type ResendPlanKey } from '@/lib/resend/plans'
 import { SpendingChart, type MonthSpend } from '@/components/admin/SpendingChart'
-import { BILLING_DAY, PROJECT_START } from '@/lib/billing/config'
+import { BILLING_DAY, PROJECT_START, getBillingPeriodMs } from '@/lib/billing/config'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Pagamenti' }
@@ -109,9 +109,9 @@ function parseResendDate(raw: unknown): Date | null {
 }
 
 async function countResendEmailsForMonth(key: string, monthStr: string): Promise<number | null> {
-  const [y, m] = monthStr.split('-').map(Number)
-  const monthStart = new Date(Date.UTC(y, m - 1, 1))
-  const monthEnd   = new Date(Date.UTC(y, m, 1))
+  const { startMs, endMs } = getBillingPeriodMs(monthStr)
+  const monthStart = new Date(startMs)
+  const monthEnd   = new Date(endMs)
 
   let total = 0, offset = 0
   for (let page = 0; page < 10; page++) {

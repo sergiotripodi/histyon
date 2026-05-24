@@ -6,7 +6,7 @@ import { AdminStatCard } from '@/components/admin/AdminStatCard'
 import { PaymentBanner } from '@/components/admin/PaymentBanner'
 import { getTotalStorage } from '@/lib/usage/storage'
 import { RESEND_PLANS, type ResendPlanKey } from '@/lib/resend/plans'
-import { PROJECT_START } from '@/lib/billing/config'
+import { PROJECT_START, getBillingPeriodMs } from '@/lib/billing/config'
 
 function computeHistoricalTotal(recurringCost: number): number {
   const start = new Date(PROJECT_START + '-01')
@@ -71,10 +71,10 @@ function parseResendDate(raw: unknown): Date | null {
 async function getResendEmailsSent(): Promise<{ total: number | null; sparkline: number[] }> {
   const key = process.env.RESEND_API_KEY
   if (!key) return { total: null, sparkline: [] }
-  const now = new Date()
-  const y = now.getUTCFullYear(), m = now.getUTCMonth()
-  const monthStart = new Date(Date.UTC(y, m, 1))
-  const monthEnd   = new Date(Date.UTC(y, m + 1, 1))
+  // Periodo di fatturazione corrente (24→23), non mese solare
+  const { startMs, endMs } = getBillingPeriodMs()
+  const monthStart = new Date(startMs)
+  const monthEnd   = new Date(endMs)
   // Ultimi 7 giorni per la sparkline
   const last7 = Array.from({ length: 7 }, (_, i) => {
     const d = new Date()

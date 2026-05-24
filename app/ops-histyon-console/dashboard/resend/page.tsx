@@ -5,6 +5,7 @@ import { ExternalLink, ChevronRight } from 'lucide-react'
 import { MonthBadge } from '@/components/admin/MonthBadge'
 import { ResendPlanSelector } from '@/components/admin/ResendPlanSelector'
 import { RESEND_PLANS, RESEND_OVERAGE_RATE, type ResendPlanKey } from '@/lib/resend/plans'
+import { getBillingPeriodMs } from '@/lib/billing/config'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Resend' }
@@ -38,9 +39,10 @@ function parseResendDate(raw: unknown): Date | null {
  * Max 10 pagine (1.000 email) per non bloccare il render.
  */
 async function countResendEmailsForMonth(key: string, monthStr: string): Promise<number | null> {
-  const [y, m] = monthStr.split('-').map(Number)
-  const monthStart = new Date(Date.UTC(y, m - 1, 1))
-  const monthEnd   = new Date(Date.UTC(y, m, 1))
+  // Usa il periodo di fatturazione (24→23) non il mese solare
+  const { startMs, endMs } = getBillingPeriodMs(monthStr)
+  const monthStart = new Date(startMs)
+  const monthEnd   = new Date(endMs)
 
   let total = 0, offset = 0
   const PAGE = 100, MAX_PAGES = 10

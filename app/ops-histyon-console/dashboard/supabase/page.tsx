@@ -4,6 +4,7 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { ExternalLink, ChevronRight } from 'lucide-react'
 import { MonthBadge } from '@/components/admin/MonthBadge'
 import { getTotalStorage, getAllDoctorsStorage } from '@/lib/usage/storage'
+import { getBillingPeriodMs, SB_FALLBACK, SB_OVERAGE_DB_PER_GiB, SB_OVERAGE_STORAGE_PER_GiB, SB_OVERAGE_EGRESS_PER_GiB } from '@/lib/billing/config'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Supabase' }
@@ -24,7 +25,7 @@ function extractSbMetric(usageJson: any, keys: string[]): number | null {
   for (const k of keys) {
     if (usageJson[k] != null) return Number(usageJson[k])
   }
-  // array format: { usages: [{ metric: 'db_size', usage: 123, available_in_plan: true }] }
+  // array format: { usages: [{ metric: 'db_size', usage: 123, limit: 456, available_in_plan: true }] }
   const arr: any[] = usageJson.usages ?? usageJson.metrics ?? []
   for (const k of keys) {
     const found = arr.find((m: any) => m.metric === k)
@@ -32,6 +33,17 @@ function extractSbMetric(usageJson: any, keys: string[]): number | null {
       if (found.available_in_plan === false) return -1  // -1 = unavailable in plan
       if (found.usage != null) return Number(found.usage)
     }
+  }
+  return null
+}
+
+// Estrae il limite dal piano direttamente dalla risposta API — nessun hardcoding
+function extractSbLimit(usageJson: any, keys: string[]): number | null {
+  if (!usageJson) return null
+  const arr: any[] = usageJson.usages ?? usageJson.metrics ?? []
+  for (const k of keys) {
+    const found = arr.find((m: any) => m.metric === k)
+    if (found?.limit != null) return Number(found.limit)
   }
   return null
 }
@@ -68,7 +80,9 @@ export default async function AdminSupabasePage() {
   const monthStr = new Date().toISOString().slice(0, 7)
 
   const now = new Date()
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+  // Periodo di fatturazione reale: dal giorno 24 del mese (non dal 1°)
+  const { startMs } = getBillingPeriodMs()
+  const startOfBillingPeriod = new Date(startMs).toISOString()
 
   const [
     { org, project, usageJson },
@@ -86,7 +100,7 @@ export default async function AdminSupabasePage() {
     Promise.resolve(
       supabaseAdmin.from('egress_logs')
         .select('bytes')
-        .gte('created_at', startOfMonth)
+        .gte('created_at', startOfBillingPeriod)
     ).then(({ data }) => {
       return (data ?? []).reduce((s: number, r: any) => s + (r.bytes ?? 0), 0)
     }).catch(() => 0),
@@ -132,40 +146,38 @@ export default async function AdminSupabasePage() {
   // Quando Supabase è connesso via Vercel marketplace il piano può essere
   // 'pro', 'team', 'enterprise' — qualsiasi valore != 'free' è a pagamento
   const isPro = plan !== 'free'
+  const tier  = isPro ? 'pro' : 'free'
   const recurringCost = isPro ? 25 : 0
 
-  // Limits
-  const DB_SIZE_LIMIT_FREE = 500 * 1024 * 1024
-  const DB_SIZE_LIMIT_PRO = 8 * 1024 * 1024 * 1024
-  const MAU_LIMIT = 50_000
-  const STORAGE_LIMIT_FREE = 1 * 1024 * 1024 * 1024
-  const STORAGE_LIMIT_PRO = 100 * 1024 * 1024 * 1024
-  const EGRESS_LIMIT_FREE = 5 * 1024 * 1024 * 1024
-  const EGRESS_LIMIT_PRO = 250 * 1024 * 1024 * 1024
-  const CACHED_EGRESS_LIMIT = 5 * 1024 * 1024 * 1024  // 5 GB (Free); Pro: illimitato
-  const REALTIME_CONN_LIMIT = isPro ? 500 : 200
-  const REALTIME_MSG_LIMIT = isPro ? 5_000_000 : 2_000_000
-  const EDGE_LIMIT = isPro ? 2_000_000 : 500_000
+  // Limiti: fonte primaria = risposta API Supabase (usageJson)
+  // Fallback = SB_FALLBACK[key][tier] da lib/billing/config.ts
+  const dbSizeLimit   = extractSbLimit(usageJson, ['db_size_bytes', 'db_size'])
+                        ?? SB_FALLBACK.db_size[tier]
+  const storageLimit  = extractSbLimit(usageJson, ['storage_size_bytes', 'storage_size'])
+                        ?? SB_FALLBACK.storage[tier]
+  const egressLimit   = extractSbLimit(usageJson, ['egress_bytes', 'egress'])
+                        ?? SB_FALLBACK.egress[tier]
+  const MAU_LIMIT     = extractSbLimit(usageJson, ['monthly_active_users', 'mau'])
+                        ?? SB_FALLBACK.mau[tier]
 
-  const dbSizeLimit = isPro ? DB_SIZE_LIMIT_PRO : DB_SIZE_LIMIT_FREE
-  const storageLimit = isPro ? STORAGE_LIMIT_PRO : STORAGE_LIMIT_FREE
-  const egressLimit = isPro ? EGRESS_LIMIT_PRO : EGRESS_LIMIT_FREE
+  // Per metriche senza endpoint diretto: Supabase non espone limiti via API → fallback noti
+  const CACHED_EGRESS_LIMIT  = isPro ? Infinity         : 5  * 1024 ** 3
+  const REALTIME_CONN_LIMIT  = isPro ? 500              : 200
+  const REALTIME_MSG_LIMIT   = isPro ? 5_000_000        : 2_000_000
+  const EDGE_LIMIT           = isPro ? 2_000_000        : 500_000
 
-  // Compute overage costs (only for Pro)
+  // Compute overage costs (only for Pro) — prezzi da config
+  const GiB = 1024 ** 3
   let addonCost = 0
   if (isPro) {
-    if (dbSizeBytes !== null && dbSizeBytes > 0 && dbSizeBytes > DB_SIZE_LIMIT_PRO) {
-      addonCost += ((dbSizeBytes - DB_SIZE_LIMIT_PRO) / 1e9) * 0.125
-    }
-    if (storageBytesReal > STORAGE_LIMIT_PRO) {
-      addonCost += ((storageBytesReal - STORAGE_LIMIT_PRO) / 1e9) * 0.021
-    }
-    if (egressBytes !== null && egressBytes > EGRESS_LIMIT_PRO) {
-      addonCost += ((egressBytes - EGRESS_LIMIT_PRO) / 1e9) * 0.09
-    }
-    if (mauUsed > MAU_LIMIT) {
+    if (dbSizeBytes !== null && dbSizeBytes > dbSizeLimit)
+      addonCost += ((dbSizeBytes - dbSizeLimit) / GiB) * SB_OVERAGE_DB_PER_GiB
+    if (storageBytesReal > storageLimit)
+      addonCost += ((storageBytesReal - storageLimit) / GiB) * SB_OVERAGE_STORAGE_PER_GiB
+    if (egressBytes !== null && egressBytes > egressLimit)
+      addonCost += ((egressBytes - egressLimit) / GiB) * SB_OVERAGE_EGRESS_PER_GiB
+    if (mauUsed > MAU_LIMIT)
       addonCost += (mauUsed - MAU_LIMIT) * 0.00325
-    }
   }
 
   const mgmtTokenMissing = !process.env.ADMIN_SUPABASE_MANAGEMENT_TOKEN
@@ -313,7 +325,7 @@ export default async function AdminSupabasePage() {
           <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 space-y-1">
             <p>Soglia: <strong>500 MB</strong> (Free) · <strong>8 GB</strong> (Pro)</p>
             <p>Oltre soglia (Pro): <strong>$0.125/GB/mese</strong></p>
-            {!isPro && dbSizeBytes !== null && dbSizeBytes > 0 && dbSizeBytes > DB_SIZE_LIMIT_FREE && (
+            {!isPro && dbSizeBytes !== null && dbSizeBytes > 0 && dbSizeBytes > dbSizeLimit && (
               <p className="text-amber-600 font-medium">Limite raggiunto — Supabase può mettere il progetto in pausa. Nessun costo extra: aggiorna a Pro per evitarlo.</p>
             )}
           </div>
@@ -355,9 +367,9 @@ export default async function AdminSupabasePage() {
               {pctBar(storageBytesReal, storageLimit)}
             </div>
             <div className="text-right">
-              <span className={`text-sm font-bold ${isPro && storageBytesReal > STORAGE_LIMIT_PRO ? 'text-red-600' : 'text-gray-400'}`}>
-                {isPro && storageBytesReal > STORAGE_LIMIT_PRO
-                  ? `$${(((storageBytesReal - STORAGE_LIMIT_PRO) / 1e9) * 0.021).toFixed(2)}`
+              <span className={`text-sm font-bold ${isPro && storageBytesReal > storageLimit ? 'text-red-600' : 'text-gray-400'}`}>
+                {isPro && storageBytesReal > storageLimit
+                  ? `$${(((storageBytesReal - storageLimit) / 1e9) * 0.021).toFixed(2)}`
                   : '$0.00'
                 }
               </span>
@@ -386,9 +398,9 @@ export default async function AdminSupabasePage() {
               {pctBar(egressBytes ?? 0, egressLimit)}
             </div>
             <div className="text-right">
-              <span className={`text-sm font-bold ${isPro && egressBytes !== null && egressBytes > EGRESS_LIMIT_PRO ? 'text-red-600' : 'text-gray-400'}`}>
-                {isPro && egressBytes !== null && egressBytes > EGRESS_LIMIT_PRO
-                  ? `$${(((egressBytes - EGRESS_LIMIT_PRO) / 1e9) * 0.09).toFixed(2)}`
+              <span className={`text-sm font-bold ${isPro && egressBytes !== null && egressBytes > egressLimit ? 'text-red-600' : 'text-gray-400'}`}>
+                {isPro && egressBytes !== null && egressBytes > egressLimit
+                  ? `$${(((egressBytes - egressLimit) / 1e9) * 0.09).toFixed(2)}`
                   : '$0.00'
                 }
               </span>

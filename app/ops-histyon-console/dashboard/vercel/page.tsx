@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { ExternalLink, ChevronRight, CheckCircle2, XCircle, Clock } from 'lucide-react'
 import { MonthBadge } from '@/components/admin/MonthBadge'
+import { getBillingPeriodMs } from '@/lib/billing/config'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Vercel' }
@@ -12,10 +13,8 @@ async function fetchVercelData(monthStr: string) {
   const projectId = process.env.ADMIN_VERCEL_PROJECT_ID!
   const headers = { Authorization: `Bearer ${token}` }
 
-  // Month range for usage queries (ms timestamps)
-  const [y, m] = monthStr.split('-').map(Number)
-  const monthStartMs = Date.UTC(y, m - 1, 1)
-  const monthEndMs   = Date.UTC(y, m, 1) - 1
+  // Uso il periodo di fatturazione reale (giorno 24 → giorno 23) invece del mese solare
+  const { startMs: monthStartMs, endMs: monthEndMs } = getBillingPeriodMs(monthStr)
 
   const [teamRes, projectRes, deploymentsRes, domainsRes, membersRes, usageRes] = await Promise.all([
     fetch(`https://api.vercel.com/v1/teams/${teamId}`, { headers, next: { revalidate: 300 } }),
@@ -116,13 +115,25 @@ export default async function AdminVercelPage() {
   const observabilityPlusCost = hasObservabilityPlus ? 10 * billableMembers : 0
   const recurringCost = isPro ? 20 * billableMembers + observabilityPlusCost : 0
 
-  // Extract usage value — supports flat object or { value: number } wrapper
+  // Extract usage value — supports flat number or { value, limit } wrapper
   function extractUsageValue(field: string): number | null {
     if (!usage || typeof usage !== 'object') return null
     const raw = (usage as any)[field]
     if (raw == null) return null
     if (typeof raw === 'number') return raw
     if (typeof raw === 'object' && typeof raw.value === 'number') return raw.value
+    return null
+  }
+
+  // Extract limit from usage response — API-first, no hardcoding
+  function extractUsageLimit(field: string): number | null {
+    if (!usage || typeof usage !== 'object') return null
+    const raw = (usage as any)[field]
+    if (raw && typeof raw === 'object' && raw.limit != null) return Number(raw.limit)
+    // Some APIs return {field}Limit as a sibling key
+    const limitKey = field + 'Limit'
+    const rawLimit = (usage as any)[limitKey]
+    if (rawLimit != null) return Number(rawLimit)
     return null
   }
 
@@ -224,7 +235,10 @@ export default async function AdminVercelPage() {
   }
 
   const metricRows: MetricRow[] = ALL_METRICS.map(m => {
-    const included = isPro ? m.includedPro : m.includedHobby
+    // Fonte primaria: limite restituito dall'API usage di Vercel
+    // Fallback: valori noti per piano (hardcoded solo qui come ultima risorsa)
+    const apiLimit = extractUsageLimit(m.key)
+    const included = apiLimit ?? (isPro ? m.includedPro : m.includedHobby)
     const value = extractUsageValue(m.key)
 
     let unavailableReason: string | null = null

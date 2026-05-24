@@ -22,13 +22,15 @@ import { RESEND_PLANS, RESEND_OVERAGE_RATE, type ResendPlanKey } from '@/lib/res
 import {
   BILLING_DAY,
   PROJECT_START,
-  SB_INCLUDED_DB_GiB,
-  SB_INCLUDED_STORAGE_GiB,
-  SB_INCLUDED_EGRESS_GiB,
+  SB_FALLBACK,
   SB_OVERAGE_DB_PER_GiB,
   SB_OVERAGE_STORAGE_PER_GiB,
   SB_OVERAGE_EGRESS_PER_GiB,
 } from '@/lib/billing/config'
+
+const SB_INCLUDED_DB_GiB      = SB_FALLBACK.db_size.pro / (1024 ** 3)
+const SB_INCLUDED_STORAGE_GiB = SB_FALLBACK.storage.pro / (1024 ** 3)
+const SB_INCLUDED_EGRESS_GiB  = SB_FALLBACK.egress.pro  / (1024 ** 3)
 
 const GiB = 1024 * 1024 * 1024
 
