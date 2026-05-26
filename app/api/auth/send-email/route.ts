@@ -39,18 +39,19 @@ const FROM   = process.env.RESEND_FROM_EMAIL ?? 'Histyon <no-reply@histyon.com>'
 // è i byte grezzi ottenuti decodificando in base64 la parte dopo "whsec_".
 // Formato secret Supabase: "v1,whsec_<base64-encoded-key>"
 
-function verifyHookSecret(authHeader: string, rawSecret: string): boolean {
-  const secret  = rawSecret.trim()
+// Restituisce {ok, diag} — il log viene fatto dal chiamante come prima istruzione
+function checkHookSecret(authHeader: string, rawSecret: string): { ok: boolean; diag: Record<string, unknown> } {
+  const secret   = rawSecret.trim()
   const tokenStr = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader
   const parts    = tokenStr.split('.')
   const isJWT    = parts.length === 3
 
-  // Tutta la diagnostica in UNA riga per superare il limite del log viewer
   let jwtPayload: Record<string, unknown> | null = null
   if (isJWT) {
     try { jwtPayload = JSON.parse(Buffer.from(parts[1], 'base64url').toString()) } catch {}
   }
 
+  const results: Record<string, string> = {}
   const diag: Record<string, unknown> = {
     hLen: authHeader.length,
     isBearer: authHeader.startsWith('Bearer '),
@@ -59,23 +60,14 @@ function verifyHookSecret(authHeader: string, rawSecret: string): boolean {
     sFmt: secret.startsWith('v1,whsec_') ? 'v1,whsec_' : secret.slice(0, 8),
     sLastCC: secret.charCodeAt(secret.length - 1),
     jwtPay: jwtPayload,
-    results: {} as Record<string, string>,
+    results,
   }
-
-  const results = diag.results as Record<string, string>
 
   // Approccio 1: Bearer diretto
-  if (authHeader === `Bearer ${secret}`) {
-    results.direct = 'OK'
-    console.log('[hook-diag]', JSON.stringify(diag))
-    return true
-  }
+  if (authHeader === `Bearer ${secret}`) { results.direct = 'OK'; return { ok: true, diag } }
   results.direct = 'no'
 
-  if (!isJWT) {
-    console.log('[hook-diag]', JSON.stringify(diag))
-    return false
-  }
+  if (!isJWT) return { ok: false, diag }
 
   const tryKey = (key: Buffer, label: string): boolean => {
     try {
@@ -95,21 +87,17 @@ function verifyHookSecret(authHeader: string, rawSecret: string): boolean {
     }
   }
 
-  if (tryKey(Buffer.from(secret, 'utf8'), 'raw')) {
-    console.log('[hook-diag]', JSON.stringify(diag)); return true
-  }
+  if (tryKey(Buffer.from(secret, 'utf8'), 'raw')) return { ok: true, diag }
 
-  const match = secret.match(/(?:^|,)whsec_([A-Za-z0-9+/=_\-]+)/)
-  if (match?.[1]) {
-    const b = match[1]
-    if (tryKey(Buffer.from(b, 'base64'),    'wb64'))    { console.log('[hook-diag]', JSON.stringify(diag)); return true }
-    if (tryKey(Buffer.from(b, 'base64url'), 'wb64url')) { console.log('[hook-diag]', JSON.stringify(diag)); return true }
+  const m = secret.match(/(?:^|,)whsec_([A-Za-z0-9+/=_\-]+)/)
+  if (m?.[1]) {
+    if (tryKey(Buffer.from(m[1], 'base64'),    'wb64'))    return { ok: true, diag }
+    if (tryKey(Buffer.from(m[1], 'base64url'), 'wb64url')) return { ok: true, diag }
   } else {
     results.regex = 'no_whsec_match'
   }
 
-  console.log('[hook-diag]', JSON.stringify(diag))
-  return false
+  return { ok: false, diag }
 }
 
 // ── Link builder ──────────────────────────────────────────────────────────────
@@ -126,10 +114,13 @@ export async function POST(req: Request) {
   const hookSecret = process.env.SUPABASE_HOOK_SECRET?.trim()
   const authHeader = req.headers.get('authorization') ?? ''
 
-  console.log('[hook] SUPABASE_HOOK_SECRET present:', !!hookSecret)
+  // [hook-diag] è la PRIMA riga loggata — il viewer Vercel tronca le successive
+  const { ok: authorized, diag } = hookSecret
+    ? checkHookSecret(authHeader, hookSecret)
+    : { ok: true, diag: { skipped: true } }
+  console.log('[hook-diag]', JSON.stringify({ hasSecret: !!hookSecret, ...diag }))
 
-  if (hookSecret && !verifyHookSecret(authHeader, hookSecret)) {
-    console.error('[hook] ✗ unauthorized — returning 401')
+  if (!authorized) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
