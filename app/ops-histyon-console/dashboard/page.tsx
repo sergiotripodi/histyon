@@ -8,12 +8,63 @@ import { MonthPicker } from '@/components/admin/MonthPicker'
 import { CostBarChart } from '@/components/admin/CostBarChart'
 import { ResendPlanSelector } from '@/components/admin/ResendPlanSelector'
 import { getTotalStorage } from '@/lib/usage/storage'
+import { getTotalEgress } from '@/lib/usage/egress'
 import { RESEND_PLANS, RESEND_OVERAGE_RATE, type ResendPlanKey } from '@/lib/resend/plans'
 import { getBillingPeriodMs, BILLING_DAY, PROJECT_START } from '@/lib/billing/config'
 import { getCurrentCosts } from '@/lib/billing/current-costs'
+import { fetchVercelBilling } from '@/lib/vercel/billing'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Dashboard' }
+
+async function getVercelMonthlyCost(): Promise<{ recurring: number; addon: number }> {
+  const token  = process.env.ADMIN_VERCEL_TOKEN
+  const teamId = process.env.ADMIN_VERCEL_TEAM_ID
+  if (!token || !teamId) return { recurring: 0, addon: 0 }
+
+  // Query the last 180 days — Vercel posts charges with a delay, often for past periods
+  const billing = await fetchVercelBilling({
+    token, teamId,
+    fromMs: Date.now() - 180 * 24 * 60 * 60 * 1000,
+    toMs:   Date.now() + 24 * 60 * 60 * 1000,
+    revalidate: 300,
+  })
+
+  if (billing.ok && billing.totalEffective > 0) {
+    const SUBSCRIPTION_RE = /pro plan|subscription|hobby plan|enterprise plan/i
+    const recurring = billing.services
+      .filter(s => SUBSCRIPTION_RE.test(s.name))
+      .reduce((sum, s) => sum + s.effectiveCost, 0)
+    const addon = billing.services
+      .filter(s => !SUBSCRIPTION_RE.test(s.name))
+      .reduce((sum, s) => sum + Math.max(0, s.effectiveCost), 0)
+    return { recurring, addon }
+  }
+
+  // Fallback: Teams API for plan price + Domains API for domain costs
+  const headers = { Authorization: `Bearer ${token}` }
+  try {
+    const [teamRes, domainsRes] = await Promise.all([
+      fetch(`https://api.vercel.com/v2/teams/${teamId}`, { headers, next: { revalidate: 300 } } as RequestInit),
+      fetch(`https://api.vercel.com/v5/domains?teamId=${teamId}`, { headers, next: { revalidate: 60 } } as RequestInit),
+    ])
+    const team        = teamRes.ok    ? await teamRes.json().catch(() => null)            : null
+    const domainsJson = domainsRes.ok ? await domainsRes.json().catch(() => null)         : null
+    const plan: string = team?.billing?.plan ?? 'hobby'
+    const recurring    = plan !== 'hobby' && plan !== 'free' ? 20 : 0
+    const domains: any[] = domainsJson?.domains ?? []
+    const cutoff = Date.now() - 13 * 30 * 24 * 3600 * 1000
+    const addon = domains
+      .filter((d: any) => d.price && (
+        (d.boughtAt   && new Date(d.boughtAt).getTime()   >= cutoff) ||
+        (d.renewedAt  && new Date(d.renewedAt).getTime()  >= cutoff)
+      ))
+      .reduce((sum: number, d: any) => sum + Number(d.price || 0), 0)
+    return { recurring, addon }
+  } catch {
+    return { recurring: 0, addon: 0 }
+  }
+}
 
 function formatBytes(b: number): string {
   if (b >= 1e9) return `${(b / 1e9).toFixed(1)} GB`
@@ -85,27 +136,20 @@ export default async function AdminDashboardPage({
     const startIso = new Date(startMs).toISOString()
     const endIso   = new Date(endMs).toISOString()
 
-    const [cc, egress] = await Promise.all([
+    const [cc, egressStats, vercelCosts] = await Promise.all([
       getCurrentCosts({ resendPlanKey }),
-      supabaseAdmin
-        .from('egress_logs')
-        .select('bytes')
-        .gte('created_at', startIso)
-        .lt('created_at', endIso)
-        .then(
-          ({ data }) => (data ?? []).reduce((s: number, r: any) => s + (r.bytes ?? 0), 0),
-          () => 0,
-        ),
+      getTotalEgress({ from: startIso, to: endIso }),
+      getVercelMonthlyCost(),
     ])
 
-    vercelTotal     = cc.vercel.total
-    vercelRecurring = cc.vercel.recurring
-    vercelAddon     = cc.vercel.addon
+    vercelTotal     = vercelCosts.recurring + vercelCosts.addon
+    vercelRecurring = vercelCosts.recurring
+    vercelAddon     = vercelCosts.addon
     supabaseTotal   = cc.supabase.total
     resendTotal     = cc.resend.total
     resendAddon     = cc.resend.addon
     emailsSent      = cc.resend.emailsSent
-    egressBytes     = egress as number
+    egressBytes     = egressStats.totalBytes
     dataAvailable   = true
   } else {
     // Historical: try snapshot
