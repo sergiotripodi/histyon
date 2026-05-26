@@ -4,7 +4,7 @@ import { Metadata } from 'next'
 import { DocContent } from './DocContent'
 
 export const metadata: Metadata = {
-  title: 'Documentazione | Histyon',
+  title: 'Documentazione - Histyon',
 }
 
 export default function DocumentationPage() {

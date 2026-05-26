@@ -1,6 +1,6 @@
 export const ru = {
   metadata: {
-    titleTemplate: '%s — Histyon',
+    titleTemplate: '%s - Histyon',
     defaultTitle: 'Главная | Histyon',
     description: "Передовая медицинская диагностика",
     loginTitle: "Вход",

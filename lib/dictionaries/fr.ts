@@ -1,6 +1,6 @@
 export const fr = {
   metadata: {
-    titleTemplate: '%s — Histyon',
+    titleTemplate: '%s - Histyon',
     defaultTitle: 'Accueil | Histyon',
     description: "Diagnostic Médical Avancé",
     loginTitle: "Connexion",

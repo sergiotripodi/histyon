@@ -2,7 +2,7 @@ import { MfaSetupForm } from '@/components/auth/MfaSetupForm'
 import { Shield } from 'lucide-react'
 import { Metadata } from 'next'
 
-export const metadata: Metadata = { title: 'Configura verifica in due passaggi — Histyon' }
+export const metadata: Metadata = { title: 'Configura verifica in due passaggi - Histyon' }
 
 const steps = [
   {

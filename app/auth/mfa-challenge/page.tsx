@@ -2,7 +2,7 @@ import { MfaChallengeForm } from '@/components/auth/MfaChallengeForm'
 import { ShieldCheck } from 'lucide-react'
 import { Metadata } from 'next'
 
-export const metadata: Metadata = { title: 'Verifica identità — Histyon' }
+export const metadata: Metadata = { title: 'Verifica identità - Histyon' }
 
 const steps = [
   {

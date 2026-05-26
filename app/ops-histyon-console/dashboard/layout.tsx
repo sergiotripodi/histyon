@@ -6,8 +6,8 @@ import { AdminHeader } from '@/components/admin/AdminHeader'
 
 export const metadata: Metadata = {
   title: {
-    default: 'Admin Dashboard — Histyon',
-    template: '%s — Histyon',
+    default: 'Admin Dashboard - Histyon',
+    template: '%s - Histyon',
   },
 }
 

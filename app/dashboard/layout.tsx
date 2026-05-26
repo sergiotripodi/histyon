@@ -10,8 +10,8 @@ export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
   title: {
-    default: 'Console — Histyon',
-    template: '%s | Console — Histyon',
+    default: 'Console - Histyon',
+    template: '%s - Histyon',
   },
 }
 
