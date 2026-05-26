@@ -9,6 +9,7 @@ import { DoctorRegistrationSchema, PasswordSchema } from '@/lib/schemas'
 import { dictionary } from '@/lib/dictionary'
 import { headers } from 'next/headers'
 import { sendNewDoctorAdminNotify, sendRegistrationPendingEmail } from '@/lib/email'
+import { logger } from '@/lib/logger'
 
 export type SignupState = {
   status: 'idle' | 'success' | 'error'
@@ -111,9 +112,138 @@ export async function mfaVerifyLogin(factorId: string, challengeId: string, code
   return { success: true }
 }
 
+// ── signup helpers ────────────────────────────────────────────────────────────
+
+function parseSignupFormData(formData: FormData) {
+  const rawData = Object.fromEntries(formData)
+  const password = formData.get('password') as string
+
+  let fullDob = (formData.get('dob') as string) || ''
+  if (!fullDob || fullDob.length < 10) {
+    const day   = formData.get('dob_day')
+    const month = formData.get('dob_month')
+    const year  = formData.get('dob_year')
+    if (year && month && day) {
+      fullDob = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    }
+  }
+
+  const rawPhone      = (formData.get('phone') as string | null)?.trim()
+  const phoneForSchema = rawPhone && rawPhone.length > 0 ? rawPhone : undefined
+
+  return {
+    rawData,
+    password,
+    fullDob,
+    candidate: {
+      email:          String(formData.get('email') || '').trim().toLowerCase(),
+      password,
+      firstName:      String(formData.get('firstName')      || '').trim(),
+      lastName:       String(formData.get('lastName')       || '').trim(),
+      fiscalCode:     String(formData.get('fiscalCode')     || '').trim().toUpperCase(),
+      medicalLicense: String(formData.get('medicalLicense') || '').trim(),
+      hospitalName:   String(formData.get('hospitalName')   || '').trim(),
+      dob:            fullDob,
+      placeOfBirth:   String(formData.get('placeOfBirth')   || '').trim(),
+      gender:         formData.get('gender') as 'M' | 'F',
+      addressStreet:  String(formData.get('addressStreet')  || '').trim(),
+      addressCivic:   String(formData.get('addressCivic')   || '').trim(),
+      city:           String(formData.get('city')           || '').trim(),
+      country:        String(formData.get('country')        || '').trim(),
+      region:         String(formData.get('region')         || '').trim(),
+      postalCode:     String(formData.get('postalCode')     || '').trim(),
+      phone:          phoneForSchema,
+    },
+  }
+}
+
+type DoctorData = {
+  email: string; password: string; firstName: string; lastName: string
+  fiscalCode: string; medicalLicense: string; hospitalName: string; dob: string
+  placeOfBirth: string; gender: 'M' | 'F'; addressStreet: string; addressCivic: string
+  city: string; country: string; region: string; postalCode: string; phone?: string
+}
+
+async function createDoctorAccount(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userData: DoctorData,
+  consentTimestamp: string,
+  marketingConsent: boolean,
+  emailRedirectTo?: string,
+) {
+  const { data: authData, error: authError } = await supabase.auth.signUp({
+    email:    userData.email,
+    password: userData.password,
+    options: {
+      ...(emailRedirectTo ? { emailRedirectTo } : {}),
+      data: {
+        first_name:      userData.firstName,
+        last_name:       userData.lastName,
+        fiscal_code:     userData.fiscalCode,
+        medical_license: userData.medicalLicense,
+        hospital_name:   userData.hospitalName,
+        dob:             userData.dob,
+        place_of_birth:  userData.placeOfBirth,
+        gender:          userData.gender,
+        address_street:  userData.addressStreet,
+        address_civic:   userData.addressCivic,
+        city:            userData.city,
+        country:         userData.country,
+        region:          userData.region,
+        postal_code:     userData.postalCode,
+        phone:           userData.phone ?? null,
+      },
+    },
+  })
+
+  if (authError || !authData.user) return { authError }
+
+  const supabaseAdmin = createSupabaseAdmin(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  )
+
+  const { error: profileError } = await supabaseAdmin
+    .from('profiles')
+    .update({
+      email:                  userData.email,
+      first_name:             userData.firstName,
+      last_name:              userData.lastName,
+      fiscal_code:            userData.fiscalCode,
+      hospital_name:          userData.hospitalName,
+      medical_license_number: userData.medicalLicense,
+      date_of_birth:          userData.dob,
+      place_of_birth:         userData.placeOfBirth,
+      gender:                 userData.gender,
+      address_street:         userData.addressStreet,
+      address_civic:          userData.addressCivic,
+      city:                   userData.city,
+      country:                userData.country,
+      province:               userData.region,
+      region:                 userData.region,
+      postal_code:            userData.postalCode,
+      phone_number:           userData.phone ?? null,
+      terms_accepted_at:      consentTimestamp,
+      privacy_accepted_at:    consentTimestamp,
+      marketing_consent:      marketingConsent,
+      marketing_consent_at:   marketingConsent ? consentTimestamp : null,
+    })
+    .eq('id', authData.user.id)
+
+  if (profileError) {
+    logger.error('[signup] profile update failed', { code: profileError.code, msg: profileError.message })
+    await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+    return { profileError }
+  }
+
+  return { userId: authData.user.id }
+}
+
+// ── signup ────────────────────────────────────────────────────────────────────
+
 export async function signup(prevState: SignupState, formData: FormData): Promise<SignupState> {
-  const honeypot = formData.get('website') as string | null
-  if (honeypot) return { status: 'error', message: 'Registrazione non valida.' }
+  if (formData.get('website')) return { status: 'error', message: 'Registrazione non valida.' }
 
   const termsAccepted = formData.get('accept_terms_privacy') === 'on'
   if (!termsAccepted) return { status: 'error', message: 'Devi accettare i Termini di Servizio e la Privacy Policy per continuare.' }
@@ -121,163 +251,54 @@ export async function signup(prevState: SignupState, formData: FormData): Promis
   const marketingConsent = formData.get('marketing_consent') === 'on'
   const consentTimestamp = new Date().toISOString()
 
-  const supabase = await createClient()
-  const rawData = Object.fromEntries(formData)
-  const password = formData.get('password') as string
+  const { rawData, password, fullDob, candidate } = parseSignupFormData(formData)
+
+  if (!fullDob || fullDob.length < 10) {
+    return { status: 'error', message: dictionary.validation.required, inputs: rawData }
+  }
 
   const passCheck = PasswordSchema.safeParse(password)
   if (!passCheck.success) {
-    return {
-      status: 'error',
-      errors: { password: passCheck.error.issues[0].message },
-      inputs: rawData,
-    }
-  }
-
-  let fullDob = (formData.get('dob') as string) || ''
-
-  if (!fullDob || fullDob.length < 10) {
-    const day = formData.get('dob_day')
-    const month = formData.get('dob_month')
-    const year = formData.get('dob_year')
-
-    if (!year || !month || !day) {
-      return { status: 'error', message: dictionary.validation.required, inputs: rawData }
-    }
-    fullDob = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-  }
-
-  const rawPhone = (formData.get('phone') as string | null)?.trim()
-  const phoneForSchema = rawPhone && rawPhone.length > 0 ? rawPhone : undefined
-
-  const candidate = {
-    email: String(formData.get('email') || '')
-      .trim()
-      .toLowerCase(),
-    password,
-    firstName: String(formData.get('firstName') || '').trim(),
-    lastName: String(formData.get('lastName') || '').trim(),
-    fiscalCode: String(formData.get('fiscalCode') || '')
-      .trim()
-      .toUpperCase(),
-    medicalLicense: String(formData.get('medicalLicense') || '').trim(),
-    hospitalName: String(formData.get('hospitalName') || '').trim(),
-    dob: fullDob,
-    placeOfBirth: String(formData.get('placeOfBirth') || '').trim(),
-    gender: formData.get('gender') as 'M' | 'F',
-    addressStreet: String(formData.get('addressStreet') || '').trim(),
-    addressCivic: String(formData.get('addressCivic') || '').trim(),
-    city: String(formData.get('city') || '').trim(),
-    country: String(formData.get('country') || '').trim(),
-    region: String(formData.get('region') || '').trim(),
-    postalCode: String(formData.get('postalCode') || '').trim(),
-    phone: phoneForSchema,
+    return { status: 'error', errors: { password: passCheck.error.issues[0].message }, inputs: rawData }
   }
 
   const validated = DoctorRegistrationSchema.safeParse(candidate)
   if (!validated.success) {
     const issue = validated.error.issues[0]
     const field = issue?.path[0] ? ` (${String(issue.path[0])})` : ''
-    return {
-      status: 'error',
-      message: (issue?.message || dictionary.validation.genericError) + field,
-      inputs: rawData,
-    }
+    return { status: 'error', message: (issue?.message || dictionary.validation.genericError) + field, inputs: rawData }
   }
 
-  const userData = validated.data
+  const supabase = await createClient()
   const origin = await resolveAppOrigin()
-  const emailRedirectTo = origin ? `${origin}/auth/callback` : undefined
+  const result = await createDoctorAccount(
+    supabase,
+    validated.data,
+    consentTimestamp,
+    marketingConsent,
+    origin ? `${origin}/auth/callback` : undefined,
+  )
 
-  const { data: authData, error: authError } = await supabase.auth.signUp({
-    email: userData.email,
-    password: userData.password,
-    options: {
-      ...(emailRedirectTo ? { emailRedirectTo } : {}),
-      data: {
-        first_name: userData.firstName,
-        last_name: userData.lastName,
-        fiscal_code: userData.fiscalCode,
-        medical_license: userData.medicalLicense,
-        hospital_name: userData.hospitalName,
-        dob: userData.dob,
-        place_of_birth: userData.placeOfBirth,
-        gender: userData.gender,
-        address_street: userData.addressStreet,
-        address_civic: userData.addressCivic,
-        city: userData.city,
-        country: userData.country,
-        region: userData.region,
-        postal_code: userData.postalCode,
-        phone: userData.phone ?? null,
-      },
-    },
-  })
-
-  if (authError) {
-    console.error('[signup] auth.signUp error:', authError.status, authError.message)
+  if (result.authError) {
+    logger.error('[signup] auth.signUp failed', { status: result.authError.status, msg: result.authError.message })
     const fieldErrors: Record<string, string> = {}
-    if (authError.message.includes('already registered') || authError.status === 422) {
+    if (result.authError.message.includes('already registered') || result.authError.status === 422) {
       fieldErrors.email = dictionary.validation.alreadyRegistered
     }
-    return {
-      status: 'error',
-      message: dictionary.validation.genericError,
-      errors: fieldErrors,
-      inputs: rawData,
-    }
+    return { status: 'error', message: dictionary.validation.genericError, errors: fieldErrors, inputs: rawData }
   }
 
-  if (authData.user) {
-    const supabaseAdmin = createSupabaseAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    })
-
-    const { error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .update({
-        email: userData.email,
-        first_name: userData.firstName,
-        last_name: userData.lastName,
-        fiscal_code: userData.fiscalCode,
-        hospital_name: userData.hospitalName,
-        medical_license_number: userData.medicalLicense,
-        date_of_birth: userData.dob,
-        place_of_birth: userData.placeOfBirth,
-        gender: userData.gender,
-        address_street: userData.addressStreet,
-        address_civic: userData.addressCivic,
-        city: userData.city,
-        country: userData.country,
-        province: userData.region,
-        region: userData.region,
-        postal_code: userData.postalCode,
-        phone_number: userData.phone ?? null,
-        terms_accepted_at: consentTimestamp,
-        privacy_accepted_at: consentTimestamp,
-        marketing_consent: marketingConsent,
-        marketing_consent_at: marketingConsent ? consentTimestamp : null,
-      })
-      .eq('id', authData.user.id)
-
-    if (profileError) {
-      console.error('[signup] profile update error:', profileError.code, profileError.message, profileError.details)
-      await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
-      return { status: 'error', message: dictionary.validation.genericError, inputs: rawData }
-    }
+  if (result.profileError) {
+    return { status: 'error', message: dictionary.validation.genericError, inputs: rawData }
   }
 
   await supabase.auth.signOut()
 
-  // Send notification emails (fire-and-forget — non bloccanti)
-  const doctorName = `${userData.firstName} ${userData.lastName}`.trim()
+  const doctorName = `${validated.data.firstName} ${validated.data.lastName}`.trim()
   Promise.all([
-    sendNewDoctorAdminNotify(doctorName, userData.email),
-    sendRegistrationPendingEmail(userData.email, userData.firstName),
-  ]).catch(console.error)
+    sendNewDoctorAdminNotify(doctorName, validated.data.email),
+    sendRegistrationPendingEmail(validated.data.email, validated.data.firstName),
+  ]).catch(err => logger.warn('[signup] notification email failed', { err }))
 
   redirect('/auth/register/success')
 }

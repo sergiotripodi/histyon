@@ -302,6 +302,7 @@ export type Database = {
     }
     Functions: {
       delete_doctor_data: { Args: { p_doctor_id: string }; Returns: undefined }
+      delete_patient_data: { Args: { p_doctor_id: string; p_patient_id: string }; Returns: undefined }
       get_admin_ticket_stats: {
         Args: never
         Returns: {

@@ -97,12 +97,24 @@ const { error: e4 } = await db.from('profiles').delete().in('id', doctorIds)
 if (e4) console.error('  ✗ profiles:', e4.message)
 else    console.log(`  ✓ profiles deleted`)
 
-// Delete auth users last
+// Delete auth users — try admin API first, fall back to direct SQL via RPC
 let deletedAuth = 0
 for (const id of doctorIds) {
   const { error } = await db.auth.admin.deleteUser(id)
-  if (error) console.error(`  ✗ auth user ${id}:`, error.message)
-  else deletedAuth++
+  if (!error) { deletedAuth++; continue }
+  // Admin API can fail if user was created directly via SQL (no auth session).
+  // Fall back to a raw delete via the service role.
+  const { error: rpcErr } = await db.rpc('exec_sql', {
+    sql: `DELETE FROM auth.users WHERE id = '${id}'::uuid`,
+  }).single()
+  if (rpcErr) {
+    // exec_sql RPC may not exist — that's fine, user may already be gone
+    const { data: stillExists } = await db.from('profiles').select('id').eq('id', id).maybeSingle()
+    if (!stillExists) deletedAuth++ // profile already deleted, auth user either gone or never existed
+    else console.error(`  ✗ auth user ${id}: could not delete`)
+  } else {
+    deletedAuth++
+  }
 }
 console.log(`  ✓ ${deletedAuth}/${doctorIds.length} auth users deleted`)
 

@@ -3,29 +3,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { z } from 'zod'
 import { dictionary } from '@/lib/dictionary'
-import { REGEX_VALIDATORS } from '@/lib/constants'
+import { PatientSchema } from '@/lib/schemas'
 import { deleteSupabasePrefix, deleteSupabaseFiles, storagePaths } from '@/lib/storage/supabase'
+import { logger } from '@/lib/logger'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-
-const PatientSchema = z.object({
-  firstName:    z.string().min(2),
-  lastName:     z.string().min(2),
-  fiscalCode:   z.string().length(16).regex(new RegExp(REGEX_VALIDATORS.FISCAL_CODE), dictionary.validation.fiscalCodeFormat),
-  dob:          z.string(),
-  gender:       z.enum(['M', 'F', 'OTHER']),
-  country:      z.string().optional(),
-  placeOfBirth: z.string().optional(),
-  addressStreet: z.string().optional(),
-  addressCivic:  z.string().optional(),
-  city:         z.string().optional(),
-  province:     z.string().optional(),
-  postalCode:   z.string().optional(),
-  email:        z.string().email(dictionary.validation.emailInvalid).or(z.literal('')),
-  phoneNumber:  z.string().min(5, dictionary.validation.phoneShort),
-})
 
 export async function addPatient(prevState: unknown, formData: FormData) {
   const supabase = await createClient()
@@ -48,15 +31,15 @@ export async function addPatient(prevState: unknown, formData: FormData) {
     fiscalCode:   (formData.get('fiscalCode') as string)?.toUpperCase(),
     dob:          fullDob,
     gender:       formData.get('gender'),
-    country:      formData.get('country')      || undefined,
-    placeOfBirth: formData.get('placeOfBirth') || undefined,
+    country:      formData.get('country')       || undefined,
+    placeOfBirth: formData.get('placeOfBirth')  || undefined,
     addressStreet: formData.get('addressStreet') || undefined,
     addressCivic:  formData.get('addressCivic')  || undefined,
-    city:         formData.get('city')         || undefined,
-    province:     formData.get('region')       || undefined,
-    postalCode:   formData.get('postalCode')   || undefined,
-    email:        formData.get('email')        || '',
-    phoneNumber:  fullPhone                    || '',
+    city:         formData.get('city')           || undefined,
+    province:     formData.get('region')         || undefined,
+    postalCode:   formData.get('postalCode')     || undefined,
+    email:        formData.get('email')          || '',
+    phone:        fullPhone                      || undefined,
   }
 
   const validated = PatientSchema.safeParse(rawData)
@@ -86,11 +69,11 @@ export async function addPatient(prevState: unknown, formData: FormData) {
     province:      validated.data.province,
     postal_code:   validated.data.postalCode,
     email:         validated.data.email,
-    phone_number:  validated.data.phoneNumber,
+    phone_number:  validated.data.phone,
   })
 
   if (error) {
-    console.error('addPatient:', error)
+    logger.error('addPatient', { code: error.code, msg: error.message })
     return { error: dictionary.validation.genericError }
   }
 
@@ -122,7 +105,7 @@ export async function deleteTicket(ticketId: string) {
       deleteSupabasePrefix(storagePaths.dziFiles(user.id, p, ticketId)),
     ])
   } catch (err) {
-    console.error('deleteTicket storage cleanup:', err)
+    logger.warn('deleteTicket: storage cleanup partial failure', { ticketId, err })
   }
 
   const { error } = await supabase
@@ -132,7 +115,7 @@ export async function deleteTicket(ticketId: string) {
     .eq('doctor_id', user.id)
 
   if (error) {
-    console.error('deleteTicket DB:', error)
+    logger.error('deleteTicket: DB delete failed', { ticketId, code: error.code })
     return { error: dictionary.validation.genericError }
   }
 
@@ -157,25 +140,24 @@ export async function deletePatient(patientId: string) {
 
   if (!patient) return { error: dictionary.validation.unauthorized }
 
+  // Storage cleanup is best-effort — DB deletion is atomic via RPC regardless
   try {
     await Promise.all([
       deleteSupabasePrefix(storagePaths.inputDir(user.id, patientId)),
       deleteSupabasePrefix(storagePaths.dziDir(user.id, patientId)),
     ])
   } catch (err) {
-    console.error('deletePatient storage cleanup:', err)
+    logger.warn('deletePatient: storage cleanup partial failure', { patientId, err })
   }
 
-  await supabase.from('tickets').delete().eq('patient_id', patientId).eq('doctor_id', user.id)
-
-  const { error } = await supabase
-    .from('patients')
-    .delete()
-    .eq('id', patientId)
-    .eq('doctor_id', user.id)
+  // Single transactional RPC: deletes egress_logs → tickets → patient atomically
+  const { error } = await supabase.rpc('delete_patient_data', {
+    p_doctor_id:  user.id,
+    p_patient_id: patientId,
+  })
 
   if (error) {
-    console.error('deletePatient DB:', error)
+    logger.error('deletePatient: RPC failed', { patientId, code: error.code })
     return { error: dictionary.validation.genericError }
   }
 

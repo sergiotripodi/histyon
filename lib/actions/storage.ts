@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { revalidatePath } from 'next/cache'
 import { dictionary } from '@/lib/dictionary'
 import { ALLOWED_SLIDE_EXTENSIONS, MAX_UPLOAD_BYTES } from '@/lib/constants'
+import { logger } from '@/lib/logger'
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -92,7 +93,7 @@ export async function getPresignedUploadUrl(
     })
 
     if (dbError) {
-      console.error('Upload DB insert:', dbError)
+      logger.error('getPresignedUploadUrl: DB insert failed', { code: dbError.code })
       return { error: dictionary.validation.genericError }
     }
 
@@ -101,7 +102,7 @@ export async function getPresignedUploadUrl(
       .createSignedUploadUrl(storagePath, { upsert: false })
 
     if (signedErr || !signedData) {
-      console.error('Supabase signed upload URL:', signedErr)
+      logger.error('getPresignedUploadUrl: signed URL failed', { msg: signedErr?.message })
       await supabase
         .from('tickets')
         .update({ status: 'ERROR', ai_metadata: { error: 'upload_presign_failed' } })
@@ -118,7 +119,7 @@ export async function getPresignedUploadUrl(
       contentType,
     }
   } catch (error: unknown) {
-    console.error('Upload Error:', error)
+    logger.error('getPresignedUploadUrl: unexpected error', { ticketId, error })
     await supabase
       .from('tickets')
       .update({ status: 'ERROR', ai_metadata: { error: 'upload_presign_failed' } })
@@ -161,7 +162,7 @@ export async function confirmUpload(ticketId: string) {
     .eq('doctor_id', user.id)
 
   if (error) {
-    console.error('confirmUpload:', error)
+    logger.error('confirmUpload: update failed', { ticketId, code: error.code })
     return { error: dictionary.validation.genericError }
   }
 

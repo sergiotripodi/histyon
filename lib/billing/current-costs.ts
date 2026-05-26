@@ -23,7 +23,7 @@ export async function countResendEmailsForPeriod(
         next: { revalidate: 300 },
       })
       if (!res.ok) return total > 0 ? total : null
-      const emails: any[] = (await res.json()).data ?? []
+      const emails: { created_at?: unknown }[] = ((await res.json() as { data?: { created_at?: unknown }[] }).data) ?? []
       if (!emails.length) break
       let done = false
       for (const e of emails) {
