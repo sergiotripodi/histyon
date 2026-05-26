@@ -1,8 +1,7 @@
-import { resetPassword } from '@/lib/actions/auth'
 import Link from 'next/link'
-import { ValidatedInput } from '@/components/ui/FormElements'
 import { getDictionary } from '@/lib/dictionary'
 import { ArrowLeft, MailCheck, AlertCircle } from 'lucide-react'
+import { ForgotPasswordForm } from './ForgotPasswordForm'
 
 export const metadata = { title: 'Password dimenticata' }
 
@@ -62,17 +61,10 @@ export default async function ForgotPasswordPage(props: {
           </div>
         )}
 
-        <form className="space-y-6">
-          <ValidatedInput
-            name="email"
-            type="email"
-            label={tf.labels.emailSimple}
-            required
-          />
-          <button formAction={resetPassword} className="btn-elegant w-full py-3.5">
-            {t.btn}
-          </button>
-        </form>
+        <ForgotPasswordForm
+          emailLabel={tf.labels.emailSimple}
+          btnLabel={t.btn}
+        />
       </div>
     </div>
   )
