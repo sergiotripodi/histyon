@@ -30,14 +30,16 @@ async function getVercelMonthlyCost(): Promise<{ recurring: number; addon: numbe
     revalidate: 300,
   })
 
-  if (billing.ok && billing.totalEffective > 0) {
+  if (billing.ok && billing.rowCount > 0) {
     const SUBSCRIPTION_RE = /pro plan|subscription|hobby plan|enterprise plan/i
+    // Use billedCost (gross, pre-credits) so the Pro subscription always shows $20
+    // even when Vercel applies $20 credits that zero out the effectiveCost
     const recurring = billing.services
       .filter(s => SUBSCRIPTION_RE.test(s.name))
-      .reduce((sum, s) => sum + s.effectiveCost, 0)
+      .reduce((sum, s) => sum + s.billedCost, 0)
     const addon = billing.services
       .filter(s => !SUBSCRIPTION_RE.test(s.name))
-      .reduce((sum, s) => sum + Math.max(0, s.effectiveCost), 0)
+      .reduce((sum, s) => sum + Math.max(0, s.billedCost), 0)
     return { recurring, addon }
   }
 
