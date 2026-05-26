@@ -2,10 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
-import Link from 'next/link'
 import { AdminStatCard } from '@/components/admin/AdminStatCard'
 import { MonthPicker } from '@/components/admin/MonthPicker'
-import { TimeChart } from '@/components/admin/TimeChart'
+import { TrendSection } from '@/components/admin/TrendSection'
 import { UsersTable, type UserRow } from '@/components/admin/UsersTable'
 import { getTotalStorage, getAllDoctorsStorage } from '@/lib/usage/storage'
 import { getTotalEgress } from '@/lib/usage/egress'
@@ -39,12 +38,22 @@ function getLast90Days(): { key: string; label: string }[] {
   })
 }
 
-type TicketRow = { doctor_id: string | null; status: string | null; created_at: string }
+type EgressLogRow = { doctor_id: string | null; bytes: number | null }
+type UserProfile  = {
+  id:                    string
+  email:                 string | null
+  first_name:            string | null
+  last_name:             string | null
+  hospital_name:         string | null
+  created_at:            string
+  status:                string
+  deletion_scheduled_at: string | null
+}
 
 export default async function AdminDashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string; metric?: string }>
+  searchParams: Promise<{ month?: string }>
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -60,7 +69,6 @@ export default async function AdminDashboardPage({
   const nowKey = new Date().toISOString().slice(0, 7)
   const monthStr = sp.month ?? nowKey
   const isCurrentMonth = monthStr === nowKey
-  const activeMetric = sp.metric === 'analyses' ? 'analyses' : 'users'
 
   const [periodY, periodMo] = monthStr.split('-').map(Number)
   const periodLabel =
@@ -81,7 +89,8 @@ export default async function AdminDashboardPage({
     dbSizeBytes,
     { data: allUsers },
     { data: recentUsers },
-    { data: allTickets },
+    ticketStatsResult,
+    doctorCountsResult,
     { data: recentTickets },
     egressLogsResult,
     doctorStorageRows,
@@ -89,7 +98,7 @@ export default async function AdminDashboardPage({
     getTotalStorage().catch(() => ({ inputBytes: 0, dziBytes: 0, totalBytes: 0 })),
     supabaseAdmin.rpc('get_db_size_bytes').then(({ data }) => data as number | null, () => null),
     supabaseAdmin.from('profiles')
-      .select('id, email, first_name, last_name, created_at, hospital_name')
+      .select('id, email, first_name, last_name, created_at, hospital_name, status, deletion_scheduled_at')
       .neq('role', 'admin')
       .order('created_at', { ascending: false }),
     supabaseAdmin.from('profiles')
@@ -97,9 +106,9 @@ export default async function AdminDashboardPage({
       .neq('role', 'admin')
       .gte('created_at', since)
       .order('created_at', { ascending: true }),
-    supabaseAdmin.from('tickets')
-      .select('doctor_id, status, created_at')
-      .order('created_at', { ascending: false }),
+    // DB-side aggregation — replaces full-table scan of tickets
+    supabaseAdmin.rpc('get_admin_ticket_stats'),
+    supabaseAdmin.rpc('get_doctor_analysis_counts'),
     supabaseAdmin.from('tickets')
       .select('created_at, status')
       .gte('created_at', since)
@@ -115,19 +124,20 @@ export default async function AdminDashboardPage({
   for (const row of doctorStorageRows) storageByUser[row.doctorId] = row.totalBytes
 
   const egressByUser: Record<string, number> = {}
-  for (const row of (egressLogsResult.data ?? [])) {
-    const uid = (row as any).doctor_id
-    if (uid) egressByUser[uid] = (egressByUser[uid] ?? 0) + ((row as any).bytes ?? 0)
+  for (const row of (egressLogsResult.data ?? []) as EgressLogRow[]) {
+    if (row.doctor_id) egressByUser[row.doctor_id] = (egressByUser[row.doctor_id] ?? 0) + (row.bytes ?? 0)
   }
 
+  // Per-doctor counts from DB aggregate
   const analysesByUser: Record<string, number> = {}
-  const tickets = (allTickets ?? []) as TicketRow[]
-  for (const t of tickets) {
-    if (t.doctor_id) analysesByUser[t.doctor_id] = (analysesByUser[t.doctor_id] ?? 0) + 1
+  for (const row of (doctorCountsResult.data ?? [])) {
+    if (row.doctor_id) analysesByUser[row.doctor_id] = row.analysis_count
   }
 
-  const completed = tickets.filter(t => t.status === 'COMPLETED').length
-  const failed    = tickets.filter(t => ['FAILED', 'ERROR'].includes(t.status ?? '')).length
+  // Global ticket stats from DB aggregate
+  const ticketStats = ticketStatsResult.data?.[0] ?? { total: 0, completed: 0, failed: 0 }
+  const completed  = ticketStats.completed
+  const failed     = ticketStats.failed
   const totalUsers = allUsers?.length ?? 0
 
   const dayMap: Record<string, number> = {}
@@ -139,7 +149,6 @@ export default async function AdminDashboardPage({
   let running = totalUsers - (recentUsers?.length ?? 0)
   const usersChartData    = days.map(d => { running += dayMap[d.key] ?? 0; return { label: d.label, value: running } })
   const analysesChartData = days.map(d => ({ label: d.label, value: analysisDayMap[d.key] ?? 0 }))
-  const chartData = activeMetric === 'analyses' ? analysesChartData : usersChartData
 
   const thisMonth = (recentUsers ?? []).filter(u => {
     const d = new Date(u.created_at), now = new Date()
@@ -169,9 +178,6 @@ export default async function AdminDashboardPage({
     emailsSent  = emailCount
     egressBytes = egressStats.totalBytes
   }
-
-  const monthTabBase = (metric: string) =>
-    `/ops-histyon-console/dashboard?metric=${metric}${monthStr !== nowKey ? `&month=${monthStr}` : ''}`
 
   return (
     <div className="py-10 px-8">
@@ -210,7 +216,7 @@ export default async function AdminDashboardPage({
         <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-3">Analisi effettuate</p>
         <div className="grid grid-cols-3 gap-4 mb-8">
           {[
-            { label: 'Totale analisi',      value: tickets.length.toLocaleString('it-IT'), red: false },
+            { label: 'Totale analisi',      value: ticketStats.total.toLocaleString('it-IT'), red: false },
             { label: 'Completate',          value: completed.toLocaleString('it-IT'),      red: false },
             { label: 'Fallite',             value: failed.toLocaleString('it-IT'),         red: failed > 0 },
           ].map(({ label, value, red }) => (
@@ -224,40 +230,26 @@ export default async function AdminDashboardPage({
         <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">Dati utenti</p>
         <div className="border border-gray-200 bg-white mb-8">
           <UsersTable
-            users={(allUsers ?? []).map(u => ({
-              id:            u.id,
-              email:         u.email ?? null,
-              first_name:    u.first_name ?? null,
-              last_name:     u.last_name ?? null,
-              hospital_name: u.hospital_name ?? null,
-              created_at:    u.created_at,
-              analyses:      analysesByUser[u.id] ?? 0,
-              storageBytes:  storageByUser[u.id] ?? 0,
-              egressBytes:   egressByUser[u.id] ?? 0,
+            users={((allUsers ?? []) as UserProfile[]).map(u => ({
+              id:                    u.id,
+              email:                 u.email,
+              first_name:            u.first_name,
+              last_name:             u.last_name,
+              hospital_name:         u.hospital_name,
+              created_at:            u.created_at,
+              analyses:              analysesByUser[u.id] ?? 0,
+              storageBytes:          storageByUser[u.id] ?? 0,
+              egressBytes:           egressByUser[u.id] ?? 0,
+              status:                u.status ?? 'pending',
+              deletion_scheduled_at: u.deletion_scheduled_at,
             } satisfies UserRow))}
           />
         </div>
 
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400">Trend</p>
-          <div className="inline-flex border border-gray-200 bg-white">
-            {([['users', 'Utenti'], ['analyses', 'Analisi effettuate']] as const).map(([key, label]) => (
-              <Link
-                key={key}
-                href={monthTabBase(key)}
-                className={`px-4 py-2 text-xs font-medium transition-colors ${activeMetric === key ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
-              >
-                {label}
-              </Link>
-            ))}
-          </div>
-        </div>
-        <div className="border border-gray-200 bg-white p-6">
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-6">
-            {activeMetric === 'analyses' ? 'Analisi effettuate per giorno' : 'Crescita utenti'} — ultimi 90 giorni
-          </p>
-          <TimeChart data={chartData} height={160} />
-        </div>
+        <TrendSection
+          usersChartData={usersChartData}
+          analysesChartData={analysesChartData}
+        />
 
       </div>
 

@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import type { Annotations } from '@/types'
+import type { Json } from '@/types/database'
 
 export async function saveAnnotations(
   ticketId: string,
@@ -14,7 +15,7 @@ export async function saveAnnotations(
 
   const { error } = await supabase
     .from('tickets')
-    .update({ annotations })
+    .update({ annotations: annotations as unknown as Json })
     .eq('id', ticketId)
     .eq('doctor_id', user.id)
 

@@ -8,6 +8,7 @@ import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { DoctorRegistrationSchema, PasswordSchema } from '@/lib/schemas'
 import { dictionary } from '@/lib/dictionary'
 import { headers } from 'next/headers'
+import { sendNewDoctorAdminNotify, sendRegistrationPendingEmail } from '@/lib/email'
 
 export type SignupState = {
   status: 'idle' | 'success' | 'error'
@@ -58,11 +59,13 @@ export async function mfaEnroll(): Promise<{ factorId?: string; qrCode?: string;
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
+  type MfaFactor = { id: string; factor_type: string; status: string }
+
   // Use admin API to bypass JWT cache and get the real factor list from DB
   const { data: adminData } = await supabaseAdmin.auth.admin.mfa.listFactors({ userId: user.id })
-  const allFactors = (adminData as any)?.factors ?? []
+  const allFactors: MfaFactor[] = (adminData as { factors?: MfaFactor[] })?.factors ?? []
 
-  const verified = allFactors.find((f: any) => f.factor_type === 'totp' && f.status === 'verified')
+  const verified = allFactors.find(f => f.factor_type === 'totp' && f.status === 'verified')
   if (verified) return { alreadyEnrolled: true }
 
   // Delete all unverified TOTP factors directly via admin (no JWT dependency)
@@ -269,6 +272,13 @@ export async function signup(prevState: SignupState, formData: FormData): Promis
 
   await supabase.auth.signOut()
 
+  // Send notification emails (fire-and-forget — non bloccanti)
+  const doctorName = `${userData.firstName} ${userData.lastName}`.trim()
+  Promise.all([
+    sendNewDoctorAdminNotify(doctorName, userData.email),
+    sendRegistrationPendingEmail(userData.email, userData.firstName),
+  ]).catch(console.error)
+
   redirect('/auth/register/success')
 }
 
@@ -329,5 +339,5 @@ export async function updatePassword(formData: FormData) {
     redirect('/auth/update-password?error=password_update_failed')
   }
 
-  redirect('/dashboard/home')
+  redirect('/auth/update-password?success=true')
 }

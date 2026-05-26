@@ -78,8 +78,12 @@ function verifyHookSecret(headers: Headers, rawBody: string, rawSecret: string):
     return false
   }
 
-  // ── Fallback: Bearer diretto ──────────────────────────────────────────────
-  if (authHdr === `Bearer ${secret}`) return true
+  // ── Fallback: Bearer diretto (timing-safe) ───────────────────────────────
+  try {
+    const expected = Buffer.from(`Bearer ${secret}`)
+    const received = Buffer.from(authHdr)
+    if (expected.length === received.length && timingSafeEqual(expected, received)) return true
+  } catch { /* ignore */ }
 
   // ── Fallback: JWT HS256 ───────────────────────────────────────────────────
   const token = authHdr.startsWith('Bearer ') ? authHdr.slice(7) : authHdr
@@ -137,24 +141,29 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  let payload: any
+  type HookPayload = {
+    user?:       { email?: string }
+    email_data?: { email_action_type?: string; token_hash?: string; token?: string; redirect_to?: string }
+  }
+
+  let payload: HookPayload
   try {
-    payload = JSON.parse(rawBody)
+    payload = JSON.parse(rawBody) as HookPayload
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
   const user       = payload?.user
   const emailData  = payload?.email_data
-  const actionType = emailData?.email_action_type as string | undefined
-  const to         = user?.email as string | undefined
+  const actionType = emailData?.email_action_type
+  const to         = user?.email
 
   if (!to || !actionType || !emailData) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
 
-  const tokenHash  = emailData.token_hash  as string ?? ''
-  const redirectTo = emailData.redirect_to as string ?? process.env.NEXT_PUBLIC_SITE_URL ?? ''
+  const tokenHash  = emailData.token_hash  ?? ''
+  const redirectTo = emailData.redirect_to ?? process.env.NEXT_PUBLIC_SITE_URL ?? ''
   const confirmUrl = buildVerifyUrl(tokenHash, actionType, redirectTo)
 
   let email: { subject: string; html: string } | null = null
@@ -170,7 +179,7 @@ export async function POST(req: Request) {
       email = emailChangeEmail(confirmUrl, to)
       break
     case 'reauthentication':
-      email = reauthEmail(emailData.token as string ?? '')
+      email = reauthEmail(emailData.token ?? '')
       break
     default:
       console.warn('[send-email hook] tipo non gestito:', actionType)

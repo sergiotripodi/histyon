@@ -8,10 +8,13 @@ import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 const CONSOLE_PATH = '/ops-histyon-console'
 
 export async function adminLogin(formData: FormData) {
+  const honeypot = formData.get('website') as string | null
+  if (honeypot) redirect(`${CONSOLE_PATH}/login?error=invalid_credentials`)
+
   const supabase = await createClient()
 
-  const email = formData.get('email') as string
-  const password = formData.get('password') as string
+  const email    = (formData.get('email') as string ?? '').trim().slice(0, 254)
+  const password = (formData.get('password') as string ?? '').slice(0, 256)
 
   const { error } = await supabase.auth.signInWithPassword({ email, password })
   if (error) redirect(`${CONSOLE_PATH}/login?error=invalid_credentials`)
@@ -71,9 +74,11 @@ export async function adminMfaEnroll(): Promise<{
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
+  type MfaFactor = { id: string; factor_type: string; status: string }
+
   const { data: adminData } = await supabaseAdmin.auth.admin.mfa.listFactors({ userId: user.id })
-  const allFactors = (adminData as any)?.factors ?? []
-  const verified = allFactors.find((f: any) => f.factor_type === 'totp' && f.status === 'verified')
+  const allFactors: MfaFactor[] = (adminData as { factors?: MfaFactor[] })?.factors ?? []
+  const verified = allFactors.find(f => f.factor_type === 'totp' && f.status === 'verified')
   if (verified) return { alreadyEnrolled: true }
 
   for (const f of allFactors) {

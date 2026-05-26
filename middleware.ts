@@ -1,52 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-
-// ── Rate limiting maps ─────────────────────────────────────────────────────────
-
-const loginAttempts = new Map<string, { count: number; resetAt: number }>()
-const LOGIN_WINDOW_MS = 15 * 60 * 1000
-const LOGIN_MAX_ATTEMPTS = 10
-
-function isLoginRateLimited(ip: string): boolean {
-  const now = Date.now()
-  const entry = loginAttempts.get(ip)
-  if (!entry || now > entry.resetAt) {
-    loginAttempts.set(ip, { count: 1, resetAt: now + LOGIN_WINDOW_MS })
-    return false
-  }
-  entry.count++
-  return entry.count > LOGIN_MAX_ATTEMPTS
-}
-
-const signupAttempts = new Map<string, { count: number; resetAt: number }>()
-const SIGNUP_WINDOW_MS = 60 * 60 * 1000
-const SIGNUP_MAX_ATTEMPTS = 5
-
-function isSignupRateLimited(ip: string): boolean {
-  const now = Date.now()
-  const entry = signupAttempts.get(ip)
-  if (!entry || now > entry.resetAt) {
-    signupAttempts.set(ip, { count: 1, resetAt: now + SIGNUP_WINDOW_MS })
-    return false
-  }
-  entry.count++
-  return entry.count > SIGNUP_MAX_ATTEMPTS
-}
-
-// Stricter limit for the admin console login (5 attempts / 15 min)
-const adminLoginAttempts = new Map<string, { count: number; resetAt: number }>()
-const ADMIN_LOGIN_MAX_ATTEMPTS = 5
-
-function isAdminLoginRateLimited(ip: string): boolean {
-  const now = Date.now()
-  const entry = adminLoginAttempts.get(ip)
-  if (!entry || now > entry.resetAt) {
-    adminLoginAttempts.set(ip, { count: 1, resetAt: now + LOGIN_WINDOW_MS })
-    return false
-  }
-  entry.count++
-  return entry.count > ADMIN_LOGIN_MAX_ATTEMPTS
-}
+import { isRateLimited } from '@/lib/rate-limit'
 
 // ── Middleware ─────────────────────────────────────────────────────────────────
 
@@ -82,15 +36,15 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  // ── Rate limiting ──────────────────────────────────────────────────────────
+  // ── Rate limiting (distributed via Vercel KV, in-memory fallback in dev) ────
   if (request.method === 'POST') {
-    if (pathname === '/auth/login' && isLoginRateLimited(ip)) {
+    if (pathname === '/auth/login' && await isRateLimited(ip, 'login')) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
     }
-    if (pathname === '/auth/register' && isSignupRateLimited(ip)) {
+    if (pathname === '/auth/register' && await isRateLimited(ip, 'signup')) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
     }
-    if (pathname === '/ops-histyon-console/login' && isAdminLoginRateLimited(ip)) {
+    if (pathname === '/ops-histyon-console/login' && await isRateLimited(ip, 'admin-login')) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
     }
   }
@@ -117,6 +71,33 @@ export async function middleware(request: NextRequest) {
   // ── Doctor dashboard protection ────────────────────────────────────────────
   if (!user && pathname.startsWith('/dashboard')) {
     return NextResponse.redirect(new URL('/auth/login', request.url))
+  }
+
+  // ── Account status check (pending / rejected / suspended) ─────────────────
+  // Runs for every authenticated non-admin user.
+  // Blocking pages and API routes are exempt.
+  const STATUS_PAGES = ['/auth/pending', '/auth/rejected', '/auth/suspended']
+  const isStatusPage = STATUS_PAGES.some(p => pathname.startsWith(p))
+
+  if (user && !isStatusPage && !pathname.startsWith('/api/') && !pathname.startsWith('/ops-histyon-console')) {
+    const { data: profileStatus } = await supabase
+      .from('profiles')
+      .select('role, status')
+      .eq('id', user.id)
+      .single()
+
+    if (profileStatus?.role !== 'admin') {
+      const status = profileStatus?.status ?? 'pending'
+      if (status === 'pending') {
+        return NextResponse.redirect(new URL('/auth/pending', request.url))
+      }
+      if (status === 'rejected') {
+        return NextResponse.redirect(new URL('/auth/rejected', request.url))
+      }
+      if (status === 'suspended') {
+        return NextResponse.redirect(new URL('/auth/suspended', request.url))
+      }
+    }
   }
 
   if (user && pathname.startsWith('/dashboard')) {
@@ -147,7 +128,6 @@ export async function middleware(request: NextRequest) {
       .single()
 
     if (profile?.role !== 'admin') {
-      // Authenticated but not admin — sign them out and send to the public login
       await supabase.auth.signOut()
       return NextResponse.redirect(new URL('/auth/login', request.url))
     }
@@ -176,7 +156,7 @@ export async function middleware(request: NextRequest) {
 
   // ── Redirect authenticated doctor away from auth pages ─────────────────────
   if (user && pathname.startsWith('/auth')) {
-    const authAllowlist = ['/update-password', '/mfa-setup', '/mfa-challenge']
+    const authAllowlist = ['/update-password', '/mfa-setup', '/mfa-challenge', '/pending', '/rejected', '/suspended']
     const isAllowed = authAllowlist.some(p => pathname.includes(p))
     if (!isAllowed) {
       return NextResponse.redirect(new URL('/dashboard', request.url))

@@ -59,7 +59,7 @@ export function buildEmail({
 
         <!-- Logo -->
         <tr><td style="padding-bottom:28px;">
-          <img src="https://www.histyon.com/logo-black.png" width="36" height="36" alt="Histyon" style="display:block;" />
+          <img src="${(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.histyon.com').replace(/\/$/, '')}/logo-black.png" width="36" height="36" alt="Histyon" style="display:block;" />
         </td></tr>
 
         <!-- Divider -->

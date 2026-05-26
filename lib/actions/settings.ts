@@ -8,7 +8,8 @@ import { cookies } from 'next/headers'
 import { z } from 'zod'
 import { dictionary } from '@/lib/dictionary'
 import { deleteSupabasePrefix, storagePaths } from '@/lib/storage/supabase'
-import { sendAccountDeletedEmail, sendPasswordChangedEmail, sendEmailChangedEmail } from '@/lib/email'
+import { sendAccountDeletedEmail, sendPasswordChangedEmail } from '@/lib/email'
+import { logger } from '@/lib/logger'
 
 const optionalString = z.union([z.string(), z.null(), z.undefined(), z.literal('')])
 
@@ -161,29 +162,33 @@ export async function deleteAccount(formData: FormData) {
     .eq('id', user.id)
     .single()
 
-  // Elimina tutti i file dell'utente da Supabase Storage (input/ e dzi/)
+  const admin = createSupabaseAdmin(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+
+  // Delete storage files (non-blocking — DB cleanup proceeds regardless)
   try {
     await Promise.all([
       deleteSupabasePrefix(storagePaths.inputDir(user.id)),
       deleteSupabasePrefix(storagePaths.dziDir(user.id)),
     ])
   } catch (err) {
-    console.error('deleteAccount storage cleanup:', err)
+    logger.error('deleteAccount: storage cleanup failed', { userId: user.id, err: String(err) })
   }
 
-  // Elimina i record DB in cascata
-  await supabase.from('tickets').delete().eq('doctor_id', user.id)
-  await supabase.from('patients').delete().eq('doctor_id', user.id)
-  await supabase.from('profiles').delete().eq('id', user.id)
+  // Atomic DB deletion via SECURITY DEFINER RPC (egress_logs + tickets + patients + profiles)
+  const { error: rpcError } = await admin.rpc('delete_doctor_data', { p_doctor_id: user.id })
+  if (rpcError) {
+    logger.error('deleteAccount: delete_doctor_data RPC failed', { userId: user.id, code: rpcError.code, msg: rpcError.message })
+    return { error: dictionary.validation.genericError }
+  }
 
-  const admin = createSupabaseAdmin(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  // Remove the auth.users record last (auth is the source of truth for identity)
   const { error: deleteError } = await admin.auth.admin.deleteUser(user.id)
   if (deleteError) {
-    console.error('deleteAccount auth.admin.deleteUser:', deleteError)
+    logger.error('deleteAccount: auth.admin.deleteUser failed', { userId: user.id, msg: deleteError.message })
     return { error: dictionary.validation.genericError }
   }
 

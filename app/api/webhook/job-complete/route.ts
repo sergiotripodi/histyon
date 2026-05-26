@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
+import { logger } from '@/lib/logger'
 
 // Chiamato dal DB trigger (pg_net) quando un ticket diventa COMPLETED.
 // Aggiorna il DB con: status, results (analisi AI), annotations (GeoJSON).
@@ -68,7 +69,7 @@ export async function POST(request: Request) {
     .eq('id', ticketId)
 
   if (error) {
-    console.error('webhook/job-complete:', error)
+    logger.error('webhook/job-complete: DB update failed', { ticketId, code: error.code, msg: error.message })
     return NextResponse.json({ error: 'DB error' }, { status: 500 })
   }
 

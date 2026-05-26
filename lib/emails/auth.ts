@@ -118,6 +118,108 @@ export function emailChangedEmail(oldEmail: string, name?: string): { subject: s
   }
 }
 
+// ── Approval-flow emails ──────────────────────────────────────────────────────
+
+export function newDoctorAdminNotifyEmail(
+  doctorName: string,
+  doctorEmail: string,
+  dashboardUrl: string,
+): { subject: string; html: string } {
+  return {
+    subject: `Nuovo dottore in attesa di approvazione — ${doctorName}`,
+    html: buildEmail({
+      label:    'Nuova registrazione',
+      headline: 'Un nuovo dottore si è registrato.',
+      sections: [
+        { type: 'paragraph', content: `<strong style="color:#111827;">${doctorName}</strong> (${doctorEmail}) ha completato la registrazione e il suo account è in attesa di approvazione.` },
+        { type: 'cta', text: 'Vai alla Dashboard Admin', href: dashboardUrl },
+        { type: 'note', content: 'Dalla dashboard puoi approvare o rifiutare l\'account nella sezione Dati utenti.' },
+      ],
+    }),
+  }
+}
+
+export function registrationPendingEmail(doctorName: string): { subject: string; html: string } {
+  return {
+    subject: 'Registrazione ricevuta — Histyon',
+    html: buildEmail({
+      label:    'In attesa di approvazione',
+      headline: `Grazie, ${doctorName}. Ci siamo quasi.`,
+      sections: [
+        { type: 'paragraph', content: 'Abbiamo ricevuto la tua richiesta di accesso a Histyon. Il nostro team verificherà le tue credenziali mediche e ti risponderà <strong style="color:#111827;">entro 24 ore</strong>.' },
+        { type: 'paragraph', content: 'Non è necessaria alcuna azione da parte tua in questo momento.' },
+        { type: 'note', content: `Per qualsiasi informazione contattaci a ${SUPPORT}.` },
+      ],
+    }),
+  }
+}
+
+export function accountApprovedEmail(doctorName: string, loginUrl: string): { subject: string; html: string } {
+  return {
+    subject: 'Il tuo account Histyon è stato approvato',
+    html: buildEmail({
+      label:    'Account approvato',
+      headline: `Benvenuto su Histyon, ${doctorName}.`,
+      sections: [
+        { type: 'paragraph', content: 'Il tuo account è stato verificato e approvato dal team Histyon. Puoi ora accedere alla piattaforma e iniziare ad utilizzare tutti i servizi disponibili.' },
+        { type: 'cta', text: 'Accedi alla piattaforma', href: loginUrl },
+        { type: 'note', content: `Per assistenza scrivici a ${SUPPORT}.` },
+      ],
+    }),
+  }
+}
+
+export function accountRejectedEmail(
+  doctorName: string,
+  reason: string,
+  deletionDate: string,
+): { subject: string; html: string } {
+  return {
+    subject: 'Esito richiesta di accesso — Histyon',
+    html: buildEmail({
+      label:    'Richiesta non approvata',
+      headline: `Gentile ${doctorName},`,
+      sections: [
+        { type: 'paragraph', content: 'Dopo aver esaminato la tua richiesta di accesso a Histyon, il nostro team non ha potuto approvare il tuo account per il seguente motivo:' },
+        { type: 'note', content: `<strong style="color:#111827;">Motivo:</strong> ${reason}` },
+        { type: 'paragraph', content: `Il tuo account e tutti i dati associati verranno eliminati automaticamente il <strong style="color:#111827;">${deletionDate}</strong>.` },
+        { type: 'note', content: `Per chiarimenti o per richiedere una revisione scrivici a ${SUPPORT}.` },
+      ],
+    }),
+  }
+}
+
+export function accountSuspendedEmail(doctorName: string, reason: string): { subject: string; html: string } {
+  return {
+    subject: 'Il tuo account Histyon è stato disattivato',
+    html: buildEmail({
+      label:    'Account disattivato',
+      headline: `Gentile ${doctorName},`,
+      sections: [
+        { type: 'paragraph', content: 'Il tuo accesso alla piattaforma Histyon è stato temporaneamente disattivato dal team operativo per il seguente motivo:' },
+        { type: 'note', content: `<strong style="color:#111827;">Motivo:</strong> ${reason}` },
+        { type: 'paragraph', content: 'Non potrai accedere alla piattaforma fino a nuova comunicazione.' },
+        { type: 'note', content: `Per richiedere informazioni o una revisione contattaci a ${SUPPORT}.` },
+      ],
+    }),
+  }
+}
+
+export function accountReactivatedEmail(doctorName: string, loginUrl: string): { subject: string; html: string } {
+  return {
+    subject: 'Il tuo account Histyon è stato riattivato',
+    html: buildEmail({
+      label:    'Account riattivato',
+      headline: `Bentornato, ${doctorName}.`,
+      sections: [
+        { type: 'paragraph', content: 'Il tuo account Histyon è stato riattivato. Puoi ora accedere nuovamente alla piattaforma e riprendere ad utilizzare tutti i servizi.' },
+        { type: 'cta', text: 'Accedi alla piattaforma', href: loginUrl },
+        { type: 'note', content: `Per assistenza scrivici a ${SUPPORT}.` },
+      ],
+    }),
+  }
+}
+
 export function accountDeletedEmail(name?: string): { subject: string; html: string } {
   const displayName = name ? `Dr. ${name}` : 'Dottore'
   return {

@@ -1,14 +1,6 @@
 export const LOCALES = [
   { code: 'it', name: 'Italiano', flag: '🇮🇹' },
   { code: 'en', name: 'English', flag: '🇺🇸' },
-  { code: 'es', name: 'Español', flag: '🇪🇸' },
-  { code: 'fr', name: 'Français', flag: '🇫🇷' },
-  { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
-  { code: 'zh', name: '中文', flag: '🇨🇳' },
-  { code: 'hi', name: 'हिन्दी', flag: '🇮🇳' },
-  { code: 'ar', name: 'العربية', flag: '🇸🇦' },
-  { code: 'pt', name: 'Português', flag: '🇵🇹' },
-  { code: 'ru', name: 'Русский', flag: '🇷🇺' }
 ] as const;
 
 export const DEFAULT_LOCALE = 'en';
@@ -202,9 +194,10 @@ export const SLIDE_FORMATS_DISPLAY = ['SVS', 'NDPI', 'TIFF', 'MRXS', 'SCN', 'CZI
 export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024 * 1024
 
 export const REGEX_VALIDATORS = {
-  NAME: "^[a-zA-Z\\s']+$",
+  // Includes accented chars (Italian/European) and hyphen for compound names
+  NAME: "^[a-zA-ZàÀáÁâÂãÃäÄåÅæÆçÇèÈéÉêÊëËìÌíÍîÎïÏðÐñÑòÒóÓôÔõÕöÖøØùÙúÚûÛüÜýÝþÞÿŸ\\s'\\-]+$",
   FISCAL_CODE: "^[a-zA-Z0-9]{16}$",
-  EMAIL: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",  
+  EMAIL: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
   PASSWORD: "^(?=.*[A-Z])(?=.*[!@#$&*])(?=.*[0-9]).{8,}$",
   PHONE: "^[0-9\\s]+$"
 };

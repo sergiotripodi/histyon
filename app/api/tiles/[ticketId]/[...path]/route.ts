@@ -93,7 +93,15 @@ export async function GET(
   }
 
   const filePath = path.join('/')
-  if (filePath.includes('..')) {
+  // Reject traversal attempts: double-dots, null bytes, URL-encoded sequences,
+  // or any char outside the safe set for DZI paths (word chars, dots, hyphens, slashes).
+  if (
+    filePath.startsWith('/') ||
+    filePath.includes('..') ||
+    filePath.includes('\x00') ||
+    filePath.includes('%') ||
+    !/^[\w.\-/]+$/.test(filePath)
+  ) {
     return NextResponse.json({ error: 'Invalid path' }, { status: 400 })
   }
 

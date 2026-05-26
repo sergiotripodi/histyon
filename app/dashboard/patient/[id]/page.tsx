@@ -83,10 +83,10 @@ export default async function PatientDetailPage(props: {
             <p className="font-medium text-gray-900">
               {patient.address_street
                 ? `${patient.address_street}${patient.address_civic ? ` ${patient.address_civic}` : ''}`
-                : patient.address || '-'}
+                : '-'}
             </p>
             <p className="text-gray-500">
-              {[patient.postal_code, patient.city, patient.region || patient.province].filter(Boolean).join(' ')}
+              {[patient.postal_code, patient.city, patient.province].filter(Boolean).join(' ')}
             </p>
           </div>
           <div className="space-y-1.5">
