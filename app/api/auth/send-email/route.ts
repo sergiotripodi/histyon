@@ -39,64 +39,102 @@ const FROM   = process.env.RESEND_FROM_EMAIL ?? 'Histyon <no-reply@histyon.com>'
 // è i byte grezzi ottenuti decodificando in base64 la parte dopo "whsec_".
 // Formato secret Supabase: "v1,whsec_<base64-encoded-key>"
 
-// Restituisce {ok, diag} — il log viene fatto dal chiamante come prima istruzione
-function checkHookSecret(authHeader: string, rawSecret: string): { ok: boolean; diag: Record<string, unknown> } {
-  const secret   = rawSecret.trim()
-  const tokenStr = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader
-  const parts    = tokenStr.split('.')
-  const isJWT    = parts.length === 3
+/**
+ * Verifica la firma Standard Webhooks (https://www.standardwebhooks.com/)
+ * usata da Supabase Auth Hooks.
+ *
+ * Supabase invia:
+ *   webhook-id:        ID univoco del messaggio
+ *   webhook-timestamp: Unix timestamp (secondi)
+ *   webhook-signature: "v1,<base64-HMAC-SHA256>"
+ *
+ * HMAC = SHA256( decodedKey, webhookId + "." + timestamp + "." + rawBody )
+ * decodedKey = Buffer.from( whsecPart, 'base64' )  dove secret = "v1,whsec_<whsecPart>"
+ */
+function checkHookSecret(
+  headers: Headers,
+  rawBody: string,
+  rawSecret: string,
+): { ok: boolean; diag: Record<string, unknown> } {
+  const secret  = rawSecret.trim()
+  const whId    = headers.get('webhook-id')        ?? ''
+  const whTs    = headers.get('webhook-timestamp') ?? ''
+  const whSig   = headers.get('webhook-signature') ?? ''
+  // fallback: alcuni header vengono inviati in lowercase senza il prefisso "webhook-"
+  const authHdr = headers.get('authorization')     ?? ''
 
-  let jwtPayload: Record<string, unknown> | null = null
-  if (isJWT) {
-    try { jwtPayload = JSON.parse(Buffer.from(parts[1], 'base64url').toString()) } catch {}
-  }
-
-  const results: Record<string, string> = {}
   const diag: Record<string, unknown> = {
-    hLen: authHeader.length,
-    isBearer: authHeader.startsWith('Bearer '),
-    isJWT,
     sLen: secret.length,
     sFmt: secret.startsWith('v1,whsec_') ? 'v1,whsec_' : secret.slice(0, 8),
-    sLastCC: secret.charCodeAt(secret.length - 1),
-    jwtPay: jwtPayload,
-    results,
+    whId:  whId  ? whId.slice(0, 12) + '…'  : '(empty)',
+    whTs,
+    whSig: whSig ? whSig.slice(0, 20) + '…' : '(empty)',
+    authHdr: authHdr ? authHdr.slice(0, 20) + '…' : '(empty)',
+    result: 'pending',
   }
 
-  // Approccio 1: Bearer diretto
-  if (authHeader === `Bearer ${secret}`) { results.direct = 'OK'; return { ok: true, diag } }
-  results.direct = 'no'
+  // ── Standard Webhooks (percorso principale) ───────────────────────────────
+  if (whId && whTs && whSig) {
+    const m = secret.match(/(?:^|,)whsec_([A-Za-z0-9+/=_\-]+)/)
+    if (!m?.[1]) { diag.result = 'no_whsec_in_secret'; return { ok: false, diag } }
 
-  if (!isJWT) return { ok: false, diag }
+    const key      = Buffer.from(m[1], 'base64')
+    const payload  = `${whId}.${whTs}.${rawBody}`
+    const expected = createHmac('sha256', key).update(payload).digest('base64')
 
-  const tryKey = (key: Buffer, label: string): boolean => {
-    try {
-      const expected = createHmac('sha256', key)
-        .update(`${parts[0]}.${parts[1]}`)
-        .digest('base64url')
-      const strip = (s: string) => s.replace(/=+$/, '')
-      const a = Buffer.from(strip(expected))
-      const b = Buffer.from(strip(parts[2]))
-      if (a.length !== b.length) { results[label] = `lenMismatch:${a.length}vs${b.length}`; return false }
-      const ok = timingSafeEqual(a, b)
-      results[label] = ok ? 'OK' : 'sig_mismatch'
-      return ok
-    } catch (e) {
-      results[label] = `err:${String(e).slice(0, 40)}`
-      return false
+    // webhook-signature può contenere più firme separate da spazi ("v1,xxx v1,yyy")
+    const sigs = whSig.split(' ')
+    for (const sig of sigs) {
+      const sigVal = sig.startsWith('v1,') ? sig.slice(3) : sig
+      try {
+        const a = Buffer.from(expected,        'base64')
+        const b = Buffer.from(sigVal,          'base64')
+        if (a.length === b.length && timingSafeEqual(a, b)) {
+          diag.result = 'standard_webhooks_OK'
+          return { ok: true, diag }
+        }
+      } catch { /* firma malformata, prova la prossima */ }
+    }
+    diag.result = 'standard_webhooks_sig_mismatch'
+    return { ok: false, diag }
+  }
+
+  // ── Fallback: Bearer diretto (alcune versioni Supabase) ──────────────────
+  if (authHdr === `Bearer ${secret}`) {
+    diag.result = 'bearer_direct_OK'
+    return { ok: true, diag }
+  }
+
+  // ── Fallback: JWT HS256 nell'Authorization header ─────────────────────────
+  const token = authHdr.startsWith('Bearer ') ? authHdr.slice(7) : authHdr
+  const parts = token.split('.')
+  if (parts.length === 3) {
+    const tryKey = (key: Buffer, label: string): boolean => {
+      try {
+        const expected = createHmac('sha256', key)
+          .update(`${parts[0]}.${parts[1]}`)
+          .digest('base64url')
+        const strip = (s: string) => s.replace(/=+$/, '')
+        const a = Buffer.from(strip(expected))
+        const b = Buffer.from(strip(parts[2]))
+        if (a.length !== b.length) { diag.result = `jwt_lenMismatch_${label}`; return false }
+        const ok = timingSafeEqual(a, b)
+        if (ok) diag.result = `jwt_OK_${label}`
+        else    diag.result = `jwt_sig_mismatch_${label}`
+        return ok
+      } catch (e) {
+        diag.result = `jwt_err_${label}`; return false
+      }
+    }
+    if (tryKey(Buffer.from(secret, 'utf8'), 'raw'))      return { ok: true, diag }
+    const m2 = secret.match(/(?:^|,)whsec_([A-Za-z0-9+/=_\-]+)/)
+    if (m2?.[1]) {
+      if (tryKey(Buffer.from(m2[1], 'base64'),    'wb64'))    return { ok: true, diag }
+      if (tryKey(Buffer.from(m2[1], 'base64url'), 'wb64url')) return { ok: true, diag }
     }
   }
 
-  if (tryKey(Buffer.from(secret, 'utf8'), 'raw')) return { ok: true, diag }
-
-  const m = secret.match(/(?:^|,)whsec_([A-Za-z0-9+/=_\-]+)/)
-  if (m?.[1]) {
-    if (tryKey(Buffer.from(m[1], 'base64'),    'wb64'))    return { ok: true, diag }
-    if (tryKey(Buffer.from(m[1], 'base64url'), 'wb64url')) return { ok: true, diag }
-  } else {
-    results.regex = 'no_whsec_match'
-  }
-
+  diag.result = `no_auth_whId=${!!whId}_whSig=${!!whSig}_authLen=${authHdr.length}`
   return { ok: false, diag }
 }
 
@@ -110,13 +148,14 @@ function buildVerifyUrl(tokenHash: string, type: string, redirectTo: string): st
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
-  // Auth: verifica secret se configurato
+  // Leggi il body come stringa prima — serve sia per la firma Standard Webhooks
+  // sia per il parsing JSON successivo
+  const rawBody   = await req.text()
   const hookSecret = process.env.SUPABASE_HOOK_SECRET?.trim()
-  const authHeader = req.headers.get('authorization') ?? ''
 
-  // [hook-diag] è la PRIMA riga loggata — il viewer Vercel tronca le successive
+  // [hook-diag] è la PRIMA riga — il viewer Vercel tronca quelle successive
   const { ok: authorized, diag } = hookSecret
-    ? checkHookSecret(authHeader, hookSecret)
+    ? checkHookSecret(req.headers, rawBody, hookSecret)
     : { ok: true, diag: { skipped: true } }
   console.log('[hook-diag]', JSON.stringify({ hasSecret: !!hookSecret, ...diag }))
 
@@ -126,7 +165,7 @@ export async function POST(req: Request) {
 
   let payload: any
   try {
-    payload = await req.json()
+    payload = JSON.parse(rawBody)
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
