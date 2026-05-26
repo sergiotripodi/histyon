@@ -1,7 +1,6 @@
-import { updatePassword } from '@/lib/actions/auth'
-import { ValidatedInput } from '@/components/ui/FormElements'
 import { getDictionary } from '@/lib/dictionary'
 import { AlertCircle } from 'lucide-react'
+import { UpdatePasswordForm } from './UpdatePasswordForm'
 
 export const metadata = { title: 'Nuova password' }
 
@@ -38,23 +37,11 @@ export default async function UpdatePasswordPage(props: {
           </div>
         )}
 
-        <form className="space-y-6">
-          <ValidatedInput
-            name="password"
-            type="password"
-            label={tf.labels.passwordSimple}
-            required
-          />
-          <ValidatedInput
-            name="confirmPassword"
-            type="password"
-            label={tf.labels.confirmPassword}
-            required
-          />
-          <button formAction={updatePassword} className="btn-elegant w-full py-3.5">
-            {t.btn}
-          </button>
-        </form>
+        <UpdatePasswordForm
+          passwordLabel={tf.labels.passwordSimple}
+          confirmLabel={tf.labels.confirmPassword}
+          btnLabel={t.btn}
+        />
       </div>
     </div>
   )
