@@ -40,37 +40,40 @@ const FROM   = process.env.RESEND_FROM_EMAIL ?? 'Histyon <no-reply@histyon.com>'
 // Formato secret Supabase: "v1,whsec_<base64-encoded-key>"
 
 function verifyHookSecret(authHeader: string, rawSecret: string): boolean {
-  // Trim per sicurezza: env var con newline/spazi finali causerebbero mismatch
-  const secret = rawSecret.trim()
-
+  const secret  = rawSecret.trim()
   const tokenStr = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader
   const parts    = tokenStr.split('.')
   const isJWT    = parts.length === 3
 
-  // ── Diagnostica (nessun valore sensibile nei log) ──────────────────────────
-  console.log('[hook-auth] header len:', authHeader.length,
-              '| isBearer:', authHeader.startsWith('Bearer '),
-              '| isJWT:', isJWT)
-  console.log('[hook-auth] secret len:', secret.length,
-              '| format:', secret.startsWith('v1,whsec_') ? 'v1,whsec_...' : 'other',
-              '| lastCharCode:', secret.charCodeAt(secret.length - 1))
-
+  // Tutta la diagnostica in UNA riga per superare il limite del log viewer
+  let jwtPayload: Record<string, unknown> | null = null
   if (isJWT) {
-    try {
-      const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-      console.log('[hook-auth] JWT payload:', JSON.stringify(payload))
-    } catch { /* non bloccare se il payload non è JSON */ }
+    try { jwtPayload = JSON.parse(Buffer.from(parts[1], 'base64url').toString()) } catch {}
   }
 
-  // ── Approccio 1: Bearer diretto (versioni Supabase meno recenti) ──────────
+  const diag: Record<string, unknown> = {
+    hLen: authHeader.length,
+    isBearer: authHeader.startsWith('Bearer '),
+    isJWT,
+    sLen: secret.length,
+    sFmt: secret.startsWith('v1,whsec_') ? 'v1,whsec_' : secret.slice(0, 8),
+    sLastCC: secret.charCodeAt(secret.length - 1),
+    jwtPay: jwtPayload,
+    results: {} as Record<string, string>,
+  }
+
+  const results = diag.results as Record<string, string>
+
+  // Approccio 1: Bearer diretto
   if (authHeader === `Bearer ${secret}`) {
-    console.log('[hook-auth] ✓ matched: direct Bearer')
+    results.direct = 'OK'
+    console.log('[hook-diag]', JSON.stringify(diag))
     return true
   }
+  results.direct = 'no'
 
-  // ── Approccio 2: JWT HS256 ────────────────────────────────────────────────
   if (!isJWT) {
-    console.log('[hook-auth] ✗ not a JWT and direct match failed')
+    console.log('[hook-diag]', JSON.stringify(diag))
     return false
   }
 
@@ -79,38 +82,33 @@ function verifyHookSecret(authHeader: string, rawSecret: string): boolean {
       const expected = createHmac('sha256', key)
         .update(`${parts[0]}.${parts[1]}`)
         .digest('base64url')
-      // Rimuovi padding (JWT usa base64url senza '=')
       const strip = (s: string) => s.replace(/=+$/, '')
       const a = Buffer.from(strip(expected))
       const b = Buffer.from(strip(parts[2]))
-      if (a.length !== b.length) {
-        console.log(`[hook-auth] [${label}] length mismatch: ${a.length} vs ${b.length}`)
-        return false
-      }
+      if (a.length !== b.length) { results[label] = `lenMismatch:${a.length}vs${b.length}`; return false }
       const ok = timingSafeEqual(a, b)
-      console.log(`[hook-auth] [${label}]`, ok ? '✓ match' : '✗ mismatch')
+      results[label] = ok ? 'OK' : 'sig_mismatch'
       return ok
     } catch (e) {
-      console.log(`[hook-auth] [${label}] exception:`, e)
+      results[label] = `err:${String(e).slice(0, 40)}`
       return false
     }
   }
 
-  // Candidato 1: stringa raw del secret come chiave UTF-8
-  if (tryKey(Buffer.from(secret, 'utf8'), 'raw-utf8')) return true
-
-  // Candidato 2 & 3: decodifica la parte dopo "whsec_" — sia base64 standard
-  // sia base64url (Supabase usa standard, ma proviamo entrambi per robustezza)
-  const match = secret.match(/(?:^|,)whsec_([A-Za-z0-9+/=_\-]+)/)
-  if (match?.[1]) {
-    const b64part = match[1]
-    if (tryKey(Buffer.from(b64part, 'base64'),    'whsec-base64'))    return true
-    if (tryKey(Buffer.from(b64part, 'base64url'), 'whsec-base64url')) return true
-  } else {
-    console.log('[hook-auth] no whsec_ segment found in secret')
+  if (tryKey(Buffer.from(secret, 'utf8'), 'raw')) {
+    console.log('[hook-diag]', JSON.stringify(diag)); return true
   }
 
-  console.log('[hook-auth] ✗ all approaches failed')
+  const match = secret.match(/(?:^|,)whsec_([A-Za-z0-9+/=_\-]+)/)
+  if (match?.[1]) {
+    const b = match[1]
+    if (tryKey(Buffer.from(b, 'base64'),    'wb64'))    { console.log('[hook-diag]', JSON.stringify(diag)); return true }
+    if (tryKey(Buffer.from(b, 'base64url'), 'wb64url')) { console.log('[hook-diag]', JSON.stringify(diag)); return true }
+  } else {
+    results.regex = 'no_whsec_match'
+  }
+
+  console.log('[hook-diag]', JSON.stringify(diag))
   return false
 }
 
