@@ -35,42 +35,83 @@ const resend = new Resend(process.env.RESEND_API_KEY!)
 const FROM   = process.env.RESEND_FROM_EMAIL ?? 'Histyon <no-reply@histyon.com>'
 
 // ── Hook authentication ───────────────────────────────────────────────────────
-// Supabase Auth Hooks inviano il secret come Bearer token diretto nell'header
-// Authorization oppure come JWT HS256. Proviamo entrambi gli approcci.
+// Supabase Auth Hooks firmano la richiesta con un JWT HS256 il cui secret
+// è i byte grezzi ottenuti decodificando in base64 la parte dopo "whsec_".
+// Formato secret Supabase: "v1,whsec_<base64-encoded-key>"
 
-function verifyHookSecret(authHeader: string, secret: string): boolean {
-  // Approccio 1: Bearer diretto (es. "Bearer v1,whsec_xxx")
-  if (authHeader === `Bearer ${secret}`) return true
+function verifyHookSecret(authHeader: string, rawSecret: string): boolean {
+  // Trim per sicurezza: env var con newline/spazi finali causerebbero mismatch
+  const secret = rawSecret.trim()
 
-  // Approccio 2: JWT HS256 — proviamo con secret raw e con chiave decoded
-  try {
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader
-    const parts = token.split('.')
-    if (parts.length !== 3) return false
+  const tokenStr = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader
+  const parts    = tokenStr.split('.')
+  const isJWT    = parts.length === 3
 
-    // Prova con il secret grezzo come chiave
-    const tryKey = (key: Buffer) => {
+  // ── Diagnostica (nessun valore sensibile nei log) ──────────────────────────
+  console.log('[hook-auth] header len:', authHeader.length,
+              '| isBearer:', authHeader.startsWith('Bearer '),
+              '| isJWT:', isJWT)
+  console.log('[hook-auth] secret len:', secret.length,
+              '| format:', secret.startsWith('v1,whsec_') ? 'v1,whsec_...' : 'other',
+              '| lastCharCode:', secret.charCodeAt(secret.length - 1))
+
+  if (isJWT) {
+    try {
+      const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
+      console.log('[hook-auth] JWT payload:', JSON.stringify(payload))
+    } catch { /* non bloccare se il payload non è JSON */ }
+  }
+
+  // ── Approccio 1: Bearer diretto (versioni Supabase meno recenti) ──────────
+  if (authHeader === `Bearer ${secret}`) {
+    console.log('[hook-auth] ✓ matched: direct Bearer')
+    return true
+  }
+
+  // ── Approccio 2: JWT HS256 ────────────────────────────────────────────────
+  if (!isJWT) {
+    console.log('[hook-auth] ✗ not a JWT and direct match failed')
+    return false
+  }
+
+  const tryKey = (key: Buffer, label: string): boolean => {
+    try {
       const expected = createHmac('sha256', key)
         .update(`${parts[0]}.${parts[1]}`)
         .digest('base64url')
-      const a = Buffer.from(expected)
-      const b = Buffer.from(parts[2])
-      if (a.length !== b.length) return false
-      return timingSafeEqual(a, b)
+      // Rimuovi padding (JWT usa base64url senza '=')
+      const strip = (s: string) => s.replace(/=+$/, '')
+      const a = Buffer.from(strip(expected))
+      const b = Buffer.from(strip(parts[2]))
+      if (a.length !== b.length) {
+        console.log(`[hook-auth] [${label}] length mismatch: ${a.length} vs ${b.length}`)
+        return false
+      }
+      const ok = timingSafeEqual(a, b)
+      console.log(`[hook-auth] [${label}]`, ok ? '✓ match' : '✗ mismatch')
+      return ok
+    } catch (e) {
+      console.log(`[hook-auth] [${label}] exception:`, e)
+      return false
     }
+  }
 
-    // Chiave 1: secret raw
-    if (tryKey(Buffer.from(secret))) return true
+  // Candidato 1: stringa raw del secret come chiave UTF-8
+  if (tryKey(Buffer.from(secret, 'utf8'), 'raw-utf8')) return true
 
-    // Chiave 2: decodifica la parte base64 dopo "whsec_"
-    const match = secret.match(/whsec_([A-Za-z0-9+/=_-]+)/)
-    if (match) {
-      if (tryKey(Buffer.from(match[1], 'base64'))) return true
-      if (tryKey(Buffer.from(match[1], 'base64url'))) return true
-    }
+  // Candidato 2 & 3: decodifica la parte dopo "whsec_" — sia base64 standard
+  // sia base64url (Supabase usa standard, ma proviamo entrambi per robustezza)
+  const match = secret.match(/(?:^|,)whsec_([A-Za-z0-9+/=_\-]+)/)
+  if (match?.[1]) {
+    const b64part = match[1]
+    if (tryKey(Buffer.from(b64part, 'base64'),    'whsec-base64'))    return true
+    if (tryKey(Buffer.from(b64part, 'base64url'), 'whsec-base64url')) return true
+  } else {
+    console.log('[hook-auth] no whsec_ segment found in secret')
+  }
 
-    return false
-  } catch { return false }
+  console.log('[hook-auth] ✗ all approaches failed')
+  return false
 }
 
 // ── Link builder ──────────────────────────────────────────────────────────────
@@ -84,14 +125,13 @@ function buildVerifyUrl(tokenHash: string, type: string, redirectTo: string): st
 
 export async function POST(req: Request) {
   // Auth: verifica secret se configurato
-  const hookSecret = process.env.SUPABASE_HOOK_SECRET
+  const hookSecret = process.env.SUPABASE_HOOK_SECRET?.trim()
   const authHeader = req.headers.get('authorization') ?? ''
 
-  // Log per debug (mostra solo il prefisso dell'header, non il secret completo)
-  console.log('[send-email hook] auth header prefix:', authHeader.slice(0, 20))
+  console.log('[hook] SUPABASE_HOOK_SECRET present:', !!hookSecret)
 
   if (hookSecret && !verifyHookSecret(authHeader, hookSecret)) {
-    console.error('[send-email hook] verifica secret fallita')
+    console.error('[hook] ✗ unauthorized — returning 401')
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
