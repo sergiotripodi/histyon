@@ -109,10 +109,21 @@ function verifyHookSecret(headers: Headers, rawBody: string, rawSecret: string):
 }
 
 // ── Link builder ──────────────────────────────────────────────────────────────
+// Punta direttamente al nostro /auth/callback con token_hash + type come query
+// params — il callback esegue verifyOtp() server-side e imposta la sessione.
+//
+// NON usare ${SUPABASE_URL}/auth/v1/verify come intermediario: dopo la verifica
+// Supabase farebbe un redirect implicito con #access_token nel fragment URL,
+// invisibile al server-side handler, causando oauth_failed.
 
-function buildVerifyUrl(tokenHash: string, type: string, redirectTo: string): string {
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  return `${base}/auth/v1/verify?token=${encodeURIComponent(tokenHash)}&type=${type}&redirect_to=${encodeURIComponent(redirectTo)}`
+function buildVerifyUrl(tokenHash: string, type: string, _redirectTo: string): string {
+  const siteUrl  = (process.env.NEXT_PUBLIC_SITE_URL ?? '').replace(/\/$/, '')
+  const url      = new URL(`${siteUrl}/auth/callback`)
+  url.searchParams.set('token_hash', tokenHash)
+  url.searchParams.set('type', type)
+  // Per recovery, il callback legge `next` per sapere dove mandare dopo
+  if (type === 'recovery') url.searchParams.set('next', 'update-password')
+  return url.toString()
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
