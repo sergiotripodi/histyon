@@ -2,6 +2,41 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { isRateLimited } from '@/lib/rate-limit'
 
+type ProfileData = { role: string; status: string }
+
+// Cache profile in Vercel KV for 30s — avoids a DB round-trip on every page request.
+// Falls back to a direct DB query if KV is unavailable (local dev, cold start, etc.).
+async function getProfile(userId: string, supabase: ReturnType<typeof createServerClient>): Promise<ProfileData | null> {
+  const kvUrl   = process.env.KV_REST_API_URL
+  const kvToken = process.env.KV_REST_API_TOKEN
+
+  if (kvUrl && kvToken) {
+    try {
+      const cacheKey = `profile:${userId}`
+      const getRes = await fetch(`${kvUrl}/get/${cacheKey}`, {
+        headers: { Authorization: `Bearer ${kvToken}` },
+      })
+      const { result } = await getRes.json() as { result: string | null }
+      if (result) return JSON.parse(result) as ProfileData
+
+      const { data } = await supabase.from('profiles').select('role, status').eq('id', userId).single()
+      if (data) {
+        await fetch(`${kvUrl}/set/${cacheKey}/ex/30`, {
+          method:  'POST',
+          headers: { Authorization: `Bearer ${kvToken}`, 'Content-Type': 'application/json' },
+          body:    JSON.stringify(JSON.stringify(data)),
+        })
+      }
+      return data ?? null
+    } catch {
+      // KV unavailable — fall through to direct DB
+    }
+  }
+
+  const { data } = await supabase.from('profiles').select('role, status').eq('id', userId).single()
+  return data ?? null
+}
+
 // ── Middleware ─────────────────────────────────────────────────────────────────
 
 export async function middleware(request: NextRequest) {
@@ -73,35 +108,24 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/auth/login', request.url))
   }
 
+  // ── Single profile fetch — reused for all checks below ────────────────────
+  // Cached in KV for 30s to avoid a DB hit on every page request.
+  const profile = user ? await getProfile(user.id, supabase) : null
+
   // ── Account status check (pending / rejected / suspended) ─────────────────
-  // Runs for every authenticated non-admin user.
-  // Blocking pages and API routes are exempt.
   const STATUS_PAGES = ['/auth/pending', '/auth/rejected', '/auth/suspended']
   const isStatusPage = STATUS_PAGES.some(p => pathname.startsWith(p))
 
   if (user && !isStatusPage && !pathname.startsWith('/api/') && !pathname.startsWith('/ops-histyon-console')) {
-    const { data: profileStatus } = await supabase
-      .from('profiles')
-      .select('role, status')
-      .eq('id', user.id)
-      .single()
-
-    if (profileStatus?.role !== 'admin') {
-      const status = profileStatus?.status ?? 'pending'
-      if (status === 'pending') {
-        return NextResponse.redirect(new URL('/auth/pending', request.url))
-      }
-      if (status === 'rejected') {
-        return NextResponse.redirect(new URL('/auth/rejected', request.url))
-      }
-      if (status === 'suspended') {
-        return NextResponse.redirect(new URL('/auth/suspended', request.url))
-      }
+    if (profile?.role !== 'admin') {
+      const status = profile?.status ?? 'pending'
+      if (status === 'pending')   return NextResponse.redirect(new URL('/auth/pending',   request.url))
+      if (status === 'rejected')  return NextResponse.redirect(new URL('/auth/rejected',  request.url))
+      if (status === 'suspended') return NextResponse.redirect(new URL('/auth/suspended', request.url))
     }
   }
 
   if (user && pathname.startsWith('/dashboard')) {
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
     if (profile?.role === 'admin') {
       return NextResponse.redirect(new URL('/ops-histyon-console/dashboard', request.url))
     }
@@ -120,19 +144,11 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/ops-histyon-console/login', request.url))
     }
 
-    // Verify admin role via DB (cannot trust JWT claims alone)
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
     if (profile?.role !== 'admin') {
       await supabase.auth.signOut()
       return NextResponse.redirect(new URL('/auth/login', request.url))
     }
 
-    // Admin must have AAL2 (2FA completed)
     const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
     if (aal?.nextLevel === 'aal2' && aal?.currentLevel !== 'aal2') {
       return NextResponse.redirect(new URL('/ops-histyon-console/mfa-challenge', request.url))
@@ -144,11 +160,6 @@ export async function middleware(request: NextRequest) {
 
   // Redirect authenticated admin trying to re-login
   if (user && pathname === '/ops-histyon-console/login') {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
     if (profile?.role === 'admin') {
       return NextResponse.redirect(new URL('/ops-histyon-console/dashboard', request.url))
     }
