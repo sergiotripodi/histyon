@@ -4,10 +4,11 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { z } from 'zod'
 import { dictionary } from '@/lib/dictionary'
 import { deleteSupabasePrefix, storagePaths } from '@/lib/storage/supabase'
-import { sendAccountDeletedEmail } from '@/lib/email'
+import { sendAccountDeletedEmail, sendPasswordChangedEmail, sendEmailChangedEmail } from '@/lib/email'
 
 const optionalString = z.union([z.string(), z.null(), z.undefined(), z.literal('')])
 
@@ -89,11 +90,24 @@ const PasswordSchema = z.string()
   .regex(/[^a-zA-Z0-9]/, dictionary.validation.passwordSpecial)
 
 export async function updateEmail(formData: FormData) {
-  const supabase = await createClient()
-  const newEmail = formData.get('email') as string
+  const supabase  = await createClient()
+  const newEmail  = formData.get('email') as string
+  const cookieStore = await cookies()
 
   const valid = EmailSchema.safeParse(newEmail)
   if (!valid.success) return { error: valid.error.issues[0].message }
+
+  // Salva la vecchia email in un cookie — la usiamo nel callback per la notifica
+  const { data: { user: currentUser } } = await supabase.auth.getUser()
+  if (currentUser?.email) {
+    cookieStore.set('histyon_old_email', currentUser.email, {
+      httpOnly: true,
+      secure:   process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge:   60 * 60 * 24, // 24h, poi decade da solo
+      path:     '/',
+    })
+  }
 
   const { error } = await supabase.auth.updateUser({ email: newEmail })
   if (error) return { error: dictionary.validation.genericError }
@@ -111,8 +125,18 @@ export async function updatePassword(formData: FormData) {
   const valid = PasswordSchema.safeParse(newPassword)
   if (!valid.success) return { error: valid.error.issues[0].message }
 
+  const { data: { user: currentUser } } = await supabase.auth.getUser()
   const { error } = await supabase.auth.updateUser({ password: newPassword })
   if (error) return { error: dictionary.validation.genericError }
+
+  if (currentUser?.email) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('last_name')
+      .eq('id', currentUser.id)
+      .single()
+    sendPasswordChangedEmail(currentUser.email, profile?.last_name ?? '').catch(console.error)
+  }
 
   return { success: true, message: dictionary.auth.updatePassword.success }
 }

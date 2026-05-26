@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import type { EmailOtpType } from '@supabase/supabase-js'
+import { sendEmailChangedEmail } from '@/lib/email'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -40,6 +41,14 @@ export async function GET(request: NextRequest) {
     if (!error) success = true
   }
 
+  // Notifica "email changed" alla vecchia email dopo conferma cambio indirizzo
+  if (success && type === 'email_change') {
+    const oldEmail = request.cookies.get('histyon_old_email')?.value
+    if (oldEmail) {
+      sendEmailChangedEmail(oldEmail, oldEmail).catch(console.error)
+    }
+  }
+
   const destination = success
     ? isRecovery ? `${base}/auth/update-password` : `${base}/auth/mfa-setup`
     : `${base}/auth/login?error=oauth_failed`
@@ -50,6 +59,8 @@ export async function GET(request: NextRequest) {
     response.cookies.set(name, value, options as Parameters<typeof response.cookies.set>[2])
   }
   response.cookies.set('histyon_auth_next', '', { maxAge: 0, path: '/' })
+  // Pulisce il cookie temporaneo della vecchia email
+  response.cookies.set('histyon_old_email', '', { maxAge: 0, path: '/' })
 
   return response
 }
