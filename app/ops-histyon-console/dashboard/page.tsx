@@ -12,7 +12,6 @@ import { getTotalEgress } from '@/lib/usage/egress'
 import { RESEND_PLANS, RESEND_OVERAGE_RATE, type ResendPlanKey } from '@/lib/resend/plans'
 import { getBillingPeriodMs, BILLING_DAY, PROJECT_START } from '@/lib/billing/config'
 import { getCurrentCosts } from '@/lib/billing/current-costs'
-import { fetchVercelBilling } from '@/lib/vercel/billing'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Dashboard' }
@@ -22,47 +21,22 @@ async function getVercelMonthlyCost(): Promise<{ recurring: number; addon: numbe
   const teamId = process.env.ADMIN_VERCEL_TEAM_ID
   if (!token || !teamId) return { recurring: 0, addon: 0 }
 
-  // Query the last 180 days — Vercel posts charges with a delay, often for past periods
-  const billing = await fetchVercelBilling({
-    token, teamId,
-    fromMs: Date.now() - 180 * 24 * 60 * 60 * 1000,
-    toMs:   Date.now() + 24 * 60 * 60 * 1000,
-    revalidate: 300,
-  })
-
-  if (billing.ok && billing.rowCount > 0) {
-    const SUBSCRIPTION_RE = /pro plan|subscription|hobby plan|enterprise plan/i
-    // Use billedCost (gross, pre-credits) so the Pro subscription always shows $20
-    // even when Vercel applies $20 credits that zero out the effectiveCost
-    const recurring = billing.services
-      .filter(s => SUBSCRIPTION_RE.test(s.name))
-      .reduce((sum, s) => sum + s.billedCost, 0)
-    const addon = billing.services
-      .filter(s => !SUBSCRIPTION_RE.test(s.name))
-      .reduce((sum, s) => sum + Math.max(0, s.billedCost), 0)
-    return { recurring, addon }
-  }
-
-  // Fallback: Teams API for plan price + Domains API for domain costs
-  const headers = { Authorization: `Bearer ${token}` }
+  // Teams API is the only reliable source for monthly subscription price.
+  // The FOCUS billing API (/v1/billing/charges) writes charges day-by-day and
+  // only totals $20 at the END of the billing cycle — useless for mid-cycle snapshots.
+  // invoiceItems.pro.price is in cents (2000 = $20.00).
   try {
-    const [teamRes, domainsRes] = await Promise.all([
-      fetch(`https://api.vercel.com/v2/teams/${teamId}`, { headers, next: { revalidate: 300 } } as RequestInit),
-      fetch(`https://api.vercel.com/v5/domains?teamId=${teamId}`, { headers, next: { revalidate: 60 } } as RequestInit),
-    ])
-    const team        = teamRes.ok    ? await teamRes.json().catch(() => null)            : null
-    const domainsJson = domainsRes.ok ? await domainsRes.json().catch(() => null)         : null
-    const plan: string = team?.billing?.plan ?? 'hobby'
-    const recurring    = plan !== 'hobby' && plan !== 'free' ? 20 : 0
-    const domains: any[] = domainsJson?.domains ?? []
-    const cutoff = Date.now() - 13 * 30 * 24 * 3600 * 1000
-    const addon = domains
-      .filter((d: any) => d.price && (
-        (d.boughtAt   && new Date(d.boughtAt).getTime()   >= cutoff) ||
-        (d.renewedAt  && new Date(d.renewedAt).getTime()  >= cutoff)
-      ))
-      .reduce((sum: number, d: any) => sum + Number(d.price || 0), 0)
-    return { recurring, addon }
+    const res = await fetch(
+      `https://api.vercel.com/v2/teams/${teamId}`,
+      { headers: { Authorization: `Bearer ${token}` }, next: { revalidate: 300 } } as RequestInit,
+    )
+    if (!res.ok) return { recurring: 0, addon: 0 }
+    const team = await res.json().catch(() => null)
+    const items = team?.billing?.invoiceItems ?? {}
+    const recurring = Number(items?.pro?.price ?? 0) / 100
+    // Domain: Vercel Domains API returns price=null, so we can't include it here.
+    // The domain (histyon.com) was purchased before billing tracking started.
+    return { recurring, addon: 0 }
   } catch {
     return { recurring: 0, addon: 0 }
   }
