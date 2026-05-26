@@ -1,17 +1,14 @@
 /**
  * Configurazione fatturazione Histyon — UNICO punto di verità.
  *
- * BILLING_DAY  → giorno in cui inizia/si rinnova il ciclo di fatturazione
- *                (es. 24 = ciclo 24 mag → 23 giu → reset 24 giu)
- * PROJECT_START → mese di avvio del progetto (YYYY-MM)
- *
- * I prezzi/limiti per le soglie di overage sono usati SOLO come fallback
- * quando l'API del servizio non restituisce il dato; la fonte primaria
- * sono sempre le risposte live di Vercel/Supabase/Resend.
+ * BILLING_DAY     → giorno reset egress Supabase (ciclo 24 mag → 23 giu)
+ * RESEND_RESET_DAY → giorno reset quota email Resend (ciclo 27 mag → 26 giu)
+ * PROJECT_START   → mese di avvio del progetto (YYYY-MM)
  */
 
-export const BILLING_DAY   = 24          // giorno di inizio/rinnovo ciclo
-export const PROJECT_START = '2026-05'   // mese di avvio del progetto
+export const BILLING_DAY      = 24          // reset egress Supabase
+export const RESEND_RESET_DAY = 27          // reset quota email Resend
+export const PROJECT_START    = '2026-05'   // mese di avvio del progetto
 
 // ── Supabase — prezzi overage (fallback se API non restituisce il limite) ─────
 export const SB_OVERAGE_DB_PER_GiB      = 0.125  // $/GB database oltre soglia
@@ -27,15 +24,17 @@ export const SB_FALLBACK: Record<string, { free: number; pro: number }> = {
 }
 
 /**
- * Calcola il range del periodo di fatturazione.
+ * Calcola il range di un ciclo a giorno fisso.
  *
- * Se si passa monthStr (es. '2026-05') restituisce il ciclo di quel mese:
- *   startMs = 24 mag 00:00 UTC
- *   endMs   = 24 giu 00:00 UTC  (escluso, usare < endMs)
+ * Senza monthStr usa la data UTC odierna per determinare il ciclo corrente:
+ *   se oggi < resetDay  → ciclo del mese precedente
+ *   se oggi >= resetDay → ciclo del mese corrente
  *
- * Senza argomento calcola il ciclo corrente basandosi sulla data UTC di oggi.
+ * Con monthStr (es. '2026-05') usa quel mese come base del ciclo:
+ *   startMs = resetDay maggio 00:00 UTC
+ *   endMs   = resetDay giugno 00:00 UTC  (esclusivo)
  */
-export function getBillingPeriodMs(monthStr?: string): { startMs: number; endMs: number } {
+export function getPeriodMs(resetDay: number, monthStr?: string): { startMs: number; endMs: number } {
   let y: number, m: number   // m è 0-indexed
 
   if (monthStr) {
@@ -46,16 +45,21 @@ export function getBillingPeriodMs(monthStr?: string): { startMs: number; endMs:
     const now = new Date()
     y = now.getUTCFullYear()
     m = now.getUTCMonth()
-    if (now.getUTCDate() < BILLING_DAY) {
+    if (now.getUTCDate() < resetDay) {
       m--
       if (m < 0) { m = 11; y-- }
     }
   }
 
-  const startMs = Date.UTC(y, m, BILLING_DAY)
+  const startMs = Date.UTC(y, m, resetDay)
   let endY = y, endM = m + 1
   if (endM > 11) { endM = 0; endY++ }
-  const endMs = Date.UTC(endY, endM, BILLING_DAY)   // esclusivo
+  const endMs = Date.UTC(endY, endM, resetDay)   // esclusivo
 
   return { startMs, endMs }
+}
+
+/** Alias: ciclo egress Supabase (reset il BILLING_DAY). */
+export function getBillingPeriodMs(monthStr?: string) {
+  return getPeriodMs(BILLING_DAY, monthStr)
 }

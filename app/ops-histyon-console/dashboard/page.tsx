@@ -9,7 +9,7 @@ import { TimeChart } from '@/components/admin/TimeChart'
 import { UsersTable, type UserRow } from '@/components/admin/UsersTable'
 import { getTotalStorage, getAllDoctorsStorage } from '@/lib/usage/storage'
 import { getTotalEgress } from '@/lib/usage/egress'
-import { getBillingPeriodMs, BILLING_DAY, PROJECT_START } from '@/lib/billing/config'
+import { getPeriodMs, getBillingPeriodMs, RESEND_RESET_DAY, PROJECT_START } from '@/lib/billing/config'
 import { countResendEmailsForPeriod } from '@/lib/billing/current-costs'
 
 export const dynamic = 'force-dynamic'
@@ -62,10 +62,11 @@ export default async function AdminDashboardPage({
   const isCurrentMonth = monthStr === nowKey
   const activeMetric = sp.metric === 'analyses' ? 'analyses' : 'users'
 
-  const { startMs, endMs } = getBillingPeriodMs(monthStr)
-  const periodStartDate = new Date(startMs)
-  const periodEndDate   = new Date(endMs - 1)
-  const periodLabel = `${BILLING_DAY} ${periodStartDate.toLocaleDateString('it-IT', { month: 'long' })} – ${BILLING_DAY - 1} ${periodEndDate.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })}`
+  const [periodY, periodMo] = monthStr.split('-').map(Number)
+  const periodLabel =
+    new Date(Date.UTC(periodY, periodMo - 1, 1)).toLocaleDateString('it-IT', { month: 'long' }) +
+    ' – ' +
+    new Date(Date.UTC(periodY, periodMo, 1)).toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })
 
   const today = new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })
   const todayCapitalized = today.charAt(0).toUpperCase() + today.slice(1)
@@ -152,16 +153,18 @@ export default async function AdminDashboardPage({
   let egressBytes = 0
 
   if (isCurrentMonth) {
-    const [periodY, periodMo] = monthStr.split('-').map(Number)
-    const calStartMs  = Date.UTC(periodY, periodMo - 1, 1)
-    const calEndMs    = Date.UTC(periodY, periodMo, 1)       // exclusive
-    const calStartIso = new Date(calStartMs).toISOString()
-    const calEndIso   = new Date(calEndMs - 1).toISOString() // inclusive for lte query
+    // Email: ciclo Resend, reset il giorno RESEND_RESET_DAY (auto-detect periodo corrente)
+    const { startMs: emailStartMs, endMs: emailEndMs } = getPeriodMs(RESEND_RESET_DAY)
+
+    // Egress: ciclo Supabase, reset il giorno BILLING_DAY (auto-detect periodo corrente)
+    const { startMs: egStartMs, endMs: egEndMs } = getBillingPeriodMs()
+    const egStartIso = new Date(egStartMs).toISOString()
+    const egEndIso   = new Date(egEndMs - 1).toISOString()
 
     const resendKey = process.env.RESEND_API_KEY
     const [emailCount, egressStats] = await Promise.all([
-      resendKey ? countResendEmailsForPeriod(resendKey, calStartMs, calEndMs) : Promise.resolve(null),
-      getTotalEgress({ from: calStartIso, to: calEndIso }),
+      resendKey ? countResendEmailsForPeriod(resendKey, emailStartMs, emailEndMs) : Promise.resolve(null),
+      getTotalEgress({ from: egStartIso, to: egEndIso }),
     ])
     emailsSent  = emailCount
     egressBytes = egressStats.totalBytes
