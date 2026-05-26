@@ -37,7 +37,7 @@ const ADMIN_EMAIL = 'admin@histyon.com'
 const SITE_URL    = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.histyon.com').replace(/\/$/, '')
 
 export async function sendNewDoctorAdminNotify(doctorName: string, doctorEmail: string) {
-  const dashboardUrl = `${SITE_URL}/ops-histyon-console/dashboard`
+  const dashboardUrl = `${SITE_URL}/admin/dashboard`
   await send(ADMIN_EMAIL, newDoctorAdminNotifyEmail(doctorName, doctorEmail, dashboardUrl))
 }
 

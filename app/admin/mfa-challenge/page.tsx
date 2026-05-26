@@ -23,7 +23,7 @@ const steps = [
 export default async function AdminMfaChallengePage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/ops-histyon-console/login')
+  if (!user) redirect('/admin/login')
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-white p-6">

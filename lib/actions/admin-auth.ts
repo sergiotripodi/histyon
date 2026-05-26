@@ -3,9 +3,9 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
+import { createAdminClient } from '@/lib/supabase/admin'
 
-const CONSOLE_PATH = '/ops-histyon-console'
+const CONSOLE_PATH = '/admin'
 
 export async function adminLogin(formData: FormData) {
   const honeypot = formData.get('website') as string | null
@@ -23,11 +23,7 @@ export async function adminLogin(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect(`${CONSOLE_PATH}/login?error=invalid_credentials`)
 
-  const supabaseAdmin = createSupabaseAdmin(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  const supabaseAdmin = createAdminClient()
 
   const { data: profile } = await supabaseAdmin
     .from('profiles')
@@ -68,11 +64,7 @@ export async function adminMfaEnroll(): Promise<{
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Non autenticato' }
 
-  const supabaseAdmin = createSupabaseAdmin(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  const supabaseAdmin = createAdminClient()
 
   type MfaFactor = { id: string; factor_type: string; status: string }
 

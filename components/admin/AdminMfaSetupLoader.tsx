@@ -22,11 +22,11 @@ export function AdminMfaSetupLoader() {
     startTransition(async () => {
       const result = await adminMfaEnroll()
       if (result.alreadyEnrolled) {
-        router.push('/ops-histyon-console/mfa-challenge')
+        router.push('/admin/mfa-challenge')
         return
       }
       if (result.error || !result.factorId) {
-        router.push('/ops-histyon-console/login?error=default')
+        router.push('/admin/login?error=default')
         return
       }
       setEnrollData({

@@ -1,4 +1,5 @@
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, ArrowLeft } from 'lucide-react'
+import Link from 'next/link'
 import { Logo } from '@/components/ui/Logo'
 import { AdminLoginForm } from '@/components/admin/AdminLoginForm'
 
@@ -39,6 +40,16 @@ export default async function AdminLoginPage(props: {
         <p className="mt-8 text-[11px] text-gray-300 text-center">
           Accesso monitorato. Solo personale autorizzato.
         </p>
+
+        <div className="mt-6 flex justify-center">
+          <Link
+            href="/"
+            className="flex items-center gap-1.5 text-xs text-gray-300 hover:text-gray-500 transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Torna alla home
+          </Link>
+        </div>
       </div>
     </div>
   )

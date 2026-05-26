@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
 import { AdminStatCard } from '@/components/admin/AdminStatCard'
@@ -57,13 +57,9 @@ export default async function AdminDashboardPage({
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/ops-histyon-console/login')
+  if (!user) redirect('/admin/login')
 
-  const supabaseAdmin = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  )
+  const supabaseAdmin = createAdminClient()
 
   const sp = await searchParams
   const nowKey = new Date().toISOString().slice(0, 7)

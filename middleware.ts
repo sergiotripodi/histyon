@@ -79,7 +79,7 @@ export async function middleware(request: NextRequest) {
     if (pathname === '/auth/register' && await isRateLimited(ip, 'signup')) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
     }
-    if (pathname === '/ops-histyon-console/login' && await isRateLimited(ip, 'admin-login')) {
+    if (pathname === '/admin/login' && await isRateLimited(ip, 'admin-login')) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
     }
   }
@@ -116,7 +116,7 @@ export async function middleware(request: NextRequest) {
   const STATUS_PAGES = ['/auth/pending', '/auth/rejected', '/auth/suspended']
   const isStatusPage = STATUS_PAGES.some(p => pathname.startsWith(p))
 
-  if (user && !isStatusPage && !pathname.startsWith('/api/') && !pathname.startsWith('/ops-histyon-console')) {
+  if (user && !isStatusPage && !pathname.startsWith('/api/') && !pathname.startsWith('/admin')) {
     if (profile?.role !== 'admin') {
       const status = profile?.status ?? 'pending'
       if (status === 'pending')   return NextResponse.redirect(new URL('/auth/pending',   request.url))
@@ -127,7 +127,7 @@ export async function middleware(request: NextRequest) {
 
   if (user && pathname.startsWith('/dashboard')) {
     if (profile?.role === 'admin') {
-      return NextResponse.redirect(new URL('/ops-histyon-console/dashboard', request.url))
+      return NextResponse.redirect(new URL('/admin/dashboard', request.url))
     }
     const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
     if (aal?.nextLevel === 'aal2' && aal?.currentLevel !== 'aal2') {
@@ -139,9 +139,9 @@ export async function middleware(request: NextRequest) {
   }
 
   // ── Admin console protection ───────────────────────────────────────────────
-  if (pathname.startsWith('/ops-histyon-console/dashboard')) {
+  if (pathname.startsWith('/admin/dashboard')) {
     if (!user) {
-      return NextResponse.redirect(new URL('/ops-histyon-console/login', request.url))
+      return NextResponse.redirect(new URL('/admin/login', request.url))
     }
 
     if (profile?.role !== 'admin') {
@@ -151,17 +151,17 @@ export async function middleware(request: NextRequest) {
 
     const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
     if (aal?.nextLevel === 'aal2' && aal?.currentLevel !== 'aal2') {
-      return NextResponse.redirect(new URL('/ops-histyon-console/mfa-challenge', request.url))
+      return NextResponse.redirect(new URL('/admin/mfa-challenge', request.url))
     }
     if (aal?.nextLevel === 'aal1' && aal?.currentLevel === 'aal1') {
-      return NextResponse.redirect(new URL('/ops-histyon-console/mfa-setup', request.url))
+      return NextResponse.redirect(new URL('/admin/mfa-setup', request.url))
     }
   }
 
   // Redirect authenticated admin trying to re-login
-  if (user && pathname === '/ops-histyon-console/login') {
+  if (user && pathname === '/admin/login') {
     if (profile?.role === 'admin') {
-      return NextResponse.redirect(new URL('/ops-histyon-console/dashboard', request.url))
+      return NextResponse.redirect(new URL('/admin/dashboard', request.url))
     }
   }
 

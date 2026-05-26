@@ -11,7 +11,7 @@ export function AdminHeader() {
 
   return (
     <header className="fixed top-0 left-0 right-0 h-11 bg-white border-b border-gray-200 flex items-center px-5 gap-4 z-40">
-      <Link href="/ops-histyon-console/dashboard" className="hover:opacity-75 transition-opacity shrink-0">
+      <Link href="/admin/dashboard" className="hover:opacity-75 transition-opacity shrink-0">
         <Logo color="black" className="[&_img]:h-5" />
       </Link>
       <button

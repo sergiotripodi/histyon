@@ -21,7 +21,7 @@ export function AdminMfaChallengeLoader() {
     startTransition(async () => {
       const result = await adminMfaGetChallenge()
       if (result.error || !result.factorId) {
-        router.push('/ops-histyon-console/login?error=default')
+        router.push('/admin/login?error=default')
         return
       }
       setChallengeData({
