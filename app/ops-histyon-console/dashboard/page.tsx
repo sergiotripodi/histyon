@@ -3,44 +3,19 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { Suspense } from 'react'
+import Link from 'next/link'
 import { AdminStatCard } from '@/components/admin/AdminStatCard'
 import { MonthPicker } from '@/components/admin/MonthPicker'
-import { CostBarChart } from '@/components/admin/CostBarChart'
-import { ResendPlanSelector } from '@/components/admin/ResendPlanSelector'
-import { getTotalStorage } from '@/lib/usage/storage'
+import { TimeChart } from '@/components/admin/TimeChart'
+import { UsersTable, type UserRow } from '@/components/admin/UsersTable'
+import { getTotalStorage, getAllDoctorsStorage } from '@/lib/usage/storage'
 import { getTotalEgress } from '@/lib/usage/egress'
-import { RESEND_PLANS, RESEND_OVERAGE_RATE, type ResendPlanKey } from '@/lib/resend/plans'
+import { type ResendPlanKey } from '@/lib/resend/plans'
 import { getBillingPeriodMs, BILLING_DAY, PROJECT_START } from '@/lib/billing/config'
 import { getCurrentCosts } from '@/lib/billing/current-costs'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Dashboard' }
-
-async function getVercelMonthlyCost(): Promise<{ recurring: number; addon: number }> {
-  const token  = process.env.ADMIN_VERCEL_TOKEN
-  const teamId = process.env.ADMIN_VERCEL_TEAM_ID
-  if (!token || !teamId) return { recurring: 0, addon: 0 }
-
-  // Teams API is the only reliable source for monthly subscription price.
-  // The FOCUS billing API (/v1/billing/charges) writes charges day-by-day and
-  // only totals $20 at the END of the billing cycle — useless for mid-cycle snapshots.
-  // invoiceItems.pro.price is in cents (2000 = $20.00).
-  try {
-    const res = await fetch(
-      `https://api.vercel.com/v2/teams/${teamId}`,
-      { headers: { Authorization: `Bearer ${token}` }, next: { revalidate: 300 } } as RequestInit,
-    )
-    if (!res.ok) return { recurring: 0, addon: 0 }
-    const team = await res.json().catch(() => null)
-    const items = team?.billing?.invoiceItems ?? {}
-    const recurring = Number(items?.pro?.price ?? 0) / 100
-    // Domain: Vercel Domains API returns price=null, so we can't include it here.
-    // The domain (histyon.com) was purchased before billing tracking started.
-    return { recurring, addon: 0 }
-  } catch {
-    return { recurring: 0, addon: 0 }
-  }
-}
 
 function formatBytes(b: number): string {
   if (b >= 1e9) return `${(b / 1e9).toFixed(1)} GB`
@@ -55,10 +30,23 @@ function fmtNum(v: number): string {
   return v.toLocaleString('it-IT')
 }
 
+function getLast90Days(): { key: string; label: string }[] {
+  return Array.from({ length: 90 }, (_, i) => {
+    const d = new Date()
+    d.setDate(d.getDate() - (89 - i))
+    return {
+      key: d.toISOString().slice(0, 10),
+      label: d.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }),
+    }
+  })
+}
+
+type TicketRow = { doctor_id: string | null; status: string | null; created_at: string }
+
 export default async function AdminDashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string }>
+  searchParams: Promise<{ month?: string; metric?: string }>
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -72,12 +60,12 @@ export default async function AdminDashboardPage({
 
   const cookieStore = await cookies()
   const resendPlanKey = (cookieStore.get('resend_plan')?.value ?? 'free') as ResendPlanKey
-  const resendPlan = RESEND_PLANS[resendPlanKey] ?? RESEND_PLANS.free
 
   const sp = await searchParams
   const nowKey = new Date().toISOString().slice(0, 7)
   const monthStr = sp.month ?? nowKey
   const isCurrentMonth = monthStr === nowKey
+  const activeMetric = sp.metric === 'analyses' ? 'analyses' : 'users'
 
   const { startMs, endMs } = getBillingPeriodMs(monthStr)
   const periodStartDate = new Date(startMs)
@@ -87,68 +75,98 @@ export default async function AdminDashboardPage({
   const today = new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })
   const todayCapitalized = today.charAt(0).toUpperCase() + today.slice(1)
 
-  // ── Static data (not period-dependent) ──────────────────────────────────────
+  const days = getLast90Days()
+  const since = `${days[0].key}T00:00:00.000Z`
+  const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
+
+  // ── All static data in parallel ─────────────────────────────────────────────
   const [
-    { count: totalUsers },
-    { data: allTickets },
     totalStorageStats,
     dbSizeBytes,
+    { data: allUsers },
+    { data: recentUsers },
+    { data: allTickets },
+    { data: recentTickets },
+    egressLogsResult,
+    doctorStorageRows,
   ] = await Promise.all([
-    supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }).neq('role', 'admin'),
-    supabaseAdmin.from('tickets').select('created_at'),
     getTotalStorage().catch(() => ({ inputBytes: 0, dziBytes: 0, totalBytes: 0 })),
     supabaseAdmin.rpc('get_db_size_bytes').then(({ data }) => data as number | null, () => null),
+    supabaseAdmin.from('profiles')
+      .select('id, email, first_name, last_name, created_at, hospital_name')
+      .neq('role', 'admin')
+      .order('created_at', { ascending: false }),
+    supabaseAdmin.from('profiles')
+      .select('created_at')
+      .neq('role', 'admin')
+      .gte('created_at', since)
+      .order('created_at', { ascending: true }),
+    supabaseAdmin.from('tickets')
+      .select('doctor_id, status, created_at')
+      .order('created_at', { ascending: false }),
+    supabaseAdmin.from('tickets')
+      .select('created_at, status')
+      .gte('created_at', since)
+      .order('created_at', { ascending: true }),
+    supabaseAdmin.from('egress_logs')
+      .select('doctor_id, bytes')
+      .gte('created_at', startOfMonth),
+    getAllDoctorsStorage().catch(() => []),
   ])
 
+  // ── Derived maps ────────────────────────────────────────────────────────────
+  const storageByUser: Record<string, number> = {}
+  for (const row of doctorStorageRows) storageByUser[row.doctorId] = row.totalBytes
+
+  const egressByUser: Record<string, number> = {}
+  for (const row of (egressLogsResult.data ?? [])) {
+    const uid = (row as any).doctor_id
+    if (uid) egressByUser[uid] = (egressByUser[uid] ?? 0) + ((row as any).bytes ?? 0)
+  }
+
+  const analysesByUser: Record<string, number> = {}
+  const tickets = (allTickets ?? []) as TicketRow[]
+  for (const t of tickets) {
+    if (t.doctor_id) analysesByUser[t.doctor_id] = (analysesByUser[t.doctor_id] ?? 0) + 1
+  }
+
+  const completed = tickets.filter(t => t.status === 'COMPLETED').length
+  const failed    = tickets.filter(t => ['FAILED', 'ERROR'].includes(t.status ?? '')).length
+  const totalUsers = allUsers?.length ?? 0
+
+  const dayMap: Record<string, number> = {}
+  for (const u of recentUsers ?? []) dayMap[u.created_at.slice(0, 10)] = (dayMap[u.created_at.slice(0, 10)] ?? 0) + 1
+
+  const analysisDayMap: Record<string, number> = {}
+  for (const t of recentTickets ?? []) analysisDayMap[t.created_at.slice(0, 10)] = (analysisDayMap[t.created_at.slice(0, 10)] ?? 0) + 1
+
+  let running = totalUsers - (recentUsers?.length ?? 0)
+  const usersChartData    = days.map(d => { running += dayMap[d.key] ?? 0; return { label: d.label, value: running } })
+  const analysesChartData = days.map(d => ({ label: d.label, value: analysisDayMap[d.key] ?? 0 }))
+  const chartData = activeMetric === 'analyses' ? analysesChartData : usersChartData
+
+  const thisMonth = (recentUsers ?? []).filter(u => {
+    const d = new Date(u.created_at), now = new Date()
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+  }).length
+
   // ── Period-dependent data ────────────────────────────────────────────────────
-  let vercelTotal = 0, vercelRecurring = 0, vercelAddon = 0
-  let supabaseTotal = 0
-  let resendTotal = 0, resendAddon = 0
   let emailsSent: number | null = null
   let egressBytes = 0
-  let dataAvailable = false
 
   if (isCurrentMonth) {
     const startIso = new Date(startMs).toISOString()
     const endIso   = new Date(endMs).toISOString()
-
-    const [cc, egressStats, vercelCosts] = await Promise.all([
+    const [cc, egressStats] = await Promise.all([
       getCurrentCosts({ resendPlanKey }),
       getTotalEgress({ from: startIso, to: endIso }),
-      getVercelMonthlyCost(),
     ])
-
-    vercelTotal     = vercelCosts.recurring + vercelCosts.addon
-    vercelRecurring = vercelCosts.recurring
-    vercelAddon     = vercelCosts.addon
-    supabaseTotal   = cc.supabase.total
-    resendTotal     = cc.resend.total
-    resendAddon     = cc.resend.addon
-    emailsSent      = cc.resend.emailsSent
-    egressBytes     = egressStats.totalBytes
-    dataAvailable   = true
-  } else {
-    // Historical: try snapshot
-    const { data: snap } = await supabaseAdmin
-      .from('admin_billing_snapshots')
-      .select('*')
-      .eq('month', monthStr)
-      .single()
-
-    if (snap) {
-      vercelTotal     = Number(snap.vercel_recurring) + Number(snap.vercel_addon)
-      vercelRecurring = Number(snap.vercel_recurring)
-      vercelAddon     = Number(snap.vercel_addon)
-      supabaseTotal   = Number(snap.supabase_recurring) + Number(snap.supabase_addon)
-      resendTotal     = Number(snap.resend_recurring) + Number(snap.resend_addon)
-      resendAddon     = Number(snap.resend_addon)
-      dataAvailable   = true
-    }
+    emailsSent  = cc.resend.emailsSent
+    egressBytes = egressStats.totalBytes
   }
 
-  const overageEmails = emailsSent !== null
-    ? Math.max(0, emailsSent - resendPlan.quota)
-    : 0
+  const monthTabBase = (metric: string) =>
+    `/ops-histyon-console/dashboard?metric=${metric}${monthStr !== nowKey ? `&month=${monthStr}` : ''}`
 
   return (
     <div className="py-10 px-8">
@@ -161,34 +179,84 @@ export default async function AdminDashboardPage({
         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Panoramica Histyon</h1>
       </div>
 
-      {/* Utenti + Analisi */}
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <AdminStatCard
-          label="Utenti registrati"
-          value={totalUsers ?? 0}
-          href="/ops-histyon-console/dashboard/users"
-        />
-        <AdminStatCard
-          label="Analisi totali"
-          value={(allTickets ?? []).length}
-        />
-      </div>
-
-      {/* PostgreSQL + Storage */}
+      {/* Storage boxes */}
       <div className="grid grid-cols-2 gap-4 mb-12">
-        <AdminStatCard
-          label="Database PostgreSQL"
-          value={dbSizeBytes ?? 0}
-          format="bytes"
-        />
-        <AdminStatCard
-          label="Storage bucket"
-          value={totalStorageStats.totalBytes}
-          format="bytes"
-        />
+        <AdminStatCard label="Database PostgreSQL" value={dbSizeBytes ?? 0} format="bytes" />
+        <AdminStatCard label="Storage bucket"      value={totalStorageStats.totalBytes} format="bytes" />
       </div>
 
-      {/* ── Monthly section ────────────────────────────────────────────────── */}
+      {/* ── Users section ──────────────────────────────────────────────────────── */}
+      <div className="border-t border-gray-100 pt-10 mb-12">
+
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-3">Utenti</p>
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          {[
+            { label: 'Totale utenti',         value: totalUsers.toLocaleString('it-IT') },
+            { label: 'Nuovi questo mese',      value: thisMonth.toLocaleString('it-IT') },
+            { label: 'Nuovi ultimi 90 giorni', value: (recentUsers?.length ?? 0).toLocaleString('it-IT') },
+          ].map(({ label, value }) => (
+            <div key={label} className="border border-gray-200 bg-white px-6 py-5">
+              <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-2">{label}</p>
+              <p className="text-3xl font-bold tabular-nums text-gray-900">{value}</p>
+            </div>
+          ))}
+        </div>
+
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-3">Analisi effettuate</p>
+        <div className="grid grid-cols-3 gap-4 mb-8">
+          {[
+            { label: 'Totale analisi',      value: tickets.length.toLocaleString('it-IT'), red: false },
+            { label: 'Completate',          value: completed.toLocaleString('it-IT'),      red: false },
+            { label: 'Fallite',             value: failed.toLocaleString('it-IT'),         red: failed > 0 },
+          ].map(({ label, value, red }) => (
+            <div key={label} className="border border-gray-200 bg-white px-6 py-5">
+              <p className={`text-[10px] font-medium uppercase tracking-[0.14em] mb-2 ${red ? 'text-red-400' : 'text-gray-400'}`}>{label}</p>
+              <p className={`text-3xl font-bold tabular-nums ${red ? 'text-red-600' : 'text-gray-900'}`}>{value}</p>
+            </div>
+          ))}
+        </div>
+
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">Dati utenti</p>
+        <div className="border border-gray-200 bg-white mb-8">
+          <UsersTable
+            users={(allUsers ?? []).map(u => ({
+              id:            u.id,
+              email:         u.email ?? null,
+              first_name:    u.first_name ?? null,
+              last_name:     u.last_name ?? null,
+              hospital_name: u.hospital_name ?? null,
+              created_at:    u.created_at,
+              analyses:      analysesByUser[u.id] ?? 0,
+              storageBytes:  storageByUser[u.id] ?? 0,
+              egressBytes:   egressByUser[u.id] ?? 0,
+            } satisfies UserRow))}
+          />
+        </div>
+
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400">Trend</p>
+          <div className="inline-flex border border-gray-200 bg-white">
+            {([['users', 'Utenti'], ['analyses', 'Analisi effettuate']] as const).map(([key, label]) => (
+              <Link
+                key={key}
+                href={monthTabBase(key)}
+                className={`px-4 py-2 text-xs font-medium transition-colors ${activeMetric === key ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
+              >
+                {label}
+              </Link>
+            ))}
+          </div>
+        </div>
+        <div className="border border-gray-200 bg-white p-6">
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-6">
+            {activeMetric === 'analyses' ? 'Analisi effettuate per giorno' : 'Crescita utenti'} — ultimi 90 giorni
+          </p>
+          <TimeChart data={chartData} height={160} />
+        </div>
+
+      </div>
+
+      {/* ── Monthly section ────────────────────────────────────────────────────── */}
       <div className="border-t border-gray-100 pt-10">
 
         <div className="flex items-baseline gap-4 mb-6">
@@ -200,116 +268,21 @@ export default async function AdminDashboardPage({
           <MonthPicker minMonth={PROJECT_START} />
         </Suspense>
 
-        {dataAvailable ? (
-          <>
-            {/* Email + Egress */}
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="border border-gray-200 bg-white px-6 py-5">
-                <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-3">
-                  Email inviate
-                </p>
-                <p className="text-3xl font-bold tabular-nums text-gray-900">
-                  {emailsSent !== null ? fmtNum(emailsSent) : '—'}
-                </p>
-              </div>
-              <div className="border border-gray-200 bg-white px-6 py-5">
-                <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-3">
-                  Egress Storage
-                </p>
-                <p className="text-3xl font-bold tabular-nums text-gray-900">
-                  {formatBytes(egressBytes)}
-                </p>
-              </div>
-            </div>
-
-            {/* Cost boxes per platform */}
-            <div className="grid grid-cols-3 gap-4 mb-8">
-
-              {/* Vercel */}
-              <div className="border border-gray-200 bg-white p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-5 h-5 bg-gray-900 flex items-center justify-center shrink-0">
-                    <svg viewBox="0 0 116 100" fill="white" className="w-3 h-3">
-                      <path d="M57.5 15L100 85H15L57.5 15Z" />
-                    </svg>
-                  </div>
-                  <span className="text-xs font-bold text-gray-900">Vercel</span>
-                </div>
-                <p className="text-2xl font-bold tabular-nums text-gray-900">${vercelTotal.toFixed(2)}</p>
-              </div>
-
-              {/* Supabase */}
-              <div className="border border-gray-200 bg-white p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-5 h-5 bg-[#3ECF8E] flex items-center justify-center shrink-0">
-                    <svg viewBox="0 0 109 113" fill="none" className="w-3 h-3">
-                      <path d="M63.7076 110.284C60.8481 113.885 55.0502 111.912 54.9813 107.314L53.9738 40.0627L99.1935 40.0627C107.384 40.0627 111.952 49.5228 106.859 55.9374L63.7076 110.284Z" fill="white" />
-                      <path d="M45.317 2.07103C48.1765 -1.53037 53.9745 0.442937 54.0434 5.04075L54.4849 72.2922H9.83113C1.64038 72.2922 -2.92775 62.8321 2.1655 56.4175L45.317 2.07103Z" fill="white" fillOpacity="0.7" />
-                    </svg>
-                  </div>
-                  <span className="text-xs font-bold text-gray-900">Supabase</span>
-                </div>
-                <p className="text-2xl font-bold tabular-nums text-gray-900">${supabaseTotal.toFixed(2)}</p>
-              </div>
-
-              {/* Resend */}
-              <div className="border border-gray-200 bg-white p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-5 h-5 bg-black flex items-center justify-center shrink-0">
-                    <span className="text-white font-black text-[10px] leading-none select-none">R</span>
-                  </div>
-                  <span className="text-xs font-bold text-gray-900">Resend</span>
-                </div>
-                <p className="text-2xl font-bold tabular-nums text-gray-900">${resendTotal.toFixed(2)}</p>
-              </div>
-
-            </div>
-
-            {/* Bar chart */}
-            <CostBarChart
-              data={[
-                { service: 'Vercel',   cost: vercelTotal,   color: '#111827' },
-                { service: 'Supabase', cost: supabaseTotal, color: '#3ECF8E' },
-                { service: 'Resend',   cost: resendTotal,   color: '#6366F1' },
-              ]}
-              periodLabel={periodLabel}
-            />
-          </>
-        ) : (
-          <div className="border border-gray-200 bg-white px-8 py-10 text-center">
-            <p className="text-sm text-gray-400">Nessun dato disponibile per questo periodo.</p>
-            <p className="text-[11px] text-gray-300 mt-1">
-              Lo snapshot viene salvato automaticamente il giorno {BILLING_DAY} di ogni mese.
+        <div className="grid grid-cols-2 gap-4 mt-6">
+          <div className="border border-gray-200 bg-white px-6 py-5">
+            <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-3">Email inviate</p>
+            <p className="text-3xl font-bold tabular-nums text-gray-900">
+              {emailsSent !== null ? fmtNum(emailsSent) : '—'}
             </p>
           </div>
-        )}
-
-      </div>
-
-      {/* ── Resend plan selector ───────────────────────────────────────────── */}
-      <div className="mt-12 pt-6 border-t border-gray-100">
-        <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-3">
-          Piano Resend attivo
-        </p>
-        <ResendPlanSelector currentPlan={resendPlanKey} />
-        <div className="mt-3 space-y-1">
-          <p className="text-xs text-gray-500">
-            Ciclo {periodLabel}:{' '}
-            <strong className="text-gray-700">${resendPlan.price.toFixed(2)}</strong> (piano {resendPlan.label})
-            {resendAddon > 0 && (
-              <> + <strong className="text-gray-700">${resendAddon.toFixed(2)}</strong> overage</>
-            )}
-          </p>
-          {overageEmails > 0 && (
-            <p className="text-xs text-gray-500">
-              Email oltre quota: <strong className="text-gray-700">{fmtNum(overageEmails)}</strong> ×{' '}
-              ${(RESEND_OVERAGE_RATE / 1000).toFixed(4)}/email
+          <div className="border border-gray-200 bg-white px-6 py-5">
+            <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-3">Egress Storage</p>
+            <p className="text-3xl font-bold tabular-nums text-gray-900">
+              {formatBytes(egressBytes)}
             </p>
-          )}
-          <p className="text-[11px] text-gray-400">
-            Stima overage: $0.90 per ogni 1.000 email oltre la quota del piano
-          </p>
+          </div>
         </div>
+
       </div>
 
     </div>

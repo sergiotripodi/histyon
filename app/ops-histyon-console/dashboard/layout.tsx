@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
-import { AdminSidebar } from '@/components/admin/AdminSidebar'
+import { AdminHeader } from '@/components/admin/AdminHeader'
 
 export const metadata: Metadata = {
   title: {
@@ -20,7 +20,6 @@ export default async function AdminDashboardLayout({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/ops-histyon-console/login')
 
-  // Double-check admin role in layout (defense in depth)
   const supabaseAdmin = createSupabaseAdmin(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -36,8 +35,8 @@ export default async function AdminDashboardLayout({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <AdminSidebar />
-      <main className="pl-[240px]">
+      <AdminHeader />
+      <main className="pt-11">
         <div className="max-w-[1200px] mx-auto">
           {children}
         </div>
