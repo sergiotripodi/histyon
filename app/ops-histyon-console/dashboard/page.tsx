@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
-import { cookies } from 'next/headers'
 import { Suspense } from 'react'
 import Link from 'next/link'
 import { AdminStatCard } from '@/components/admin/AdminStatCard'
@@ -10,9 +9,8 @@ import { TimeChart } from '@/components/admin/TimeChart'
 import { UsersTable, type UserRow } from '@/components/admin/UsersTable'
 import { getTotalStorage, getAllDoctorsStorage } from '@/lib/usage/storage'
 import { getTotalEgress } from '@/lib/usage/egress'
-import { type ResendPlanKey } from '@/lib/resend/plans'
 import { getBillingPeriodMs, BILLING_DAY, PROJECT_START } from '@/lib/billing/config'
-import { getCurrentCosts } from '@/lib/billing/current-costs'
+import { countResendEmailsForPeriod } from '@/lib/billing/current-costs'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Dashboard' }
@@ -57,9 +55,6 @@ export default async function AdminDashboardPage({
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } },
   )
-
-  const cookieStore = await cookies()
-  const resendPlanKey = (cookieStore.get('resend_plan')?.value ?? 'free') as ResendPlanKey
 
   const sp = await searchParams
   const nowKey = new Date().toISOString().slice(0, 7)
@@ -151,17 +146,24 @@ export default async function AdminDashboardPage({
   }).length
 
   // ── Period-dependent data ────────────────────────────────────────────────────
+  // Use calendar month (not billing period) so emails sent before the billing day
+  // are still counted (e.g. emails from May 9 when billing starts May 24).
   let emailsSent: number | null = null
   let egressBytes = 0
 
   if (isCurrentMonth) {
-    const startIso = new Date(startMs).toISOString()
-    const endIso   = new Date(endMs).toISOString()
-    const [cc, egressStats] = await Promise.all([
-      getCurrentCosts({ resendPlanKey }),
-      getTotalEgress({ from: startIso, to: endIso }),
+    const [periodY, periodMo] = monthStr.split('-').map(Number)
+    const calStartMs  = Date.UTC(periodY, periodMo - 1, 1)
+    const calEndMs    = Date.UTC(periodY, periodMo, 1)       // exclusive
+    const calStartIso = new Date(calStartMs).toISOString()
+    const calEndIso   = new Date(calEndMs - 1).toISOString() // inclusive for lte query
+
+    const resendKey = process.env.RESEND_API_KEY
+    const [emailCount, egressStats] = await Promise.all([
+      resendKey ? countResendEmailsForPeriod(resendKey, calStartMs, calEndMs) : Promise.resolve(null),
+      getTotalEgress({ from: calStartIso, to: calEndIso }),
     ])
-    emailsSent  = cc.resend.emailsSent
+    emailsSent  = emailCount
     egressBytes = egressStats.totalBytes
   }
 
