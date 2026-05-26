@@ -35,12 +35,23 @@ const resend = new Resend(process.env.RESEND_API_KEY!)
 const FROM   = process.env.RESEND_FROM_EMAIL ?? 'Histyon <noreply@histyon.com>'
 
 // ── JWT verification (HS256) ──────────────────────────────────────────────────
+// Supabase genera secrets nel formato "v1,whsec_<base64>" — la chiave HMAC
+// è la parte base64 decodificata. Gestiamo anche secret plain (fallback).
+
+function resolveHmacKey(secret: string): Buffer {
+  // formato Supabase: "v1,whsec_<base64url>"
+  const match = secret.match(/whsec_([A-Za-z0-9+/=_-]+)/)
+  if (match) return Buffer.from(match[1], 'base64')
+  // fallback: secret plain (es. stringa arbitraria)
+  return Buffer.from(secret)
+}
 
 function verifyHookJwt(token: string, secret: string): boolean {
   try {
     const parts = token.split('.')
     if (parts.length !== 3) return false
-    const expected = createHmac('sha256', secret)
+    const key      = resolveHmacKey(secret)
+    const expected = createHmac('sha256', key)
       .update(`${parts[0]}.${parts[1]}`)
       .digest('base64url')
     const a = Buffer.from(expected)
