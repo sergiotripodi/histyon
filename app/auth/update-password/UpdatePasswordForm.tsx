@@ -32,7 +32,7 @@ export function UpdatePasswordForm({
   btnLabel: string
 }) {
   return (
-    <form className="space-y-6">
+    <form action={updatePassword} className="space-y-6">
       <ValidatedInput name="password"        type="password" label={passwordLabel} required />
       <ValidatedInput name="confirmPassword" type="password" label={confirmLabel}  required />
       <SubmitButton label={btnLabel} />

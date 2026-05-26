@@ -36,7 +36,7 @@ export function ForgotPasswordForm({
   btnLabel: string
 }) {
   return (
-    <form className="space-y-6">
+    <form action={resetPassword} className="space-y-6">
       <ValidatedInput
         name="email"
         type="email"
