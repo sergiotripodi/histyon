@@ -5,11 +5,8 @@ import { TISSUES_BUCKET, storagePaths } from '@/lib/storage/supabase'
 import { v4 as uuidv4 } from 'uuid'
 import { revalidatePath } from 'next/cache'
 import { dictionary } from '@/lib/dictionary'
-import { ALLOWED_SLIDE_EXTENSIONS, MAX_UPLOAD_BYTES } from '@/lib/constants'
+import { ALLOWED_SLIDE_EXTENSIONS, MAX_UPLOAD_BYTES, UUID_RE } from '@/lib/constants'
 import { logger } from '@/lib/logger'
-
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 const ALLOWED_UPLOAD_TYPES = new Set([
   'image/jpeg',

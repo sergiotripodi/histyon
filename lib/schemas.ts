@@ -2,6 +2,30 @@ import { z } from 'zod'
 import { REGEX_VALIDATORS } from './constants'
 import { dictionary } from '@/lib/dictionary'
 
+const optionalString = z.union([z.string(), z.null(), z.undefined(), z.literal('')])
+
+/** Zod schema for the doctor profile update form (settings page). */
+export const ProfileSchema = z.object({
+  first_name:             z.string().min(2, dictionary.validation.name),
+  last_name:              z.string().min(2, dictionary.validation.name),
+  phone_number:           optionalString,
+  date_of_birth:          optionalString,
+  place_of_birth:         optionalString,
+  address_street:         optionalString,
+  address_civic:          optionalString,
+  postal_code:            optionalString,
+  city:                   optionalString,
+  region:                 optionalString,
+  country:                optionalString,
+  medical_license_number: optionalString,
+  hospital_name:          optionalString,
+})
+
+/** Zod schema for a reason string sent by admin actions (reject, suspend). */
+export const AdminReasonSchema = z.object({
+  reason: z.string().trim().min(1, 'Reason required').max(1000),
+})
+
 export const PasswordSchema = z.string()
   .min(8, dictionary.validation.passwordLength)
   .regex(new RegExp(REGEX_VALIDATORS.PASSWORD), dictionary.validation.passwordRegexMsg)

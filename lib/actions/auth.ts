@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { DoctorRegistrationSchema, PasswordSchema } from '@/lib/schemas'
 import { dictionary } from '@/lib/dictionary'
 import { headers } from 'next/headers'
@@ -54,11 +54,7 @@ export async function mfaEnroll(): Promise<{ factorId?: string; qrCode?: string;
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Non autenticato' }
 
-  const supabaseAdmin = createSupabaseAdmin(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  const supabaseAdmin = createAdminClient()
 
   type MfaFactor = { id: string; factor_type: string; status: string }
 
@@ -198,11 +194,7 @@ async function createDoctorAccount(
 
   if (authError || !authData.user) return { authError }
 
-  const supabaseAdmin = createSupabaseAdmin(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  )
+  const supabaseAdmin = createAdminClient()
 
   const { error: profileError } = await supabaseAdmin
     .from('profiles')

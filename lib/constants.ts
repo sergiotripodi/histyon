@@ -193,6 +193,9 @@ export const SLIDE_FORMATS_DISPLAY = ['SVS', 'NDPI', 'TIFF', 'MRXS', 'SCN', 'CZI
 /** Max upload size in bytes (5 GB). */
 export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024 * 1024
 
+/** UUID v1-v5 regex — shared across API routes and server actions. */
+export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
 export const REGEX_VALIDATORS = {
   // Includes accented chars (Italian/European) and hyphen for compound names
   NAME: "^[a-zA-ZàÀáÁâÂãÃäÄåÅæÆçÇèÈéÉêÊëËìÌíÍîÎïÏðÐñÑòÒóÓôÔõÕöÖøØùÙúÚûÛüÜýÝþÞÿŸ\\s'\\-]+$",

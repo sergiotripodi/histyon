@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
@@ -10,24 +10,7 @@ import { dictionary } from '@/lib/dictionary'
 import { deleteSupabasePrefix, storagePaths } from '@/lib/storage/supabase'
 import { sendAccountDeletedEmail, sendPasswordChangedEmail } from '@/lib/email'
 import { logger } from '@/lib/logger'
-
-const optionalString = z.union([z.string(), z.null(), z.undefined(), z.literal('')])
-
-const ProfileSchema = z.object({
-  first_name:             z.string().min(2, dictionary.validation.name),
-  last_name:              z.string().min(2, dictionary.validation.name),
-  phone_number:           optionalString,
-  date_of_birth:          optionalString,
-  place_of_birth:         optionalString,
-  address_street:         optionalString,
-  address_civic:          optionalString,
-  postal_code:            optionalString,
-  city:                   optionalString,
-  region:                 optionalString,
-  country:                optionalString,
-  medical_license_number: optionalString,
-  hospital_name:          optionalString,
-})
+import { ProfileSchema } from '@/lib/schemas'
 
 export async function updateProfile(formData: FormData) {
   const supabase = await createClient()
@@ -71,7 +54,7 @@ export async function updateProfile(formData: FormData) {
     .select()
 
   if (error) {
-    console.error('Supabase DB error:', error.message)
+    logger.error('updateProfile: DB update failed', { userId: user.id, code: error.code })
     return { error: dictionary.validation.genericError }
   }
 
@@ -85,9 +68,9 @@ export async function updateProfile(formData: FormData) {
 
 const EmailSchema    = z.string().email(dictionary.validation.emailInvalid)
 const PasswordSchema = z.string()
-  .min(8, dictionary.validation.passwordLength)
-  .regex(/[A-Z]/, dictionary.validation.passwordComplexity)
-  .regex(/[0-9]/, dictionary.validation.passwordComplexity)
+  .min(8,                dictionary.validation.passwordLength)
+  .regex(/[A-Z]/,        dictionary.validation.passwordComplexity)
+  .regex(/[0-9]/,        dictionary.validation.passwordComplexity)
   .regex(/[^a-zA-Z0-9]/, dictionary.validation.passwordSpecial)
 
 export async function updateEmail(formData: FormData) {
@@ -136,7 +119,8 @@ export async function updatePassword(formData: FormData) {
       .select('last_name')
       .eq('id', currentUser.id)
       .single()
-    sendPasswordChangedEmail(currentUser.email, profile?.last_name ?? '').catch(console.error)
+    sendPasswordChangedEmail(currentUser.email, profile?.last_name ?? '')
+      .catch(err => logger.warn('updatePassword: email failed', { err }))
   }
 
   return { success: true, message: dictionary.auth.updatePassword.success }
@@ -162,11 +146,7 @@ export async function deleteAccount(formData: FormData) {
     .eq('id', user.id)
     .single()
 
-  const admin = createSupabaseAdmin(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  const admin = createAdminClient()
 
   // Delete storage files (non-blocking — DB cleanup proceeds regardless)
   try {
@@ -192,7 +172,8 @@ export async function deleteAccount(formData: FormData) {
     return { error: dictionary.validation.genericError }
   }
 
-  sendAccountDeletedEmail(user.email!, profile?.last_name ?? '').catch(console.error)
+  sendAccountDeletedEmail(user.email!, profile?.last_name ?? '')
+    .catch(err => logger.warn('deleteAccount: email failed', { err }))
 
   await supabase.auth.signOut()
   redirect('/auth/account-deleted')

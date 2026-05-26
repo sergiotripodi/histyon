@@ -32,6 +32,7 @@ import {
   emailChangeEmail,
   reauthEmail,
 } from '@/lib/emails/auth'
+import { logger } from '@/lib/logger'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 const FROM   = process.env.RESEND_FROM_EMAIL ?? 'Histyon <no-reply@histyon.com>'
@@ -137,7 +138,7 @@ export async function POST(req: Request) {
   const hookSecret = process.env.SUPABASE_HOOK_SECRET?.trim()
 
   if (hookSecret && !verifyHookSecret(req.headers, rawBody, hookSecret)) {
-    console.error('[send-email hook] unauthorized')
+    logger.warn('[send-email] unauthorized hook request')
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -182,14 +183,14 @@ export async function POST(req: Request) {
       email = reauthEmail(emailData.token ?? '')
       break
     default:
-      console.warn('[send-email hook] tipo non gestito:', actionType)
+      logger.warn('[send-email] unhandled action type', { actionType })
       return NextResponse.json({ ok: true, warning: `unhandled type: ${actionType}` })
   }
 
   try {
     await resend.emails.send({ from: FROM, to, subject: email.subject, html: email.html })
   } catch (err) {
-    console.error('[send-email hook] errore Resend:', err)
+    logger.error('[send-email] Resend send failed', { actionType, err })
     return NextResponse.json({ ok: false, error: 'send failed' }, { status: 200 })
   }
 

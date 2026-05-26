@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createAdmin } from '@supabase/supabase-js'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { unstable_cache } from 'next/cache'
 import { TISSUES_BUCKET } from '@/lib/storage/supabase'
+import { UUID_RE } from '@/lib/constants'
 
 // Proxy autenticato per le tile DZI — bucket scottea-tissues PRIVATO.
 //
@@ -13,20 +14,10 @@ import { TISSUES_BUCKET } from '@/lib/storage/supabase'
 // 1 query DB per (ticket, dottore) ogni ora (unstable_cache).
 // Egress loggato in fire-and-forget su egress_logs per attribuzione per-dottore.
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-
-function adminClient() {
-  return createAdmin(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
-}
-
 function getCachedPatientId(ticketId: string, userId: string) {
   return unstable_cache(
     async () => {
-      const admin = adminClient()
+      const admin = createAdminClient()
       const { data } = await admin
         .from('tickets')
         .select('patient_id')
@@ -48,7 +39,7 @@ async function logTileEgress(
   bucketPath: string
 ): Promise<void> {
   try {
-    const admin = adminClient()
+    const admin = createAdminClient()
     const parts    = bucketPath.split('/')
     const filename = parts.pop()!
     const dir      = parts.join('/')
@@ -108,7 +99,7 @@ export async function GET(
   // Tutte le risorse DZI vivono sotto dzi/ nel bucket unificato
   const bucketPath = `dzi/${user.id}/${patientId}/${filePath}`
 
-  const admin = adminClient()
+  const admin = createAdminClient()
   const { data: signed, error: signErr } = await admin.storage
     .from(TISSUES_BUCKET)
     .createSignedUrl(bucketPath, 60)
