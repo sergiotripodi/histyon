@@ -32,7 +32,7 @@ import {
 } from '@/lib/emails/auth'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
-const FROM   = process.env.RESEND_FROM_EMAIL ?? 'Histyon <noreply@histyon.com>'
+const FROM   = process.env.RESEND_FROM_EMAIL ?? 'Histyon <no-reply@histyon.com>'
 
 // ── JWT verification (HS256) ──────────────────────────────────────────────────
 // Supabase genera secrets nel formato "v1,whsec_<base64>" — la chiave HMAC

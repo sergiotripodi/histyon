@@ -2,7 +2,7 @@ import { Resend } from 'resend'
 import { accountDeletedEmail, passwordChangedEmail, emailChangedEmail } from './emails/auth'
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
-const FROM   = process.env.RESEND_FROM_EMAIL ?? 'Histyon <noreply@histyon.com>'
+const FROM   = process.env.RESEND_FROM_EMAIL ?? 'Histyon <no-reply@histyon.com>'
 
 async function send(to: string, { subject, html }: { subject: string; html: string }) {
   if (!resend) return
