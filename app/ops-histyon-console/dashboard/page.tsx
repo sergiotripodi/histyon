@@ -211,11 +211,6 @@ export default async function AdminDashboardPage({
                 <p className="text-3xl font-bold tabular-nums text-gray-900">
                   {emailsSent !== null ? fmtNum(emailsSent) : '—'}
                 </p>
-                {emailsSent !== null && (
-                  <p className="text-xs text-gray-400 mt-2">
-                    {fmtNum(Math.max(0, resendPlan.quota - emailsSent))} rimanenti su quota {fmtNum(resendPlan.quota)}
-                  </p>
-                )}
               </div>
               <div className="border border-gray-200 bg-white px-6 py-5">
                 <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-3">
@@ -224,7 +219,6 @@ export default async function AdminDashboardPage({
                 <p className="text-3xl font-bold tabular-nums text-gray-900">
                   {formatBytes(egressBytes)}
                 </p>
-                <p className="text-xs text-gray-400 mt-2">traffico in uscita dal bucket</p>
               </div>
             </div>
 
@@ -242,14 +236,6 @@ export default async function AdminDashboardPage({
                   <span className="text-xs font-bold text-gray-900">Vercel</span>
                 </div>
                 <p className="text-2xl font-bold tabular-nums text-gray-900">${vercelTotal.toFixed(2)}</p>
-                <div className="mt-2 space-y-0.5">
-                  {vercelRecurring > 0 && (
-                    <p className="text-[10px] text-gray-400">Pro ${vercelRecurring.toFixed(2)}</p>
-                  )}
-                  {vercelAddon > 0 && (
-                    <p className="text-[10px] text-gray-400">domini ${vercelAddon.toFixed(2)}</p>
-                  )}
-                </div>
               </div>
 
               {/* Supabase */}
@@ -264,7 +250,6 @@ export default async function AdminDashboardPage({
                   <span className="text-xs font-bold text-gray-900">Supabase</span>
                 </div>
                 <p className="text-2xl font-bold tabular-nums text-gray-900">${supabaseTotal.toFixed(2)}</p>
-                <p className="text-[10px] text-gray-400 mt-2">Piano Pro mensile</p>
               </div>
 
               {/* Resend */}
@@ -276,12 +261,6 @@ export default async function AdminDashboardPage({
                   <span className="text-xs font-bold text-gray-900">Resend</span>
                 </div>
                 <p className="text-2xl font-bold tabular-nums text-gray-900">${resendTotal.toFixed(2)}</p>
-                <div className="mt-2 space-y-0.5">
-                  <p className="text-[10px] text-gray-400">Piano {resendPlan.label} ${resendPlan.price.toFixed(2)}</p>
-                  {resendAddon > 0 && (
-                    <p className="text-[10px] text-gray-400">overage ${resendAddon.toFixed(2)}</p>
-                  )}
-                </div>
               </div>
 
             </div>
