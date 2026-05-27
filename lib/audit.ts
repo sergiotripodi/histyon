@@ -30,6 +30,7 @@ export type AdminAction =
   | 'user_rejected'
   | 'user_suspended'
   | 'user_reactivated'
+  | 'account_auto_deleted'      // cron-triggered deletion (admin_id = null)
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -40,7 +41,9 @@ async function getRequestContext(): Promise<{ ip: string | null; ua: string | nu
       h.get('x-forwarded-for')?.split(',')[0]?.trim() ??
       h.get('x-real-ip') ??
       null
-    const ua = h.get('user-agent') ?? null
+    // Truncate to 512 chars — enough to identify browser/OS, avoids bloat
+    const rawUa = h.get('user-agent') ?? null
+    const ua = rawUa ? rawUa.slice(0, 512) : null
     return { ip, ua }
   } catch {
     return { ip: null, ua: null }

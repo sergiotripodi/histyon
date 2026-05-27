@@ -23,7 +23,15 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
 
   const { error } = await admin
     .from('profiles')
-    .update({ status: 'approved', status_reason: null, status_updated_at: new Date().toISOString() })
+    .update({
+      status: 'approved',
+      status_reason: null,
+      status_updated_at: new Date().toISOString(),
+      // Clear all scheduled-deletion fields on reactivation
+      deletion_scheduled_at: null,
+      deletion_reason: null,
+      deletion_warning_sent_at: null,
+    })
     .eq('id', id)
 
   if (error) {

@@ -9,6 +9,8 @@ import {
   accountRejectedEmail,
   accountSuspendedEmail,
   accountReactivatedEmail,
+  accountDeletionWarningEmail,
+  accountAutoDeletedEmail,
 } from './emails/auth'
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
@@ -54,8 +56,25 @@ export async function sendAccountRejectedEmail(to: string, doctorName: string, r
   await send(to, accountRejectedEmail(doctorName, reason, deletionDate))
 }
 
-export async function sendAccountSuspendedEmail(to: string, doctorName: string, reason: string) {
-  await send(to, accountSuspendedEmail(doctorName, reason))
+export async function sendAccountSuspendedEmail(to: string, doctorName: string, reason: string, deletionDate: string) {
+  await send(to, accountSuspendedEmail(doctorName, reason, deletionDate))
+}
+
+export async function sendAccountDeletionWarningEmail(
+  to: string,
+  doctorName: string,
+  deletionDate: string,
+  reason: 'rejected' | 'suspended_expired',
+) {
+  await send(to, accountDeletionWarningEmail(doctorName, deletionDate, reason))
+}
+
+export async function sendAccountAutoDeletedEmail(
+  to: string,
+  doctorName: string,
+  reason: 'rejected' | 'suspended_expired',
+) {
+  await send(to, accountAutoDeletedEmail(doctorName, reason))
 }
 
 export async function sendAccountReactivatedEmail(to: string, doctorName: string) {

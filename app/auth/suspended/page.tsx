@@ -12,9 +12,15 @@ export default async function SuspendedPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('status_reason')
+    .select('status_reason, deletion_scheduled_at')
     .eq('id', user.id)
     .single()
+
+  const deletionDate = profile?.deletion_scheduled_at
+    ? new Date(profile.deletion_scheduled_at).toLocaleDateString('it-IT', {
+        day: 'numeric', month: 'long', year: 'numeric',
+      })
+    : null
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-white p-4">
@@ -39,11 +45,22 @@ export default async function SuspendedPage() {
           </div>
         )}
 
+        {deletionDate && (
+          <div className="border-l-2 border-amber-300 bg-amber-50 px-4 py-3 mb-6">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-600 mb-1">Eliminazione programmata</p>
+            <p className="text-sm text-amber-800">
+              Se il tuo account non viene riattivato, i tuoi dati saranno eliminati definitivamente il{' '}
+              <strong>{deletionDate}</strong>.
+            </p>
+          </div>
+        )}
+
         <p className="text-xs text-gray-400 mb-10">
-          Per informazioni o per richiedere la riattivazione scrivi a{' '}
+          Per richiedere la riattivazione prima dell'eliminazione scrivi a{' '}
           <a href="mailto:info@histyon.com" className="text-gray-600 hover:text-gray-900 font-medium">
             info@histyon.com
           </a>
+          . Il team risponderà entro 48 ore lavorative.
         </p>
 
         <form action={signout}>

@@ -230,7 +230,9 @@ export type Database = {
           country: string | null
           created_at: string
           date_of_birth: string | null
+          deletion_reason: string | null
           deletion_scheduled_at: string | null
+          deletion_warning_sent_at: string | null
           email: string
           first_name: string
           fiscal_code: string | null
@@ -260,7 +262,9 @@ export type Database = {
           country?: string | null
           created_at?: string
           date_of_birth?: string | null
+          deletion_reason?: string | null
           deletion_scheduled_at?: string | null
+          deletion_warning_sent_at?: string | null
           email: string
           first_name: string
           fiscal_code?: string | null
@@ -290,7 +294,9 @@ export type Database = {
           country?: string | null
           created_at?: string
           date_of_birth?: string | null
+          deletion_reason?: string | null
           deletion_scheduled_at?: string | null
+          deletion_warning_sent_at?: string | null
           email?: string
           first_name?: string
           fiscal_code?: string | null

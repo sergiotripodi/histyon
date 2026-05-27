@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/cron/cleanup-rejected",
+      "path": "/api/cron/cleanup-accounts",
       "schedule": "0 3 * * *"
     }
   ]

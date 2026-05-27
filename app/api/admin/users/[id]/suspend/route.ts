@@ -32,12 +32,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   if (fetchErr || !profile) return NextResponse.json({ error: 'User not found' }, { status: 404, headers: NO_CACHE })
 
+  // After 90 days of unresolved suspension, the account is auto-deleted (GDPR Art. 5(1)(e))
+  const deletionDate = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
+
   const { error } = await admin
     .from('profiles')
     .update({
       status: 'suspended',
       status_reason: reason,
       status_updated_at: new Date().toISOString(),
+      deletion_scheduled_at: deletionDate.toISOString(),
+      deletion_reason: 'suspended_expired',
     })
     .eq('id', id)
 
@@ -49,7 +54,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   logAdminActivity(adminId, 'user_suspended', { targetUserId: id, metadata: { reason } }).catch(() => {})
 
   const doctorName = `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim() || 'Dottore'
-  sendAccountSuspendedEmail(profile.email, doctorName, reason)
+  const deletionDateStr = deletionDate.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })
+  sendAccountSuspendedEmail(profile.email, doctorName, reason, deletionDateStr)
     .catch(err => logger.warn('suspend: email failed', { id, err }))
 
   return NextResponse.json({ ok: true }, { headers: NO_CACHE })

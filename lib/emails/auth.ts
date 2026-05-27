@@ -189,7 +189,7 @@ export function accountRejectedEmail(
   }
 }
 
-export function accountSuspendedEmail(doctorName: string, reason: string): { subject: string; html: string } {
+export function accountSuspendedEmail(doctorName: string, reason: string, deletionDate: string): { subject: string; html: string } {
   return {
     subject: 'Il tuo account Histyon è stato disattivato',
     html: buildEmail({
@@ -198,8 +198,70 @@ export function accountSuspendedEmail(doctorName: string, reason: string): { sub
       sections: [
         { type: 'paragraph', content: 'Il tuo accesso alla piattaforma Histyon è stato temporaneamente disattivato dal team operativo per il seguente motivo:' },
         { type: 'note', content: `<strong style="color:#111827;">Motivo:</strong> ${reason}` },
-        { type: 'paragraph', content: 'Non potrai accedere alla piattaforma fino a nuova comunicazione.' },
-        { type: 'note', content: `Per richiedere informazioni o una revisione contattaci a ${SUPPORT}.` },
+        { type: 'paragraph', content: `Non potrai accedere alla piattaforma fino a nuova comunicazione. Se entro il <strong style="color:#111827;">${deletionDate}</strong> non verrà risolto il problema, il tuo account e tutti i dati associati verranno eliminati automaticamente in conformità al GDPR (Art. 5, par. 1, lett. e).` },
+        { type: 'paragraph', content: `Per richiedere la riattivazione o per qualsiasi chiarimento, scrivi a ${SUPPORT} indicando il tuo nome e la tua email. Il team valuterà la tua richiesta entro 48 ore lavorative.` },
+        { type: 'note', content: 'Se ritieni che la disattivazione sia avvenuta per errore, contattaci immediatamente.' },
+      ],
+    }),
+  }
+}
+
+export function accountDeletionWarningEmail(doctorName: string, deletionDate: string, reason: 'rejected' | 'suspended_expired'): { subject: string; html: string } {
+  const isRejected = reason === 'rejected'
+  return {
+    subject: `Il tuo account Histyon sarà eliminato il ${deletionDate}`,
+    html: buildEmail({
+      label:    'Avviso eliminazione account',
+      headline: `Gentile ${doctorName},`,
+      sections: [
+        {
+          type: 'paragraph',
+          content: isRejected
+            ? `Ti ricordiamo che la tua richiesta di accesso a Histyon non è stata approvata. In conformità alla nostra policy sulla conservazione dei dati (GDPR Art. 17), il tuo account e tutti i dati associati verranno <strong style="color:#111827;">eliminati definitivamente il ${deletionDate}</strong>.`
+            : `Ti ricordiamo che il tuo account Histyon è disattivato. In conformità alla nostra policy sulla conservazione dei dati (GDPR Art. 5), il tuo account e tutti i dati associati verranno <strong style="color:#111827;">eliminati definitivamente il ${deletionDate}</strong>.`,
+        },
+        { type: 'paragraph', content: 'Verranno rimossi permanentemente:' },
+        { type: 'list', items: [
+          'Il tuo profilo medico e dati account',
+          'Tutti i pazienti registrati',
+          'Tutte le analisi e i ticket',
+          'Tutti i file e le immagini archiviate',
+        ]},
+        {
+          type: 'paragraph',
+          content: isRejected
+            ? `Se desideri contestare questa decisione o richiedere maggiori informazioni, scrivi a ${SUPPORT} <strong style="color:#111827;">prima del ${deletionDate}</strong>.`
+            : `Per evitare l'eliminazione e riattivare il tuo account, scrivi a ${SUPPORT} <strong style="color:#111827;">prima del ${deletionDate}</strong>. Il team valuterà la tua richiesta entro 48 ore lavorative.`,
+        },
+        { type: 'note', content: 'Questo avviso è inviato in conformità al GDPR Art. 17 (diritto alla cancellazione) e Art. 5, par. 1, lett. e (limitazione della conservazione).' },
+      ],
+    }),
+  }
+}
+
+export function accountAutoDeletedEmail(doctorName: string, reason: 'rejected' | 'suspended_expired'): { subject: string; html: string } {
+  const isRejected = reason === 'rejected'
+  return {
+    subject: 'Il tuo account Histyon è stato eliminato — Conferma GDPR',
+    html: buildEmail({
+      label:    'Account eliminato',
+      headline: `Gentile ${doctorName},`,
+      sections: [
+        {
+          type: 'paragraph',
+          content: isRejected
+            ? 'Come comunicato, il tuo account Histyon e tutti i dati associati sono stati eliminati definitivamente al termine del periodo di conservazione previsto dalla nostra policy (30 giorni dalla notifica di rifiuto).'
+            : 'Come comunicato, il tuo account Histyon e tutti i dati associati sono stati eliminati definitivamente al termine del periodo di sospensione previsto dalla nostra policy (90 giorni).',
+        },
+        { type: 'paragraph', content: 'Sono stati rimossi permanentemente dai nostri server:' },
+        { type: 'list', items: [
+          'Il tuo profilo medico e dati account',
+          'Tutti i pazienti registrati',
+          'Tutte le analisi e i ticket',
+          'Tutti i file e le immagini archiviate',
+        ]},
+        { type: 'paragraph', content: `Se hai domande o ritieni che l'eliminazione sia avvenuta per errore, scrivi a ${SUPPORT}.` },
+        { type: 'note', content: 'Eliminazione eseguita in conformità al GDPR Art. 5, par. 1, lett. e e Art. 17. Questa email è la ricevuta ufficiale di cancellazione dei tuoi dati.' },
       ],
     }),
   }

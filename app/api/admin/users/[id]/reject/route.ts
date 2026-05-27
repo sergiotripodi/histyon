@@ -32,7 +32,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   if (fetchErr || !profile) return NextResponse.json({ error: 'User not found' }, { status: 404, headers: NO_CACHE })
 
-  const deletionDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+  // GDPR Art. 17 — 30 days is the standard "without undue delay" window
+  const deletionDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
 
   const { error } = await admin
     .from('profiles')
@@ -41,6 +42,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       status_reason: reason,
       status_updated_at: new Date().toISOString(),
       deletion_scheduled_at: deletionDate.toISOString(),
+      deletion_reason: 'rejected',
     })
     .eq('id', id)
 
