@@ -10,6 +10,7 @@ import { getTotalStorage, getAllDoctorsStorage } from '@/lib/usage/storage'
 import { getTotalEgress } from '@/lib/usage/egress'
 import { getPeriodMs, getBillingPeriodMs, RESEND_RESET_DAY, PROJECT_START } from '@/lib/billing/config'
 import { countResendEmailsForPeriod } from '@/lib/billing/current-costs'
+import { AdminActivityLogsSection } from '@/components/admin/AdminActivityLogsSection'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Dashboard' }
@@ -277,6 +278,9 @@ export default async function AdminDashboardPage({
         </div>
 
       </div>
+
+      {/* ── Admin activity log ─────────────────────────────────────────────────── */}
+      <AdminActivityLogsSection adminId={user.id} />
 
     </div>
   )
