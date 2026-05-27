@@ -70,6 +70,17 @@ export default async function AdminDashboardPage({
 
   const supabaseAdmin = createAdminClient()
 
+  // Extract current session ID from the JWT cookie (for "Questa sessione" highlight)
+  const { data: { session: currentAdminSession } } = await supabase.auth.getSession()
+  const currentSessionId: string | null = (() => {
+    try {
+      const token = currentAdminSession?.access_token
+      if (!token) return null
+      const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString('utf-8'))
+      return (payload.session_id as string) ?? null
+    } catch { return null }
+  })()
+
   const sp = await searchParams
   const nowKey = new Date().toISOString().slice(0, 7)
   const monthStr = sp.month ?? nowKey
@@ -319,6 +330,7 @@ export default async function AdminDashboardPage({
       {/* ── Admin sessions + activity logs ────────────────────────────────────── */}
       <AdminActivityLogsTabs
         sessions={adminSessions}
+        currentSessionId={currentSessionId}
         initialAccessLogs={initialAdminAccessLogs}
         initialActivityLogs={initialAdminActivityLogs}
         accessHasMore={adminAccessHasMore}

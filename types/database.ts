@@ -414,6 +414,14 @@ export type Database = {
           ip:           string | null
         }[]
       }
+      revoke_session: {
+        Args: { p_session_id: string }
+        Returns: undefined
+      }
+      revoke_other_sessions: {
+        Args: { p_user_id: string; p_current_session_id: string }
+        Returns: number
+      }
     }
     Enums: {
       ticket_status:

@@ -103,9 +103,10 @@ export async function updateEmail(formData: FormData) {
 }
 
 export async function updatePassword(formData: FormData) {
-  const supabase  = await createClient()
-  const newPassword = formData.get('password') as string
-  const confirm   = formData.get('confirm_password') as string
+  const supabase      = await createClient()
+  const newPassword   = formData.get('password') as string
+  const confirm       = formData.get('confirm_password') as string
+  const signOutOthers = formData.get('signOutOthers') === 'on'
 
   if (newPassword !== confirm) return { error: dictionary.validation.passwordMismatch }
 
@@ -117,6 +118,27 @@ export async function updatePassword(formData: FormData) {
   if (error) return { error: dictionary.validation.genericError }
 
   if (currentUser) logDoctorActivity(currentUser.id, 'password_changed').catch(() => {})
+
+  // ── Revoke all other sessions if requested ──────────────────────────────────
+  if (signOutOthers && currentUser) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.access_token) {
+        const payload       = JSON.parse(Buffer.from(session.access_token.split('.')[1], 'base64').toString('utf-8'))
+        const currentSessId = payload.session_id as string | undefined
+        if (currentSessId) {
+          const adminClient = createAdminClient()
+          await adminClient.rpc('revoke_other_sessions', {
+            p_user_id:            currentUser.id,
+            p_current_session_id: currentSessId,
+          })
+        }
+      }
+    } catch (err) {
+      logger.warn('updatePassword: revoke_other_sessions failed', { userId: currentUser.id, err: String(err) })
+      // Non-fatal — password was already changed successfully
+    }
+  }
 
   if (currentUser?.email) {
     const { data: profile } = await supabase

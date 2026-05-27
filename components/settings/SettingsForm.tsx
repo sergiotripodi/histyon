@@ -59,6 +59,58 @@ function InlineFeedback({ section, feedback }: { section: string; feedback: any 
   )
 }
 
+// ─── Password sub-form (needs its own state for the checkbox) ─────────────────
+
+function PasswordForm({
+  isPending,
+  d,
+  onSubmit,
+}: {
+  isPending: boolean
+  d: any
+  onSubmit: (fd: FormData) => void
+}) {
+  const [signOutOthers, setSignOutOthers] = useState(true)
+
+  return (
+    <form
+      id="password-form"
+      action={(fd: FormData) => {
+        // Manually inject the checkbox value (HTML checkboxes omit the field when unchecked)
+        if (signOutOthers) fd.set('signOutOthers', 'on')
+        onSubmit(fd)
+      }}
+      className="space-y-4"
+    >
+      <ValidatedInput name="password"          type="password" label={d.form.newPassword}    placeholder="••••••••" />
+      <ValidatedInput name="confirm_password"  type="password" label={d.form.confirmPassword} placeholder="••••••••" />
+
+      {/* Sign-out-all checkbox */}
+      <label className="flex items-start gap-3 cursor-pointer group select-none">
+        <input
+          type="checkbox"
+          checked={signOutOthers}
+          onChange={e => setSignOutOthers(e.target.checked)}
+          className="mt-0.5 w-4 h-4 accent-gray-900 shrink-0 cursor-pointer"
+        />
+        <span className="text-xs text-gray-500 group-hover:text-gray-700 transition-colors leading-relaxed">
+          Disconnetti tutte le altre sessioni attive
+          <span className="block text-[11px] text-gray-400 mt-0.5">
+            Gli altri dispositivi in cui sei connesso verranno scollegati automaticamente.
+          </span>
+        </span>
+      </label>
+
+      <button type="submit" disabled={isPending} className="btn-elegant py-2.5 px-5">
+        {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+        {isPending ? d.form.updating : d.form.savePassword}
+      </button>
+    </form>
+  )
+}
+
+// ─── Main settings form ───────────────────────────────────────────────────────
+
 export function SettingsForm({ user, profile, dict, mfaFactor }: SettingsFormProps) {
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(['personal']))
   const [isPending, startTransition] = useTransition()
@@ -164,14 +216,7 @@ export function SettingsForm({ user, profile, dict, mfaFactor }: SettingsFormPro
             {/* Password */}
             <div className="border-t border-gray-100 pt-7">
               <InlineFeedback section="password" feedback={feedback} />
-              <form id="password-form" action={(fd) => handleSubmit(updatePassword, fd, 'password')} className="space-y-4">
-                <ValidatedInput name="password" type="password" label={d.form.newPassword} placeholder="••••••••" />
-                <ValidatedInput name="confirm_password" type="password" label={d.form.confirmPassword} placeholder="••••••••" />
-                <button type="submit" disabled={isPending} className="btn-elegant py-2.5 px-5">
-                  {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {isPending ? d.form.updating : d.form.savePassword}
-                </button>
-              </form>
+              <PasswordForm isPending={isPending} d={d} onSubmit={(fd) => handleSubmit(updatePassword, fd, 'password')} />
             </div>
 
             {/* 2FA */}

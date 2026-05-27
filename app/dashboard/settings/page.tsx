@@ -22,12 +22,28 @@ const ACTIVITY_ACTIONS = [
 
 const PAGE_SIZE = 10
 
+/** Decode the session_id claim from a Supabase JWT (no signature check needed — just for display). */
+function getSessionIdFromJwt(token: string): string | null {
+  try {
+    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString('utf-8'))
+    return (payload.session_id as string) ?? null
+  } catch {
+    return null
+  }
+}
+
 export default async function SettingsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
   const admin = createAdminClient()
+
+  // getSession() reads the cookie — safe in SSR, gives us the access token to extract session_id
+  const { data: { session: currentSession } } = await supabase.auth.getSession()
+  const currentSessionId = currentSession?.access_token
+    ? getSessionIdFromJwt(currentSession.access_token)
+    : null
 
   const [
     { data: profile },
@@ -40,7 +56,7 @@ export default async function SettingsPage() {
     supabase.auth.mfa.listFactors(),
     // Sessions via SECURITY DEFINER function (auth schema not exposed via PostgREST)
     supabase.rpc('get_my_sessions').then(r => r, () => ({ data: null, error: null })),
-    // Initial access logs — RLS allows doctor to read own rows
+    // Initial access logs
     admin
       .from('doctor_activity_logs')
       .select('id, action, success, ip_address, user_agent, created_at')
@@ -60,13 +76,12 @@ export default async function SettingsPage() {
   const mfaFactor = (factors?.totp ?? []).find((f: { status: string }) => f.status === 'verified') ?? null
   const dict      = await getDictionary()
 
-  // Derive pagination state
   const rawAccess   = (accessResult.data   ?? []) as LogRow[]
   const rawActivity = (activityResult.data ?? []) as LogRow[]
   const accessHasMore   = rawAccess.length   > PAGE_SIZE
   const activityHasMore = rawActivity.length > PAGE_SIZE
-  const initialAccessLogs    = accessHasMore   ? rawAccess.slice(0, PAGE_SIZE)   : rawAccess
-  const initialActivityLogs  = activityHasMore ? rawActivity.slice(0, PAGE_SIZE) : rawActivity
+  const initialAccessLogs   = accessHasMore   ? rawAccess.slice(0, PAGE_SIZE)   : rawAccess
+  const initialActivityLogs = activityHasMore ? rawActivity.slice(0, PAGE_SIZE) : rawActivity
 
   const sessions = (sessionsResult.data ?? []) as SessionRow[]
 
@@ -79,6 +94,7 @@ export default async function SettingsPage() {
       <SettingsForm user={user} profile={profile} dict={dict} mfaFactor={mfaFactor} />
       <ActivityLogsTabs
         sessions={sessions}
+        currentSessionId={currentSessionId}
         initialAccessLogs={initialAccessLogs}
         initialActivityLogs={initialActivityLogs}
         accessHasMore={accessHasMore}
