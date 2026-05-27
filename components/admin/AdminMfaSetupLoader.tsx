@@ -22,11 +22,11 @@ export function AdminMfaSetupLoader() {
     startTransition(async () => {
       const result = await adminMfaEnroll()
       if (result.alreadyEnrolled) {
-        router.push('/admin/mfa-challenge')
+        router.push('/tripo/mfa-challenge')
         return
       }
       if (result.error || !result.factorId) {
-        router.push('/admin/login?error=default')
+        router.push('/tripo/login?error=default')
         return
       }
       setEnrollData({

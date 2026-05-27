@@ -15,9 +15,9 @@ export async function addPatient(prevState: unknown, formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: dictionary.validation.unauthorized }
 
-  const day   = formData.get('dob_day')
-  const month = formData.get('dob_month')
-  const year  = formData.get('dob_year')
+  const day   = String(formData.get('dob_day')   ?? '').padStart(2, '0')
+  const month = String(formData.get('dob_month') ?? '').padStart(2, '0')
+  const year  = String(formData.get('dob_year')  ?? '')
   const fullDob = `${year}-${month}-${day}`
 
   const phonePrefix = formData.get('phonePrefix')

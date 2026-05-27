@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
-const CONSOLE_PATH = '/admin'
+const CONSOLE_PATH = '/tripo'
 
 export async function adminLogin(formData: FormData) {
   const honeypot = formData.get('website') as string | null

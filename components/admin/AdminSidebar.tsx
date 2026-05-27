@@ -8,14 +8,14 @@ import { adminLogout } from '@/lib/actions/admin-auth'
 import { useTransition } from 'react'
 
 const navItems = [
-  { href: '/admin/dashboard',       icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/admin/dashboard/users', icon: Users,           label: 'Utenti' },
+  { href: '/tripo/dashboard',       icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/tripo/dashboard/users', icon: Users,           label: 'Utenti' },
 ]
 
 function getActive(pathname: string): string {
-  if (pathname === '/admin/dashboard') return '/admin/dashboard'
+  if (pathname === '/tripo/dashboard') return '/tripo/dashboard'
   const match = navItems.slice(1).find(n => pathname.startsWith(n.href))
-  return match?.href ?? '/admin/dashboard'
+  return match?.href ?? '/tripo/dashboard'
 }
 
 export function AdminSidebar() {
@@ -32,7 +32,7 @@ export function AdminSidebar() {
 
       {/* Logo */}
       <div className="h-11 flex items-center px-5 border-b border-gray-200 shrink-0">
-        <Link href="/admin/dashboard" className="hover:opacity-75 transition-opacity">
+        <Link href="/tripo/dashboard" className="hover:opacity-75 transition-opacity">
           <Logo color="black" className="[&_img]:h-5" />
         </Link>
       </div>

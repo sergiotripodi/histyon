@@ -26,7 +26,7 @@ export function AdminMfaSetupForm({ factorId, qrCode, secret }: Props) {
       if (result.error) {
         setError(result.error)
       } else {
-        router.push('/admin/dashboard')
+        router.push('/tripo/dashboard')
         router.refresh()
       }
     })

@@ -21,7 +21,7 @@ export function AdminMfaChallengeForm({ factorId, challengeId }: Props) {
       if (result.error) {
         setError(result.error)
       } else {
-        router.push('/admin/dashboard')
+        router.push('/tripo/dashboard')
         router.refresh()
       }
     })

@@ -18,7 +18,7 @@ export default async function AdminDashboardLayout({
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/admin/login')
+  if (!user) redirect('/tripo/login')
 
   const supabaseAdmin = createAdminClient()
   const { data: profile } = await supabaseAdmin

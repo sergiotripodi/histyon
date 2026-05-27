@@ -75,7 +75,7 @@ export async function POST(request: Request) {
 
   if (normalizedStatus === 'COMPLETED') {
     // Invalida la cache delle dashboard — il DZI è appena stato scritto
-    revalidatePath('/admin', 'layout')
+    revalidatePath('/tripo', 'layout')
     revalidatePath('/dashboard', 'layout')
 
     // Logga egress download AI in fire-and-forget (non-critical)

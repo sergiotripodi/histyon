@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
 
 export default function AdminConsoleRoot() {
-  redirect('/admin/login')
+  redirect('/tripo/login')
 }
