@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { getDictionary } from '@/lib/dictionary'
 import { SettingsForm } from '@/components/settings/SettingsForm'
+import { ActivityLogsSection } from '@/components/settings/ActivityLogsSection'
 
 export const metadata = { title: 'Impostazioni' }
 
@@ -26,6 +27,7 @@ export default async function SettingsPage() {
         <p className="text-sm text-gray-500 mt-1.5">{dict.dashboard.settings.subtitle}</p>
       </div>
       <SettingsForm user={user} profile={profile} dict={dict} mfaFactor={mfaFactor} />
+      <ActivityLogsSection doctorId={user.id} />
     </div>
   )
 }

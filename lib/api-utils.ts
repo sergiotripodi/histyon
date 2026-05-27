@@ -15,7 +15,7 @@ export const NO_CACHE = { 'Cache-Control': 'no-store' } as const
  *   const { admin } = result
  */
 export async function requireAdmin(): Promise<
-  { admin: ReturnType<typeof createAdminClient> } | NextResponse
+  { admin: ReturnType<typeof createAdminClient>; adminId: string } | NextResponse
 > {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -27,7 +27,7 @@ export async function requireAdmin(): Promise<
     return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: NO_CACHE })
   }
 
-  return { admin }
+  return { admin, adminId: user.id }
 }
 
 /** Validates a UUID path param. Returns a 400 response if invalid. */

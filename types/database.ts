@@ -14,32 +14,98 @@ export type Database = {
   }
   public: {
     Tables: {
-      admin_access_logs: {
+      admin_activity_logs: {
         Row: {
           action: string
           admin_id: string | null
-          created_at: string | null
+          created_at: string
           id: string
           ip_address: string | null
+          metadata: Json | null
+          success: boolean
+          target_user_id: string | null
+          user_agent: string | null
         }
         Insert: {
           action: string
           admin_id?: string | null
-          created_at?: string | null
+          created_at?: string
           id?: string
           ip_address?: string | null
+          metadata?: Json | null
+          success?: boolean
+          target_user_id?: string | null
+          user_agent?: string | null
         }
         Update: {
           action?: string
           admin_id?: string | null
-          created_at?: string | null
+          created_at?: string
           id?: string
           ip_address?: string | null
+          metadata?: Json | null
+          success?: boolean
+          target_user_id?: string | null
+          user_agent?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "admin_access_logs_admin_id_fkey"
+            foreignKeyName: "admin_activity_logs_admin_id_fkey"
             columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_activity_logs_target_user_id_fkey"
+            columns: ["target_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      doctor_activity_logs: {
+        Row: {
+          action: string
+          created_at: string
+          doctor_id: string
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          success: boolean
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          doctor_id: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          success?: boolean
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          doctor_id?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          success?: boolean
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctor_activity_logs_doctor_id_fkey"
+            columns: ["doctor_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]

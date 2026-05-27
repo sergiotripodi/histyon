@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireAdmin, validateUUID, NO_CACHE } from '@/lib/api-utils'
 import { sendAccountApprovedEmail } from '@/lib/email'
 import { logger } from '@/lib/logger'
+import { logAdminActivity } from '@/lib/audit'
 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -10,7 +11,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
 
   const auth = await requireAdmin()
   if (auth instanceof NextResponse) return auth
-  const { admin } = auth
+  const { admin, adminId } = auth
 
   const { data: profile, error: fetchErr } = await admin
     .from('profiles')
@@ -30,6 +31,8 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     logger.error('approve: DB update failed', { id, code: error.code })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: NO_CACHE })
   }
+
+  logAdminActivity(adminId, 'user_approved', { targetUserId: id }).catch(() => {})
 
   const doctorName = `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim() || 'Dottore'
   sendAccountApprovedEmail(profile.email, doctorName)

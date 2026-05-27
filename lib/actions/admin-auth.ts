@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { logAdminActivity } from '@/lib/audit'
 
 const CONSOLE_PATH = '/tripo'
 
@@ -37,6 +38,9 @@ export async function adminLogin(formData: FormData) {
     redirect(`${CONSOLE_PATH}/login?error=invalid_credentials`)
   }
 
+  // Log successful admin login (fire-and-forget, before redirect)
+  logAdminActivity(user.id, 'admin_login').catch(() => {})
+
   const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
   revalidatePath('/', 'layout')
 
@@ -48,6 +52,9 @@ export async function adminLogin(formData: FormData) {
 
 export async function adminLogout() {
   const supabase = await createClient()
+  // Log before signOut — after signOut getUser() returns null
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user) await logAdminActivity(user.id, 'admin_logout')
   await supabase.auth.signOut()
   revalidatePath('/', 'layout')
   redirect(`${CONSOLE_PATH}/login`)
@@ -92,10 +99,15 @@ export async function adminMfaVerifyEnrollment(
   code: string
 ): Promise<{ success?: boolean; error?: string }> {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
   const { data: challenge, error: ce } = await supabase.auth.mfa.challenge({ factorId })
   if (ce) return { error: 'Impossibile creare la verifica.' }
   const { error } = await supabase.auth.mfa.verify({ factorId, challengeId: challenge.id, code: code.trim() })
-  if (error) return { error: 'Codice non valido.' }
+  if (error) {
+    if (user) logAdminActivity(user.id, 'admin_mfa_enrolled', { success: false }).catch(() => {})
+    return { error: 'Codice non valido.' }
+  }
+  if (user) logAdminActivity(user.id, 'admin_mfa_enrolled').catch(() => {})
   revalidatePath('/', 'layout')
   return { success: true }
 }
@@ -126,8 +138,13 @@ export async function adminMfaVerifyLogin(
   code: string
 ): Promise<{ success?: boolean; error?: string }> {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
   const { error } = await supabase.auth.mfa.verify({ factorId, challengeId, code: code.trim() })
-  if (error) return { error: 'Codice non valido.' }
+  if (error) {
+    if (user) logAdminActivity(user.id, 'admin_mfa_verified', { success: false }).catch(() => {})
+    return { error: 'Codice non valido.' }
+  }
+  if (user) logAdminActivity(user.id, 'admin_mfa_verified').catch(() => {})
   revalidatePath('/', 'layout')
   return { success: true }
 }

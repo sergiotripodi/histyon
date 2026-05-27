@@ -11,6 +11,7 @@ import { deleteSupabasePrefix, storagePaths } from '@/lib/storage/supabase'
 import { sendAccountDeletedEmail, sendPasswordChangedEmail } from '@/lib/email'
 import { logger } from '@/lib/logger'
 import { ProfileSchema } from '@/lib/schemas'
+import { logDoctorActivity } from '@/lib/audit'
 
 export async function updateProfile(formData: FormData) {
   const supabase = await createClient()
@@ -62,6 +63,7 @@ export async function updateProfile(formData: FormData) {
     return { error: dictionary.validation.genericError }
   }
 
+  logDoctorActivity(user.id, 'profile_updated').catch(() => {})
   revalidatePath('/dashboard', 'layout')
   return { success: true, message: dictionary.dashboard.settings.form.success }
 }
@@ -96,6 +98,7 @@ export async function updateEmail(formData: FormData) {
   const { error } = await supabase.auth.updateUser({ email: newEmail })
   if (error) return { error: dictionary.validation.genericError }
 
+  if (currentUser) logDoctorActivity(currentUser.id, 'email_change_requested').catch(() => {})
   return { success: true, message: dictionary.validation.linkSent }
 }
 
@@ -112,6 +115,8 @@ export async function updatePassword(formData: FormData) {
   const { data: { user: currentUser } } = await supabase.auth.getUser()
   const { error } = await supabase.auth.updateUser({ password: newPassword })
   if (error) return { error: dictionary.validation.genericError }
+
+  if (currentUser) logDoctorActivity(currentUser.id, 'password_changed').catch(() => {})
 
   if (currentUser?.email) {
     const { data: profile } = await supabase
@@ -171,6 +176,12 @@ export async function deleteAccount(formData: FormData) {
     logger.error('deleteAccount: auth.admin.deleteUser failed', { userId: user.id, msg: deleteError.message })
     return { error: dictionary.validation.genericError }
   }
+
+  // Log before signOut — after deletion this row is CASCADE-deleted too (correct GDPR behaviour)
+  await logDoctorActivity(user.id, 'account_deleted', {
+    entityType: 'account',
+    entityId: user.id,
+  })
 
   sendAccountDeletedEmail(user.email!, profile?.last_name ?? '')
     .catch(err => logger.warn('deleteAccount: email failed', { err }))

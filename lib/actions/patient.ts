@@ -8,6 +8,7 @@ import { PatientSchema } from '@/lib/schemas'
 import { deleteSupabasePrefix, deleteSupabaseFiles, storagePaths } from '@/lib/storage/supabase'
 import { logger } from '@/lib/logger'
 import { UUID_RE } from '@/lib/constants'
+import { logDoctorActivity } from '@/lib/audit'
 
 export async function addPatient(prevState: unknown, formData: FormData) {
   const supabase = await createClient()
@@ -76,6 +77,7 @@ export async function addPatient(prevState: unknown, formData: FormData) {
     return { error: dictionary.validation.genericError }
   }
 
+  logDoctorActivity(user.id, 'patient_created', { entityType: 'patient' }).catch(() => {})
   revalidatePath('/dashboard/patients')
   return { success: true }
 }
@@ -118,6 +120,7 @@ export async function deleteTicket(ticketId: string) {
     return { error: dictionary.validation.genericError }
   }
 
+  logDoctorActivity(user.id, 'ticket_deleted', { entityType: 'ticket', entityId: ticketId }).catch(() => {})
   revalidatePath('/dashboard/patients')
   revalidatePath('/dashboard/home')
   return { success: true }
@@ -160,6 +163,7 @@ export async function deletePatient(patientId: string) {
     return { error: dictionary.validation.genericError }
   }
 
+  logDoctorActivity(user.id, 'patient_deleted', { entityType: 'patient', entityId: patientId }).catch(() => {})
   revalidatePath('/dashboard/patients')
   redirect('/dashboard/patients')
 }
