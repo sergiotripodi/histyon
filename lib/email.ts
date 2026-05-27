@@ -56,8 +56,8 @@ export async function sendAccountRejectedEmail(to: string, doctorName: string, r
   await send(to, accountRejectedEmail(doctorName, reason, deletionDate))
 }
 
-export async function sendAccountSuspendedEmail(to: string, doctorName: string, reason: string, deletionDate: string) {
-  await send(to, accountSuspendedEmail(doctorName, reason, deletionDate))
+export async function sendAccountSuspendedEmail(to: string, doctorName: string, reason: string) {
+  await send(to, accountSuspendedEmail(doctorName, reason))
 }
 
 export async function sendAccountDeletionWarningEmail(

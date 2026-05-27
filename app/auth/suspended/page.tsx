@@ -45,7 +45,7 @@ export default async function SuspendedPage() {
           </div>
         )}
 
-        {deletionDate && (
+        {deletionDate ? (
           <div className="border-l-2 border-amber-300 bg-amber-50 px-4 py-3 mb-6">
             <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-600 mb-1">Eliminazione programmata</p>
             <p className="text-sm text-amber-800">
@@ -53,14 +53,14 @@ export default async function SuspendedPage() {
               <strong>{deletionDate}</strong>.
             </p>
           </div>
-        )}
+        ) : null}
 
         <p className="text-xs text-gray-400 mb-10">
-          Per richiedere la riattivazione prima dell'eliminazione scrivi a{' '}
+          Per richiedere la riattivazione scrivi a{' '}
           <a href="mailto:info@histyon.com" className="text-gray-600 hover:text-gray-900 font-medium">
             info@histyon.com
           </a>
-          . Il team risponderà entro 48 ore lavorative.
+          {' '}indicando il tuo nome completo e la tua email. Il team risponderà entro 48 ore lavorative.
         </p>
 
         <form action={signout}>

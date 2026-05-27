@@ -210,7 +210,6 @@ export function accountRejectedEmail(
 export function accountSuspendedEmail(
   doctorName: string,
   reason: string,
-  deletionDate: string,
 ): { subject: string; html: string } {
   return {
     subject: '⚠ Il tuo account Histyon è stato disattivato',
@@ -221,12 +220,12 @@ export function accountSuspendedEmail(
       headline:     `Gentile ${doctorName},`,
       urgentBanner: {
         variant: 'warning',
-        text:    `Per riattivare il tuo account scrivi a info@histyon.com entro il ${deletionDate}`,
+        text:    'Per richiedere la riattivazione scrivi a info@histyon.com',
       },
       sections: [
         { type: 'paragraph', content: 'Il tuo accesso alla piattaforma Histyon è stato <strong style="color:#111827;">temporaneamente disattivato</strong> dal team operativo per il seguente motivo:' },
         { type: 'note', accent: 'warning', content: `<strong>Motivo della disattivazione:</strong> ${reason}` },
-        { type: 'paragraph', content: `Non potrai accedere alla piattaforma fino a nuova comunicazione. Se entro il <strong style="color:#111827;">${deletionDate}</strong> la situazione non viene risolta, il tuo account e tutti i dati associati (pazienti, analisi, file) verranno <strong style="color:#dc2626;">eliminati definitivamente</strong> in conformità al GDPR Art. 5, par. 1, lett. e (limitazione della conservazione).` },
+        { type: 'paragraph', content: 'Non potrai accedere alla piattaforma fino a nuova comunicazione da parte del team Histyon.' },
         { type: 'divider' },
         { type: 'paragraph', content: `<strong style="color:#111827;">Come richiedere la riattivazione:</strong><br>Scrivi a <a href="${SUPPORT_HREF}" style="color:#111827;font-weight:600;">info@histyon.com</a> indicando il tuo nome completo e la tua email. Il team valuterà la tua richiesta entro <strong style="color:#111827;">48 ore lavorative</strong>.` },
         { type: 'note', content: 'Se ritieni che la disattivazione sia avvenuta per errore, contattaci immediatamente.' },

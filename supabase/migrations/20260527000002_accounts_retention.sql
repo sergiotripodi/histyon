@@ -8,8 +8,8 @@
 --   Garante guidance  — security audit logs: max 2 years for medical SaaS
 --
 -- Policy:
---   Rejected accounts   → deletion_scheduled_at = created + 30 days
---   Suspended accounts  → deletion_scheduled_at = suspended + 90 days
+--   Rejected accounts   → deletion_scheduled_at = rejected + 7 days
+--   Suspended accounts  → nessuna eliminazione automatica (admin decide)
 --   Activity logs       → purged after 2 years (pg_cron, weekly)
 -- =============================================================================
 
