@@ -392,6 +392,28 @@ export type Database = {
           doctor_id: string
         }[]
       }
+      get_my_sessions: {
+        Args: never
+        Returns: {
+          id:           string
+          created_at:   string
+          updated_at:   string
+          refreshed_at: string | null
+          user_agent:   string | null
+          ip:           string | null
+        }[]
+      }
+      get_sessions_for_user: {
+        Args: { uid: string }
+        Returns: {
+          id:           string
+          created_at:   string
+          updated_at:   string
+          refreshed_at: string | null
+          user_agent:   string | null
+          ip:           string | null
+        }[]
+      }
     }
     Enums: {
       ticket_status:

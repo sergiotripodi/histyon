@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { StatCard } from '@/components/dashboard/StatCard'
 import { getDictionary } from '@/lib/dictionary'
+import { getDoctorStorage } from '@/lib/usage/storage'
 
 export const metadata = { title: 'Dashboard' }
 
@@ -54,7 +55,7 @@ export default async function DashboardHomePage() {
   const sevenDaysAgo = `${last7[0]}T00:00:00.000Z`
 
   // All tickets — for totals + sparklines
-  const [{ data: allTickets }, { data: recentPatients }, { count: totalPatients }] =
+  const [{ data: allTickets }, { data: recentPatients }, { count: totalPatients }, storageStats] =
     await Promise.all([
       supabase
         .from('tickets')
@@ -70,6 +71,7 @@ export default async function DashboardHomePage() {
         .from('patients')
         .select('*', { count: 'exact', head: true })
         .eq('doctor_id', user.id),
+      getDoctorStorage(user.id).catch(() => ({ inputBytes: 0, dziBytes: 0, totalBytes: 0 })),
     ])
 
   const tickets = allTickets ?? []
@@ -83,7 +85,7 @@ export default async function DashboardHomePage() {
     ['QUEUED', 'PROCESSING', 'UPLOADING'].includes(t.status ?? '') && !isError(t.status)
   ).length
   const failed = tickets.filter((t) => isError(t.status)).length
-  const storageBytes = 0 // file_size removed — storage tracked via Supabase Storage API
+  const storageBytes = storageStats.totalBytes
 
   // Sparklines (7 days)
   const recentTickets = tickets.filter((t) => t.created_at >= sevenDaysAgo)

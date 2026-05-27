@@ -10,10 +10,18 @@ import { getTotalStorage, getAllDoctorsStorage } from '@/lib/usage/storage'
 import { getTotalEgress } from '@/lib/usage/egress'
 import { getPeriodMs, getBillingPeriodMs, RESEND_RESET_DAY, PROJECT_START } from '@/lib/billing/config'
 import { countResendEmailsForPeriod } from '@/lib/billing/current-costs'
-import { AdminActivityLogsSection } from '@/components/admin/AdminActivityLogsSection'
+import {
+  AdminActivityLogsTabs,
+  type SessionRow  as AdminSessionRow,
+  type AdminLogRow,
+} from '@/components/admin/AdminActivityLogsTabs'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Dashboard' }
+
+const ADMIN_ACCESS_ACTIONS   = ['admin_login', 'admin_logout', 'admin_mfa_enrolled', 'admin_mfa_verified']
+const ADMIN_ACTIVITY_ACTIONS = ['user_approved', 'user_rejected', 'user_suspended', 'user_reactivated', 'account_auto_deleted']
+const LOG_PAGE_SIZE = 10
 
 function formatBytes(b: number): string {
   if (b >= 1e9) return `${(b / 1e9).toFixed(1)} GB`
@@ -91,6 +99,9 @@ export default async function AdminDashboardPage({
     { data: recentTickets },
     egressLogsResult,
     doctorStorageRows,
+    adminSessionsResult,
+    adminAccessLogsResult,
+    adminActivityLogsResult,
   ] = await Promise.all([
     getTotalStorage().catch(() => ({ inputBytes: 0, dziBytes: 0, totalBytes: 0 })),
     supabaseAdmin.rpc('get_db_size_bytes').then(({ data }) => data as number | null, () => null),
@@ -114,6 +125,22 @@ export default async function AdminDashboardPage({
       .select('doctor_id, bytes')
       .gte('created_at', startOfMonth),
     getAllDoctorsStorage().catch(() => []),
+    // Admin sessions & activity logs (for bottom panel)
+    supabaseAdmin.rpc('get_sessions_for_user', { uid: user.id }).then(r => r, () => ({ data: null })),
+    supabaseAdmin
+      .from('admin_activity_logs')
+      .select('id, action, success, ip_address, user_agent, target_user_id, created_at')
+      .eq('admin_id', user.id)
+      .in('action', ADMIN_ACCESS_ACTIONS)
+      .order('created_at', { ascending: false })
+      .limit(LOG_PAGE_SIZE + 1),
+    supabaseAdmin
+      .from('admin_activity_logs')
+      .select('id, action, success, ip_address, user_agent, target_user_id, created_at')
+      .eq('admin_id', user.id)
+      .in('action', ADMIN_ACTIVITY_ACTIONS)
+      .order('created_at', { ascending: false })
+      .limit(LOG_PAGE_SIZE + 1),
   ])
 
   // ── Derived maps ────────────────────────────────────────────────────────────
@@ -147,10 +174,20 @@ export default async function AdminDashboardPage({
   const usersChartData    = days.map(d => { running += dayMap[d.key] ?? 0; return { label: d.label, value: running } })
   const analysesChartData = days.map(d => ({ label: d.label, value: analysisDayMap[d.key] ?? 0 }))
 
-  const thisMonth = (recentUsers ?? []).filter(u => {
+  const thisMonth = (recentUsers ?? []).filter((u: { created_at: string }) => {
     const d = new Date(u.created_at), now = new Date()
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
   }).length
+
+  // ── Admin logs + sessions ────────────────────────────────────────────────────
+  const adminSessions  = (adminSessionsResult.data ?? []) as AdminSessionRow[]
+
+  const rawAdminAccess   = (adminAccessLogsResult.data   ?? []) as AdminLogRow[]
+  const rawAdminActivity = (adminActivityLogsResult.data ?? []) as AdminLogRow[]
+  const adminAccessHasMore   = rawAdminAccess.length   > LOG_PAGE_SIZE
+  const adminActivityHasMore = rawAdminActivity.length > LOG_PAGE_SIZE
+  const initialAdminAccessLogs    = adminAccessHasMore   ? rawAdminAccess.slice(0, LOG_PAGE_SIZE)   : rawAdminAccess
+  const initialAdminActivityLogs  = adminActivityHasMore ? rawAdminActivity.slice(0, LOG_PAGE_SIZE) : rawAdminActivity
 
   // ── Period-dependent data ────────────────────────────────────────────────────
   // Use calendar month (not billing period) so emails sent before the billing day
@@ -279,8 +316,14 @@ export default async function AdminDashboardPage({
 
       </div>
 
-      {/* ── Admin activity log ─────────────────────────────────────────────────── */}
-      <AdminActivityLogsSection adminId={user.id} />
+      {/* ── Admin sessions + activity logs ────────────────────────────────────── */}
+      <AdminActivityLogsTabs
+        sessions={adminSessions}
+        initialAccessLogs={initialAdminAccessLogs}
+        initialActivityLogs={initialAdminActivityLogs}
+        accessHasMore={adminAccessHasMore}
+        activityHasMore={adminActivityHasMore}
+      />
 
     </div>
   )
